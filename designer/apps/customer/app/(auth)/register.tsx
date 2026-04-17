@@ -12,9 +12,12 @@ import {
   Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { api } from '../../services/api';
+import { useAuthStore } from '../../stores/authStore';
 
 export default function RegisterScreen() {
   const router = useRouter();
+  const setAuth = useAuthStore((state) => state.setAuth);
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
@@ -45,23 +48,33 @@ export default function RegisterScreen() {
     setError('');
 
     try {
-      // Simulate API call
-      setTimeout(() => {
+      const response = await api.register({
+        firstName,
+        lastName,
+        email,
+        phone,
+        password,
+        role: 'CUSTOMER',
+      });
+
+      if (response.error) {
+        setError(response.error || 'Registration failed. Please try again.');
         setLoading(false);
-        Alert.alert(
-          'Account Created!',
-          'Your account has been created successfully. Please log in.',
-          [
-            {
-              text: 'OK',
-              onPress: () => router.push('/(auth)/login'),
-            },
-          ]
+        return;
+      }
+
+      if (response.data) {
+        await setAuth(
+          response.data.user,
+          response.data.accessToken,
+          response.data.refreshToken
         );
-      }, 2000);
-    } catch (err) {
+        Alert.alert('Success!', 'Account created successfully.');
+        router.push('/(tabs)/home');
+      }
+    } catch (err: any) {
       setLoading(false);
-      setError('Registration failed. Please try again.');
+      setError(err.message || 'Registration failed. Please try again.');
     }
   };
 

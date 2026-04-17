@@ -9,10 +9,11 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-
-const API_BASE_URL = 'http://localhost:3000/v1';
+import { api } from '../../services/api';
+import { useAuthStore } from '../../stores/authStore';
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -20,6 +21,8 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  const setAuth = useAuthStore((state) => state.setAuth);
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -31,14 +34,25 @@ export default function LoginScreen() {
     setError('');
 
     try {
-      // Simulate API call
-      setTimeout(() => {
+      const response = await api.login(email, password);
+      
+      if (response.error) {
+        setError(response.error || 'Invalid credentials. Please try again.');
         setLoading(false);
+        return;
+      }
+
+      if (response.data) {
+        await setAuth(
+          response.data.user,
+          response.data.accessToken,
+          response.data.refreshToken
+        );
         router.push('/(tabs)/home');
-      }, 1500);
-    } catch (err) {
+      }
+    } catch (err: any) {
       setLoading(false);
-      setError('Invalid credentials. Please try again.');
+      setError(err.message || 'An error occurred. Please try again.');
     }
   };
 
@@ -86,7 +100,10 @@ export default function LoginScreen() {
             />
           </View>
 
-          <TouchableOpacity style={styles.forgotPassword}>
+          <TouchableOpacity 
+            style={styles.forgotPassword}
+            onPress={() => Alert.alert('Password Reset', 'Please contact support to reset your password.')}
+          >
             <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
           </TouchableOpacity>
 
@@ -108,7 +125,10 @@ export default function LoginScreen() {
             <View style={styles.dividerLine} />
           </View>
 
-          <TouchableOpacity style={styles.registerButton}>
+          <TouchableOpacity 
+            style={styles.registerButton}
+            onPress={() => router.push('/register')}
+          >
             <Text style={styles.registerButtonText}>Create New Account</Text>
           </TouchableOpacity>
         </View>

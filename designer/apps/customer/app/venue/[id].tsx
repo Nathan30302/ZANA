@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import { api } from '../../services/api';
 
 const API_BASE_URL = 'http://localhost:3000/v1';
 
@@ -83,55 +84,54 @@ export default function VenueDetailScreen() {
   const [activeTab, setActiveTab] = useState<'services' | 'team' | 'reviews'>('services');
 
   useEffect(() => {
-    // Mock data for demonstration
-    const mockVenue: Venue = {
-      id: params.id as string,
-      name: 'Kutz by Daka',
-      description: 'Premier barbershop in Lusaka offering professional haircuts, beard trims, and styling services. Our experienced barbers use the latest techniques to give you the perfect look.',
-      category: 'BARBERSHOP',
-      phone: '0971234567',
-      email: 'info@kutzbydaka.com',
-      address: 'Plot 123, Great East Road',
-      city: 'Lusaka',
-      latitude: -15.4089,
-      longitude: 28.2815,
-      coverPhoto: 'https://via.placeholder.com/800x400',
-      photos: [
-        'https://via.placeholder.com/400x300',
-        'https://via.placeholder.com/400x300',
-        'https://via.placeholder.com/400x300',
-      ],
-      rating: 4.5,
-      reviewCount: 128,
-      amenities: ['WiFi', 'Parking', 'Air Conditioning', 'Card Payments'],
-      services: [
-        { id: '1', name: 'Haircut & Style', description: 'Professional haircut with styling', category: 'HAIRCUT', price: 250, duration: 45 },
-        { id: '2', name: 'Beard Trim', description: 'Precision beard trimming', category: 'BEARD_TRIM', price: 100, duration: 20 },
-        { id: '3', name: 'Full Service', description: 'Haircut, beard trim, and wash', category: 'HAIRCUT', price: 400, duration: 60 },
-        { id: '4', name: 'Kids Haircut', description: 'Haircut for children under 12', category: 'HAIRCUT', price: 150, duration: 30 },
-      ],
-      staff: [
-        { id: '1', title: 'Senior Barber', user: { id: 'u1', firstName: 'John', lastName: 'Phiri', avatarUrl: null } },
-        { id: '2', title: 'Barber', user: { id: 'u2', firstName: 'Michael', lastName: 'Chanda', avatarUrl: null } },
-      ],
-      openingHours: [
-        { id: '1', dayOfWeek: 1, openTime: '08:00', closeTime: '18:00', isClosed: false },
-        { id: '2', dayOfWeek: 2, openTime: '08:00', closeTime: '18:00', isClosed: false },
-        { id: '3', dayOfWeek: 3, openTime: '08:00', closeTime: '18:00', isClosed: false },
-        { id: '4', dayOfWeek: 4, openTime: '08:00', closeTime: '18:00', isClosed: false },
-        { id: '5', dayOfWeek: 5, openTime: '08:00', closeTime: '20:00', isClosed: false },
-        { id: '6', dayOfWeek: 6, openTime: '09:00', closeTime: '17:00', isClosed: false },
-        { id: '7', dayOfWeek: 0, openTime: '00:00', closeTime: '00:00', isClosed: true },
-      ],
-      reviews: [
-        { id: '1', rating: 5, comment: 'Excellent service! Best haircut in Lusaka.', createdAt: '2026-03-25T00:00:00.000Z', customer: { firstName: 'Patrick', lastName: 'M' } },
-        { id: '2', rating: 4, comment: 'Great barbers, professional service.', createdAt: '2026-03-20T00:00:00.000Z', customer: { firstName: 'Sarah', lastName: 'K' } },
-      ],
+    const fetchVenueData = async () => {
+      try {
+        // Fetch venue details
+        const venueResponse = await api.getVenue(params.id as string);
+        if (!venueResponse.data) {
+          throw new Error('Venue not found');
+        }
+
+        let venueData = venueResponse.data;
+
+        // Fetch services
+        const servicesResponse = await api.getVenueServices(params.id as string);
+        if (servicesResponse.data) {
+          venueData.services = servicesResponse.data;
+        }
+
+        // Fetch staff
+        const staffResponse = await api.getVenueStaff(params.id as string);
+        if (staffResponse.data) {
+          venueData.staff = staffResponse.data;
+        }
+
+        // For now, set mock data for reviews and opening hours
+        // These would need additional API endpoints
+        venueData.reviews = [
+          { id: '1', rating: 5, comment: 'Excellent service!', createdAt: '2026-03-25T00:00:00.000Z', customer: { firstName: 'Customer', lastName: 'A' } },
+        ];
+        venueData.openingHours = [
+          { id: '1', dayOfWeek: 1, openTime: '08:00', closeTime: '18:00', isClosed: false },
+          { id: '2', dayOfWeek: 2, openTime: '08:00', closeTime: '18:00', isClosed: false },
+          { id: '3', dayOfWeek: 3, openTime: '08:00', closeTime: '18:00', isClosed: false },
+          { id: '4', dayOfWeek: 4, openTime: '08:00', closeTime: '18:00', isClosed: false },
+          { id: '5', dayOfWeek: 5, openTime: '08:00', closeTime: '20:00', isClosed: false },
+          { id: '6', dayOfWeek: 6, openTime: '09:00', closeTime: '17:00', isClosed: false },
+          { id: '7', dayOfWeek: 0, openTime: '00:00', closeTime: '00:00', isClosed: true },
+        ];
+
+        setVenue(venueData);
+      } catch (error: any) {
+        console.error('Error fetching venue:', error);
+        // Keep empty state on error
+      } finally {
+        setLoading(false);
+      }
     };
 
-    setVenue(mockVenue);
-    setLoading(false);
-  }, []);
+    fetchVenueData();
+  }, [params.id]);
 
   const handleBookNow = (service?: Service) => {
     router.push(`/booking/service?venueId=${venue?.id}${service ? `&serviceId=${service.id}` : ''}`);

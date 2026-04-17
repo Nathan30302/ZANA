@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import { api } from '../../services/api';
 
 const API_BASE_URL = 'http://localhost:3000/v1';
 
@@ -61,44 +62,37 @@ export default function ProviderDetailScreen() {
   const [activeTab, setActiveTab] = useState<'services' | 'reviews'>('services');
 
   useEffect(() => {
-    // Mock data for demonstration
-    const mockProvider: MobileProvider = {
-      id: params.id as string,
-      userId: 'user1',
-      bio: 'Professional mobile hair stylist with 5+ years of experience. I bring the salon experience to your doorstep! Specializing in braids, weaves, and natural hair care.',
-      portfolioPhotos: [
-        'https://via.placeholder.com/400x300',
-        'https://via.placeholder.com/400x300',
-        'https://via.placeholder.com/400x300',
-      ],
-      baseLat: -15.4089,
-      baseLng: 28.2815,
-      serviceRadius: 15,
-      rating: 4.8,
-      reviewCount: 89,
-      isVerified: true,
-      user: {
-        id: 'user1',
-        firstName: 'Grace',
-        lastName: 'Mwansa',
-        avatarUrl: null,
-      },
-      services: [
-        { id: '1', name: 'Box Braids', description: 'Professional box braids installation', category: 'BRAIDING', price: 800, duration: 180 },
-        { id: '2', name: 'Cornrows', description: 'Neat and stylish cornrows', category: 'BRAIDING', price: 400, duration: 90 },
-        { id: '3', name: 'Weave Installation', description: 'Full weave installation with sewing', category: 'WEAVE', price: 1200, duration: 240 },
-        { id: '4', name: 'Natural Hair Styling', description: 'Styling for natural hair', category: 'HAIR_STYLING', price: 300, duration: 60 },
-      ],
-      reviews: [
-        { id: '1', rating: 5, comment: 'Amazing work! Grace is so professional and the braids lasted for weeks.', createdAt: '2026-03-28T00:00:00.000Z', customer: { firstName: 'Mary', lastName: 'K' } },
-        { id: '2', rating: 5, comment: 'Best mobile stylist in Lusaka! She came to my home and did an excellent job.', createdAt: '2026-03-22T00:00:00.000Z', customer: { firstName: 'Jane', lastName: 'P' } },
-        { id: '3', rating: 4, comment: 'Great service, just wish she could come a bit earlier next time.', createdAt: '2026-03-15T00:00:00.000Z', customer: { firstName: 'Susan', lastName: 'M' } },
-      ],
+    const fetchProviderData = async () => {
+      try {
+        // Fetch provider details
+        const providerResponse = await api.getMobileProvider(params.id as string);
+        if (!providerResponse.data) {
+          throw new Error('Provider not found');
+        }
+
+        let providerData = providerResponse.data;
+
+        // For now, add mock services and reviews
+        // These would need additional API endpoints for mobile providers
+        providerData.services = [
+          { id: '1', name: 'Haircut & Style', description: 'Professional haircut with styling', category: 'HAIRCUT', price: 250, duration: 45 },
+          { id: '2', name: 'Braiding', description: 'Professional braiding service', category: 'BRAIDING', price: 500, duration: 120 },
+        ];
+        providerData.reviews = [
+          { id: '1', rating: 5, comment: 'Excellent service!', createdAt: '2026-03-25T00:00:00.000Z', customer: { firstName: 'Customer', lastName: 'A' } },
+        ];
+
+        setProvider(providerData);
+      } catch (error: any) {
+        console.error('Error fetching provider:', error);
+        // Keep empty state on error
+      } finally {
+        setLoading(false);
+      }
     };
 
-    setProvider(mockProvider);
-    setLoading(false);
-  }, []);
+    fetchProviderData();
+  }, [params.id]);
 
   const handleBookNow = (service?: Service) => {
     router.push(`/booking/service?providerId=${provider?.id}${service ? `&serviceId=${service.id}` : ''}`);

@@ -8,6 +8,8 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { api } from '../../services/api';
+import { Alert } from 'react-native';
 
 const API_BASE_URL = 'http://localhost:3000/v1';
 
@@ -60,86 +62,22 @@ export default function AppointmentsScreen() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Mock data for demonstration
-    const mockBookings: Booking[] = [
-      {
-        id: '1',
-        reference: 'ZNA-20260330-0001',
-        customerId: 'user1',
-        serviceId: 'svc1',
-        venueId: 'venue1',
-        mobileProviderId: null,
-        staffId: null,
-        date: '2026-03-30T00:00:00.000Z',
-        startTime: '10:00',
-        endTime: '11:00',
-        status: 'CONFIRMED',
-        serviceMode: 'SALON_VISIT',
-        notes: null,
-        totalAmount: 250,
-        createdAt: '2026-03-28T10:00:00.000Z',
-        updatedAt: '2026-03-28T10:30:00.000Z',
-        service: {
-          id: 'svc1',
-          name: 'Haircut & Style',
-          description: 'Professional haircut and styling',
-          category: 'HAIRCUT',
-          price: 250,
-          duration: 60,
-        },
-        venue: {
-          id: 'venue1',
-          name: 'Kutz by Daka',
-          address: 'Plot 123, Great East Road',
-          city: 'Lusaka',
-          phone: '0971234567',
-        },
-        staff: {
-          id: 'staff1',
-          title: 'Senior Barber',
-          user: {
-            firstName: 'John',
-            lastName: 'Phiri',
-          },
-        },
-      },
-      {
-        id: '2',
-        reference: 'ZNA-20260325-0002',
-        customerId: 'user1',
-        serviceId: 'svc2',
-        venueId: 'venue2',
-        mobileProviderId: null,
-        staffId: null,
-        date: '2026-03-25T00:00:00.000Z',
-        startTime: '14:00',
-        endTime: '15:30',
-        status: 'COMPLETED',
-        serviceMode: 'SALON_VISIT',
-        notes: null,
-        totalAmount: 500,
-        createdAt: '2026-03-20T10:00:00.000Z',
-        updatedAt: '2026-03-25T15:30:00.000Z',
-        service: {
-          id: 'svc2',
-          name: 'Full Head Braids',
-          description: 'Professional braiding service',
-          category: 'BRAIDING',
-          price: 500,
-          duration: 90,
-        },
-        venue: {
-          id: 'venue2',
-          name: 'Glamour Nails & Hair',
-          address: 'Cairo Road, City Center',
-          city: 'Lusaka',
-          phone: '0961234567',
-        },
-      },
-    ];
+    const fetchBookings = async () => {
+      try {
+        const response = await api.getBookings();
+        if (response.error) {
+          throw new Error(response.error);
+        }
+        setBookings(response.data || []);
+      } catch (error: any) {
+        console.error('Error fetching bookings:', error);
+        // Keep empty array on error
+      } finally {
+        setLoading(false);
+      }
+    };
 
-    setBookings(mockBookings);
-    setLoading(false);
+    fetchBookings();
   }, []);
 
   const upcomingBookings = bookings.filter(
@@ -181,7 +119,7 @@ export default function AppointmentsScreen() {
     <TouchableOpacity
       key={booking.id}
       style={styles.bookingCard}
-      onPress={() => router.push(`/appointments/${booking.id}`)}
+      onPress={() => Alert.alert('Appointment Details', `Booking ${booking.reference}\nStatus: ${booking.status}\nService: ${booking.service?.name || 'N/A'}\nDate: ${new Date(booking.date).toLocaleDateString()}\nTime: ${booking.startTime}`)}
     >
       <View style={styles.bookingHeader}>
         <Text style={styles.bookingReference}>{booking.reference}</Text>

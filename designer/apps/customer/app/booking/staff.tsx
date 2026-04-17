@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import { api } from '../../services/api';
 
 interface Staff {
   id: string;
@@ -42,30 +43,51 @@ export default function SelectStaffScreen() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Mock data for demonstration
-    const mockStaff: Staff[] = [
-      { id: '1', title: 'Senior Barber', user: { id: 'u1', firstName: 'John', lastName: 'Phiri', avatarUrl: null } },
-      { id: '2', title: 'Barber', user: { id: 'u2', firstName: 'Michael', lastName: 'Chanda', avatarUrl: null } },
-      { id: '3', title: 'Junior Barber', user: { id: 'u3', firstName: 'David', lastName: 'Mwale', avatarUrl: null } },
-    ];
+    const fetchData = async () => {
+      try {
+        let staffData: Staff[] = [];
+        let serviceData: Service | null = null;
+        let venueData: Venue | null = null;
 
-    const mockService: Service = {
-      id: params.serviceId as string,
-      name: 'Haircut & Style',
-      price: 250,
-      duration: 45,
+        if (params.venueId) {
+          // Fetch venue staff
+          const staffResponse = await api.getVenueStaff(params.venueId as string);
+          if (staffResponse.error) {
+            throw new Error(staffResponse.error);
+          }
+          staffData = staffResponse.data || [];
+
+          // Fetch venue details
+          const venueResponse = await api.getVenue(params.venueId as string);
+          if (venueResponse.data) {
+            venueData = venueResponse.data;
+          }
+        }
+
+        // Fetch service details if serviceId provided
+        if (params.serviceId) {
+          // We might need to get service details, but for now assume we have basic info
+          serviceData = {
+            id: params.serviceId as string,
+            name: 'Selected Service',
+            price: 0,
+            duration: 0,
+          };
+        }
+
+        setStaff(staffData);
+        setService(serviceData);
+        setVenue(venueData);
+      } catch (error: any) {
+        console.error('Error fetching staff:', error);
+        // Keep empty on error
+      } finally {
+        setLoading(false);
+      }
     };
 
-    const mockVenue: Venue = {
-      id: params.venueId as string,
-      name: 'Kutz by Daka',
-    };
-
-    setStaff(mockStaff);
-    setService(mockService);
-    setVenue(mockVenue);
-    setLoading(false);
-  }, []);
+    fetchData();
+  }, [params.venueId, params.serviceId]);
 
   const handleContinue = () => {
     const staffId = selectedStaff === 'any' ? null : (selectedStaff as Staff)?.id || null;
@@ -145,7 +167,7 @@ export default function SelectStaffScreen() {
               key={member.id}
               style={[
                 styles.staffCard,
-                selectedStaff?.id === member.id && styles.staffCardSelected,
+                selectedStaff !== 'any' && selectedStaff?.id === member.id && styles.staffCardSelected,
               ]}
               onPress={() => setSelectedStaff(member)}
             >
@@ -163,13 +185,13 @@ export default function SelectStaffScreen() {
               <View style={styles.staffInfo}>
                 <Text style={[
                   styles.staffName,
-                  selectedStaff?.id === member.id && styles.staffNameSelected,
+                  selectedStaff !== 'any' && selectedStaff?.id === member.id && styles.staffNameSelected,
                 ]}>
                   {member.user.firstName} {member.user.lastName}
                 </Text>
                 <Text style={styles.staffTitle}>{member.title || 'Staff Member'}</Text>
               </View>
-              {selectedStaff?.id === member.id && (
+              {selectedStaff !== 'any' && selectedStaff?.id === member.id && (
                 <View style={styles.checkmark}>
                   <Text style={styles.checkmarkText}>✓</Text>
                 </View>

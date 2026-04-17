@@ -12,24 +12,44 @@ export interface User {
   avatarUrl?: string;
 }
 
+export interface Venue {
+  id: string;
+  name: string;
+  description: string;
+  category: string;
+  phone: string;
+  email: string;
+  address: string;
+  city: string;
+  latitude: number;
+  longitude: number;
+  coverPhoto: string;
+  photos: string[];
+  amenities: string[];
+  active: boolean;
+}
+
 interface AuthState {
   user: User | null;
+  venue: Venue | null;
   accessToken: string | null;
   refreshToken: string | null;
   isLoading: boolean;
   isAuthenticated: boolean;
   
   // Actions
-  setAuth: (user: User, accessToken: string, refreshToken: string) => Promise<void>;
+  setAuth: (user: User, venue: Venue | null, accessToken: string, refreshToken: string) => Promise<void>;
   logout: () => Promise<void>;
   setLoading: (loading: boolean) => void;
   restoreAuth: () => Promise<boolean>;
+  updateVenue: (venue: Venue) => Promise<void>;
 }
 
 const STORAGE_KEYS = {
-  USER: '@auth_user',
-  ACCESS_TOKEN: '@auth_accessToken',
-  REFRESH_TOKEN: '@auth_refreshToken',
+  USER: '@provider_auth_user',
+  VENUE: '@provider_venue',
+  ACCESS_TOKEN: '@provider_auth_accessToken',
+  REFRESH_TOKEN: '@provider_auth_refreshToken',
 };
 
 const storage = {
@@ -51,21 +71,27 @@ const storage = {
   },
 };
 
-export const useAuthStore = create<AuthState>((set) => ({
+export const useProviderAuthStore = create<AuthState>((set) => ({
   user: null,
+  venue: null,
   accessToken: null,
   refreshToken: null,
   isLoading: true,
   isAuthenticated: false,
 
-  setAuth: async (user: User, accessToken: string, refreshToken: string) => {
+  setAuth: async (user: User, venue: Venue | null, accessToken: string, refreshToken: string) => {
     try {
       await storage.setItem(STORAGE_KEYS.USER, JSON.stringify(user));
       await storage.setItem(STORAGE_KEYS.ACCESS_TOKEN, accessToken);
       await storage.setItem(STORAGE_KEYS.REFRESH_TOKEN, refreshToken);
       
+      if (venue) {
+        await storage.setItem(STORAGE_KEYS.VENUE, JSON.stringify(venue));
+      }
+      
       set({
         user,
+        venue,
         accessToken,
         refreshToken,
         isAuthenticated: true,
@@ -80,12 +106,14 @@ export const useAuthStore = create<AuthState>((set) => ({
     try {
       await storage.multiRemove([
         STORAGE_KEYS.USER,
+        STORAGE_KEYS.VENUE,
         STORAGE_KEYS.ACCESS_TOKEN,
         STORAGE_KEYS.REFRESH_TOKEN,
       ]);
       
       set({
         user: null,
+        venue: null,
         accessToken: null,
         refreshToken: null,
         isAuthenticated: false,
@@ -104,18 +132,23 @@ export const useAuthStore = create<AuthState>((set) => ({
     try {
       const stored = await storage.multiGet([
         STORAGE_KEYS.USER,
+        STORAGE_KEYS.VENUE,
         STORAGE_KEYS.ACCESS_TOKEN,
         STORAGE_KEYS.REFRESH_TOKEN,
       ]);
 
       const userEntry = stored.find(([key]) => key === STORAGE_KEYS.USER);
+      const venueEntry = stored.find(([key]) => key === STORAGE_KEYS.VENUE);
       const tokenEntry = stored.find(([key]) => key === STORAGE_KEYS.ACCESS_TOKEN);
       const refreshEntry = stored.find(([key]) => key === STORAGE_KEYS.REFRESH_TOKEN);
 
       if (userEntry && tokenEntry && refreshEntry) {
         const user = JSON.parse(userEntry[1]) as User;
+        const venue = venueEntry ? JSON.parse(venueEntry[1]) as Venue : null;
+        
         set({
           user,
+          venue,
           accessToken: tokenEntry[1],
           refreshToken: refreshEntry[1],
           isAuthenticated: true,
@@ -130,6 +163,15 @@ export const useAuthStore = create<AuthState>((set) => ({
       console.error('Error restoring auth state:', error);
       set({ isLoading: false });
       return false;
+    }
+  },
+
+  updateVenue: async (venue: Venue) => {
+    try {
+      await storage.setItem(STORAGE_KEYS.VENUE, JSON.stringify(venue));
+      set({ venue });
+    } catch (error) {
+      console.error('Error updating venue:', error);
     }
   },
 }));
