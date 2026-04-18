@@ -22,13 +22,21 @@ export interface AuthResponse {
   refreshToken: string;
 }
 
-import AsyncStorage from '@react-native-async-storage/async-storage';
-
 // Simple storage helper using AsyncStorage
 const STORAGE_KEYS = {
   ACCESS_TOKEN: 'zana_access_token',
   REFRESH_TOKEN: 'zana_refresh_token',
   USER: 'zana_user',
+};
+
+// Import AsyncStorage dynamically to avoid build issues
+let AsyncStorage: any;
+const loadAsyncStorage = async () => {
+  if (!AsyncStorage) {
+    const module = await import('@react-native-async-storage/async-storage');
+    AsyncStorage = module.default;
+  }
+  return AsyncStorage;
 };
 
 // API client
@@ -42,7 +50,7 @@ class ApiClient {
   // Get stored access token
   private async getAccessToken(): Promise<string | null> {
     try {
-      const storage = AsyncStorage;
+      const storage = await loadAsyncStorage();
       return await storage.getItem(STORAGE_KEYS.ACCESS_TOKEN);
     } catch (error) {
       console.error('Error getting access token:', error);
@@ -53,7 +61,7 @@ class ApiClient {
   // Store tokens
   private async storeTokens(accessToken: string, refreshToken: string): Promise<void> {
     try {
-      const storage = AsyncStorage;
+      const storage = await loadAsyncStorage();
       await storage.setItem(STORAGE_KEYS.ACCESS_TOKEN, accessToken);
       await storage.setItem(STORAGE_KEYS.REFRESH_TOKEN, refreshToken);
     } catch (error) {
@@ -64,7 +72,7 @@ class ApiClient {
   // Store user
   private async storeUser(user: User): Promise<void> {
     try {
-      const storage = AsyncStorage;
+      const storage = await loadAsyncStorage();
       await storage.setItem(STORAGE_KEYS.USER, JSON.stringify(user));
     } catch (error) {
       console.error('Error storing user:', error);
@@ -74,7 +82,7 @@ class ApiClient {
   // Get stored user
   async getUser(): Promise<User | null> {
     try {
-      const storage = AsyncStorage;
+      const storage = await loadAsyncStorage();
       const userStr = await storage.getItem(STORAGE_KEYS.USER);
       return userStr ? JSON.parse(userStr) : null;
     } catch (error) {
@@ -86,7 +94,7 @@ class ApiClient {
   // Clear all stored data
   private async clearStorage(): Promise<void> {
     try {
-      const storage = AsyncStorage;
+      const storage = await loadAsyncStorage();
       await storage.multiRemove([
         STORAGE_KEYS.ACCESS_TOKEN,
         STORAGE_KEYS.REFRESH_TOKEN,
@@ -149,7 +157,7 @@ class ApiClient {
   // Refresh access token
   private async refreshToken(): Promise<boolean> {
     try {
-      const storage = AsyncStorage;
+      const storage = await loadAsyncStorage();
       const refreshToken = await storage.getItem(STORAGE_KEYS.REFRESH_TOKEN);
       if (!refreshToken) return false;
 
@@ -214,7 +222,7 @@ class ApiClient {
   }
 
   async logout(): Promise<void> {
-    const storage = AsyncStorage;
+    const storage = await loadAsyncStorage();
     const refreshToken = await storage.getItem(STORAGE_KEYS.REFRESH_TOKEN);
     if (refreshToken) {
       await this.request('/auth/logout', {
@@ -260,10 +268,6 @@ class ApiClient {
     return this.request<any[]>(`/venues/${venueId}/services`);
   }
 
-  async getVenueStaff(venueId: string): Promise<ApiResponse<any[]>> {
-    return this.request<any[]>(`/venues/${venueId}/staff`);
-  }
-
   // Booking methods
   async createBooking(data: {
     serviceId: string;
@@ -306,5 +310,5 @@ class ApiClient {
 }
 
 // Export singleton instance
-export const api = new ApiClient('http://localhost:3000/api/v1');
+export const api = new ApiClient('http://localhost:3000/v1');
 export default api;

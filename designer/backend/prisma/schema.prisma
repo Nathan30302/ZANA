@@ -32,18 +32,6 @@ model User {
   bookings        Booking[]
   reviews         Review[]
   refreshTokens   RefreshToken[]
-  resetToken      String?
-  resetTokenExpiry DateTime?
-}
-
-model RefreshToken {
-  id        String   @id @default(cuid())
-  token     String   @unique
-  userId    String
-  expiresAt DateTime
-  createdAt DateTime @default(now())
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 enum Role {
@@ -239,4 +227,13 @@ model Review {
   rating           Int
   comment          String?
   createdAt        DateTime  @default(now())
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  expiresAt DateTime
+  createdAt DateTime @default(now())
 }

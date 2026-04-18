@@ -9,10 +9,10 @@ import {
   FlatList,
   TextInput,
   ActivityIndicator,
-  Alert,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { api } from '../../services/api';
+
+const API_BASE_URL = 'http://localhost:3000/v1';
 
 const SERVICE_CATEGORIES = [
   { key: 'HAIRCUT', label: 'Haircut' },
@@ -65,28 +65,21 @@ export default function SearchScreen() {
     setLoading(true);
     try {
       const mockLocation = { latitude: -15.4089, longitude: 28.2815 }; // Lusaka
-      const params: Record<string, string> = {
-        lat: mockLocation.latitude.toString(),
-        lng: mockLocation.longitude.toString(),
-        radius: '20',
-        limit: '20',
-      };
-
+      
+      let url = `${API_BASE_URL}/venues?lat=${mockLocation.latitude}&lng=${mockLocation.longitude}&radius=20&limit=20`;
+      
       if (selectedCategory) {
-        params.category = selectedCategory;
+        url += `&category=${selectedCategory}`;
       }
       if (searchQuery) {
-        params.search = searchQuery;
+        url += `&search=${encodeURIComponent(searchQuery)}`;
       }
 
-      const response = await api.getVenues(params);
-      if (response.error) {
-        throw new Error(response.error);
-      }
-      setVenues(response.data || []);
-    } catch (error: any) {
+      const response = await fetch(url);
+      const data = await response.json();
+      setVenues(data.data || []);
+    } catch (error) {
       console.error('Error fetching venues:', error);
-      Alert.alert('Search failed', error.message || 'Unable to load venues.');
     } finally {
       setLoading(false);
     }

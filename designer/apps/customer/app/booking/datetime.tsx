@@ -8,7 +8,6 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { api } from '../../services/api';
 
 interface TimeSlot {
   time: string;
@@ -41,91 +40,37 @@ export default function SelectDateTimeScreen() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        let serviceData: Service | null = null;
-        let staffData: Staff | null = null;
-
-        // Fetch service details if serviceId provided
-        if (params.serviceId) {
-          serviceData = {
-            id: params.serviceId as string,
-            name: 'Selected Service',
-            price: 0,
-            duration: 0,
-          };
-        }
-
-        // Fetch staff details if staffId provided
-        if (params.staffId) {
-          staffData = {
-            id: params.staffId as string,
-            user: { firstName: 'Selected', lastName: 'Staff' },
-          };
-        }
-
-        // Fetch availability for the selected date
-        if (params.venueId) {
-          const availabilityResponse = await api.getVenueAvailability(
-            params.venueId as string,
-            selectedDate.toISOString().split('T')[0],
-            params.serviceId as string
-          );
-          if (availabilityResponse.data) {
-            // Convert availability data to time slots
-            const slots: TimeSlot[] = [];
-            if (availabilityResponse.data.timeSlots) {
-              availabilityResponse.data.timeSlots.forEach((slot: any) => {
-                slots.push({
-                  time: slot.startTime,
-                  available: slot.available,
-                });
-              });
-            }
-            setTimeSlots(slots);
-          } else {
-            // Fallback to mock slots
-            const slots: TimeSlot[] = [];
-            const startHour = 9;
-            const endHour = 18;
-            for (let hour = startHour; hour < endHour; hour++) {
-              for (let min = 0; min < 60; min += 30) {
-                const time = `${hour.toString().padStart(2, '0')}:${min.toString().padStart(2, '0')}`;
-                slots.push({
-                  time,
-                  available: Math.random() > 0.3,
-                });
-              }
-            }
-            setTimeSlots(slots);
-          }
-        }
-
-        setService(serviceData);
-        setStaff(staffData);
-      } catch (error: any) {
-        console.error('Error fetching availability:', error);
-        // Fallback to mock slots
-        const slots: TimeSlot[] = [];
-        const startHour = 9;
-        const endHour = 18;
-        for (let hour = startHour; hour < endHour; hour++) {
-          for (let min = 0; min < 60; min += 30) {
-            const time = `${hour.toString().padStart(2, '0')}:${min.toString().padStart(2, '0')}`;
-            slots.push({
-              time,
-              available: Math.random() > 0.3,
-            });
-          }
-        }
-        setTimeSlots(slots);
-      } finally {
-        setLoading(false);
-      }
+    // Mock data for demonstration
+    const mockService: Service = {
+      id: params.serviceId as string,
+      name: 'Haircut & Style',
+      price: 250,
+      duration: 45,
     };
 
-    fetchData();
-  }, [selectedDate, params.venueId, params.serviceId, params.staffId]);
+    const mockStaff: Staff | null = params.staffId
+      ? { id: params.staffId as string, user: { firstName: 'John', lastName: 'Phiri' } }
+      : null;
+
+    // Generate mock time slots
+    const slots: TimeSlot[] = [];
+    const startHour = 9;
+    const endHour = 18;
+    for (let hour = startHour; hour < endHour; hour++) {
+      for (let min = 0; min < 60; min += 30) {
+        const time = `${hour.toString().padStart(2, '0')}:${min.toString().padStart(2, '0')}`;
+        slots.push({
+          time,
+          available: Math.random() > 0.3, // Random availability for demo
+        });
+      }
+    }
+
+    setService(mockService);
+    setStaff(mockStaff);
+    setTimeSlots(slots);
+    setLoading(false);
+  }, []);
 
   const handleContinue = () => {
     if (selectedDate && selectedTime) {

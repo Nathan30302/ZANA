@@ -29,6 +29,10 @@
         "ACCESS_COARSE_LOCATION"
       ]
     },
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro"
+    },
     "plugins": [
       "expo-router",
       [

@@ -9,15 +9,11 @@ dotenv.config();
 
 // Import routes
 const authRoutes = require('./routes/auth');
-const venuesRoutes = require('./routes/venues');
-const venueProfileRoutes = require('./routes/venue');
+const venueRoutes = require('./routes/venues');
 const mobileProviderRoutes = require('./routes/mobileProviders');
 const serviceRoutes = require('./routes/services');
 const staffRoutes = require('./routes/staff');
 const openingHoursRoutes = require('./routes/openingHours');
-const bookingRoutes = require('./routes/bookings');
-const reviewRoutes = require('./routes/reviews');
-const paymentRoutes = require('./routes/payments');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -69,15 +65,11 @@ app.get('/health', (req, res) => {
 
 // API routes
 app.use('/api/v1/auth', authRoutes);
-app.use('/api/v1/venues', venuesRoutes);
-app.use('/api/v1/venue', venueProfileRoutes);
+app.use('/api/v1/venues', venueRoutes);
 app.use('/api/v1/mobile-providers', mobileProviderRoutes);
 app.use('/api/v1/services', serviceRoutes);
 app.use('/api/v1/staff', staffRoutes);
 app.use('/api/v1/opening-hours', openingHoursRoutes);
-app.use('/api/v1/bookings', bookingRoutes);
-app.use('/api/v1/reviews', reviewRoutes);
-app.use('/api/v1/payments', paymentRoutes);
 
 // 404 handler
 app.use('*', (req, res) => {

@@ -179,107 +179,11 @@ router.post('/accept-invite', verifyToken, async (req, res) => {
   }
 });
 
-// GET /staff/:id/availability - Get staff availability
-router.get('/:id/availability', verifyToken, async (req, res) => {
-  try {
-    const { id } = req.params;
-
-    const staff = await prisma.staff.findUnique({
-      where: { id },
-      include: {
-        venue: true,
-      }
-    });
-
-    if (!staff) {
-      return res.status(404).json({ error: 'Staff member not found' });
-    }
-
-    if (staff.userId !== req.user.id && staff.venue.ownerId !== req.user.id) {
-      return res.status(403).json({ error: 'You can only view your own availability' });
-    }
-
-    const availability = await prisma.availability.findMany({
-      where: { staffId: id },
-      orderBy: [{ date: 'asc' }, { startTime: 'asc' }]
-    });
-
-    res.json({ staffId: id, availability });
-  } catch (error) {
-    console.error('Error fetching staff availability:', error);
-    res.status(500).json({ error: 'Failed to fetch staff availability' });
-  }
-});
-
-// PUT /venues/:venueId/staff/:staffId - Update staff member details
-router.put('/venues/:venueId/staff/:staffId', verifyToken, async (req, res) => {
-  try {
-    const { venueId, staffId } = req.params;
-    const { firstName, lastName, email, phone, role, active } = req.body;
-
-    const venue = await prisma.venue.findUnique({
-      where: { id: venueId }
-    });
-
-    if (!venue) {
-      return res.status(404).json({ error: 'Venue not found' });
-    }
-
-    if (venue.ownerId !== req.user.id) {
-      return res.status(403).json({ error: 'You can only update staff for your own venue' });
-    }
-
-    const staff = await prisma.staff.findUnique({
-      where: { id: staffId },
-      include: { user: true }
-    });
-
-    if (!staff || staff.venueId !== venueId) {
-      return res.status(404).json({ error: 'Staff member not found' });
-    }
-
-    const updatedStaff = await prisma.staff.update({
-      where: { id: staffId },
-      data: {
-        title: role || staff.title,
-        isActive: typeof active === 'boolean' ? active : staff.isActive
-      },
-      include: {
-        user: true
-      }
-    });
-
-    await prisma.user.update({
-      where: { id: staff.userId },
-      data: {
-        firstName: firstName || staff.user.firstName,
-        lastName: lastName || staff.user.lastName,
-        email: email || staff.user.email,
-        phone: phone || staff.user.phone
-      }
-    });
-
-    res.json({
-      ...updatedStaff,
-      user: {
-        ...staff.user,
-        firstName: firstName || staff.user.firstName,
-        lastName: lastName || staff.user.lastName,
-        email: email || staff.user.email,
-        phone: phone || staff.user.phone
-      }
-    });
-  } catch (error) {
-    console.error('Error updating staff member:', error);
-    res.status(500).json({ error: 'Failed to update staff member' });
-  }
-});
-
 // PUT /staff/:id/availability - Set weekly availability
 router.put('/:id/availability', verifyToken, async (req, res) => {
   try {
     const { id } = req.params;
-    const { availability } = req.body; // Array of { date, startTime, endTime, isBlocked }
+    const { availability } = req.body; // Array of { dayOfWeek, startTime, endTime, isBlocked }
 
     // Check if user owns this staff profile
     const staff = await prisma.staff.findUnique({
@@ -307,7 +211,7 @@ router.put('/:id/availability', verifyToken, async (req, res) => {
     // Create new availability records
     const availabilityRecords = availability.map(a => ({
       staffId: id,
-      date: new Date(a.date),
+      dayOfWeek: a.dayOfWeek,
       startTime: a.startTime,
       endTime: a.endTime,
       isBlocked: a.isBlocked || false

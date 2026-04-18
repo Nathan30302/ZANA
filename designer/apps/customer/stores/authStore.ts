@@ -1,5 +1,4 @@
 import { create } from 'zustand';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export interface User {
   id: string;
@@ -26,29 +25,33 @@ interface AuthState {
   restoreAuth: () => Promise<boolean>;
 }
 
+// Simple in-memory storage (replace with AsyncStorage when needed)
+const storage = {
+  data: new Map<string, string>(),
+  
+  async setItem(key: string, value: string): Promise<void> {
+    this.data.set(key, value);
+  },
+  
+  async getItem(key: string): Promise<string | null> {
+    return this.data.get(key) || null;
+  },
+  
+  async multiRemove(keys: string[]): Promise<void> {
+    keys.forEach(key => this.data.delete(key));
+  },
+  
+  async multiGet(keys: string[]): Promise<[string, string][]> {
+    return keys
+      .map(key => [key, this.data.get(key) || ''])
+      .filter(([_, value]) => value !== '') as [string, string][];
+  },
+};
+
 const STORAGE_KEYS = {
   USER: '@auth_user',
   ACCESS_TOKEN: '@auth_accessToken',
   REFRESH_TOKEN: '@auth_refreshToken',
-};
-
-const storage = {
-  async setItem(key: string, value: string): Promise<void> {
-    await AsyncStorage.setItem(key, value);
-  },
-
-  async getItem(key: string): Promise<string | null> {
-    return await AsyncStorage.getItem(key);
-  },
-
-  async multiRemove(keys: string[]): Promise<void> {
-    await AsyncStorage.multiRemove(keys);
-  },
-
-  async multiGet(keys: string[]): Promise<[string, string][]> {
-    const entries = await AsyncStorage.multiGet(keys);
-    return entries.filter(([_, value]) => value !== '');
-  },
 };
 
 export const useAuthStore = create<AuthState>((set) => ({

@@ -8,7 +8,6 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { api } from '../../services/api';
 
 const API_BASE_URL = 'http://localhost:3000/v1';
 
@@ -46,55 +45,33 @@ export default function SelectServiceScreen() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        let servicesData: Service[] = [];
-        let venueData: Venue | null = null;
-        let providerData: MobileProvider | null = null;
+    // Mock data for demonstration
+    const mockServices: Service[] = [
+      { id: '1', name: 'Haircut & Style', description: 'Professional haircut with styling', category: 'HAIRCUT', price: 250, duration: 45 },
+      { id: '2', name: 'Beard Trim', description: 'Precision beard trimming', category: 'BEARD_TRIM', price: 100, duration: 20 },
+      { id: '3', name: 'Full Service', description: 'Haircut, beard trim, and wash', category: 'HAIRCUT', price: 400, duration: 60 },
+      { id: '4', name: 'Kids Haircut', description: 'Haircut for children under 12', category: 'HAIRCUT', price: 150, duration: 30 },
+    ];
 
-        if (params.venueId) {
-          // Fetch venue services
-          const servicesResponse = await api.getVenueServices(params.venueId as string);
-          if (servicesResponse.error) {
-            throw new Error(servicesResponse.error);
-          }
-          servicesData = servicesResponse.data || [];
-
-          // Fetch venue details
-          const venueResponse = await api.getVenue(params.venueId as string);
-          if (venueResponse.data) {
-            venueData = venueResponse.data;
-          }
-        } else if (params.providerId) {
-          // For mobile providers, we might need a different endpoint
-          // For now, use mock or assume services are available
-          servicesData = [
-            { id: '1', name: 'Haircut & Style', description: 'Professional haircut with styling', category: 'HAIRCUT', price: 250, duration: 45 },
-            { id: '2', name: 'Beard Trim', description: 'Precision beard trimming', category: 'BEARD_TRIM', price: 100, duration: 20 },
-          ];
-        }
-
-        setServices(servicesData);
-        setVenue(venueData);
-        setProvider(providerData);
-
-        // Pre-select service if passed in URL
-        if (params.serviceId) {
-          const preSelected = servicesData.find(s => s.id === params.serviceId);
-          if (preSelected) {
-            setSelectedService(preSelected);
-          }
-        }
-      } catch (error: any) {
-        console.error('Error fetching services:', error);
-        // Keep empty on error
-      } finally {
-        setLoading(false);
-      }
+    const mockVenue: Venue = {
+      id: params.venueId as string,
+      name: 'Kutz by Daka',
+      address: 'Plot 123, Great East Road',
+      city: 'Lusaka',
     };
 
-    fetchData();
-  }, [params.venueId, params.providerId, params.serviceId]);
+    setServices(mockServices);
+    setVenue(mockVenue);
+    setLoading(false);
+
+    // Pre-select service if passed in URL
+    if (params.serviceId) {
+      const preSelected = mockServices.find(s => s.id === params.serviceId);
+      if (preSelected) {
+        setSelectedService(preSelected);
+      }
+    }
+  }, []);
 
   const handleContinue = () => {
     if (selectedService && venue) {

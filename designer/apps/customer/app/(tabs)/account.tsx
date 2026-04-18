@@ -9,12 +9,22 @@ import {
   Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useAuthStore } from '../../stores/authStore';
+
+// Mock user data
+const MOCK_USER = {
+  id: 'user1',
+  firstName: 'Chanda',
+  lastName: 'Mwamba',
+  email: 'chanda@example.com',
+  phone: '0971234567',
+  avatarUrl: null,
+  role: 'CUSTOMER',
+  isVerified: true,
+};
 
 export default function AccountScreen() {
   const router = useRouter();
-  const user = useAuthStore((state) => state.user);
-  const logout = useAuthStore((state) => state.logout);
+  const [user] = useState(MOCK_USER);
 
   const handleLogout = () => {
     Alert.alert(
@@ -26,7 +36,7 @@ export default function AccountScreen() {
           text: 'Logout',
           style: 'destructive',
           onPress: () => {
-            logout();
+            // Clear auth state and navigate to login
             router.push('/(auth)/login');
           },
         },
@@ -39,55 +49,55 @@ export default function AccountScreen() {
       id: 'profile',
       title: 'Edit Profile',
       icon: '👤',
-      onPress: () => Alert.alert('Coming Soon', 'Profile editing will be available soon.'),
+      onPress: () => router.push('/account/edit'),
     },
     {
       id: 'notifications',
       title: 'Notifications',
       icon: '🔔',
-      onPress: () => Alert.alert('Coming Soon', 'Notification settings will be available soon.'),
+      onPress: () => router.push('/account/notifications'),
     },
     {
       id: 'payment',
       title: 'Payment Methods',
       icon: '💳',
-      onPress: () => Alert.alert('Coming Soon', 'Payment method management will be available soon.'),
+      onPress: () => router.push('/account/payment'),
     },
     {
       id: 'addresses',
       title: 'Saved Addresses',
       icon: '📍',
-      onPress: () => Alert.alert('Coming Soon', 'Address management will be available soon.'),
+      onPress: () => router.push('/account/addresses'),
     },
     {
       id: 'favorites',
       title: 'Favorites',
       icon: '❤️',
-      onPress: () => Alert.alert('Coming Soon', 'Favorites will be available soon.'),
+      onPress: () => router.push('/account/favorites'),
     },
     {
       id: 'help',
       title: 'Help & Support',
       icon: '❓',
-      onPress: () => Alert.alert('Help', 'Contact support@zana.zm for assistance.'),
+      onPress: () => router.push('/account/help'),
     },
     {
       id: 'about',
       title: 'About ZANA',
       icon: 'ℹ️',
-      onPress: () => Alert.alert('About ZANA', 'ZANA is Zambia\'s premier beauty booking platform.'),
+      onPress: () => router.push('/account/about'),
     },
     {
       id: 'privacy',
       title: 'Privacy Policy',
       icon: '🔒',
-      onPress: () => Alert.alert('Privacy Policy', 'Your privacy is important to us. Full policy available at zana.zm/privacy'),
+      onPress: () => router.push('/account/privacy'),
     },
     {
       id: 'terms',
       title: 'Terms of Service',
       icon: '📄',
-      onPress: () => Alert.alert('Terms of Service', 'Full terms available at zana.zm/terms'),
+      onPress: () => router.push('/account/terms'),
     },
   ];
 

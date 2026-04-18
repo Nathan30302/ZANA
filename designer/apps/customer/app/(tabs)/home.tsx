@@ -9,11 +9,13 @@ import {
   FlatList,
   RefreshControl,
   ActivityIndicator,
-  Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { api } from '../../services/api';
 
+// API Configuration
+const API_BASE_URL = 'http://localhost:3000/v1';
+
+// Service categories
 const SERVICE_CATEGORIES = [
   { key: 'HAIRCUT', label: 'Haircut' },
   { key: 'HAIR_STYLING', label: 'Hair Styling' },
@@ -72,36 +74,25 @@ export default function HomeScreen() {
 
   const fetchData = async () => {
     try {
+      // Get user location (mock for now)
       const mockLocation = { latitude: -15.4089, longitude: 28.2815 }; // Lusaka
       setUserLocation(mockLocation);
 
-      const venuesResponse = await api.getVenues({
-        lat: mockLocation.latitude.toString(),
-        lng: mockLocation.longitude.toString(),
-        radius: '10',
-        limit: '10',
-      });
+      // Fetch nearby venues
+      const venuesResponse = await fetch(
+        `${API_BASE_URL}/venues?lat=${mockLocation.latitude}&lng=${mockLocation.longitude}&radius=10&limit=10`
+      );
+      const venuesData = await venuesResponse.json();
+      setVenues(venuesData.data || []);
 
-      if (venuesResponse.error) {
-        throw new Error(venuesResponse.error);
-      }
-
-      const providersResponse = await api.getMobileProviders({
-        lat: mockLocation.latitude.toString(),
-        lng: mockLocation.longitude.toString(),
-        radius: '10',
-        limit: '5',
-      });
-
-      if (providersResponse.error) {
-        throw new Error(providersResponse.error);
-      }
-
-      setVenues(venuesResponse.data || []);
-      setMobileProviders(providersResponse.data || []);
-    } catch (error: any) {
+      // Fetch mobile providers
+      const providersResponse = await fetch(
+        `${API_BASE_URL}/mobile-providers?lat=${mockLocation.latitude}&lng=${mockLocation.longitude}&radius=10&limit=5`
+      );
+      const providersData = await providersResponse.json();
+      setMobileProviders(providersData.data || []);
+    } catch (error) {
       console.error('Error fetching data:', error);
-      Alert.alert('Unable to load content', error.message || 'Please try again later.');
     } finally {
       setLoading(false);
     }
