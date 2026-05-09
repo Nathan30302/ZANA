@@ -9,9 +9,11 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { api } from '../../services/api';
-
-const API_BASE_URL = 'http://localhost:3000/v1';
+import { colors, typography, spacing, radius, shadows } from '../../constants/theme';
+import { ThemedCard } from '../../components/ThemedCard';
+import { Badge } from '../../components/Badge';
 
 interface Venue {
   id: string;
@@ -86,7 +88,6 @@ export default function VenueDetailScreen() {
   useEffect(() => {
     const fetchVenueData = async () => {
       try {
-        // Fetch venue details
         const venueResponse = await api.getVenue(params.id as string);
         if (!venueResponse.data) {
           throw new Error('Venue not found');
@@ -94,20 +95,16 @@ export default function VenueDetailScreen() {
 
         let venueData = venueResponse.data;
 
-        // Fetch services
         const servicesResponse = await api.getVenueServices(params.id as string);
         if (servicesResponse.data) {
           venueData.services = servicesResponse.data;
         }
 
-        // Fetch staff
         const staffResponse = await api.getVenueStaff(params.id as string);
         if (staffResponse.data) {
           venueData.staff = staffResponse.data;
         }
 
-        // For now, set mock data for reviews and opening hours
-        // These would need additional API endpoints
         venueData.reviews = [
           { id: '1', rating: 5, comment: 'Excellent service!', createdAt: '2026-03-25T00:00:00.000Z', customer: { firstName: 'Customer', lastName: 'A' } },
         ];
@@ -124,7 +121,6 @@ export default function VenueDetailScreen() {
         setVenue(venueData);
       } catch (error: any) {
         console.error('Error fetching venue:', error);
-        // Keep empty state on error
       } finally {
         setLoading(false);
       }
@@ -140,7 +136,7 @@ export default function VenueDetailScreen() {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#1A56DB" />
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
@@ -148,155 +144,194 @@ export default function VenueDetailScreen() {
   if (!venue) {
     return (
       <View style={styles.errorContainer}>
+        <Ionicons name="alert-circle-outline" size={48} color={colors.error} />
         <Text style={styles.errorText}>Venue not found</Text>
       </View>
     );
   }
 
-  const renderStars = (rating: number) => {
-    return '⭐'.repeat(Math.floor(rating)) + (rating % 1 >= 0.5 ? '½' : '');
-  };
-
   return (
     <ScrollView style={styles.container}>
-      {/* Cover Photo */}
-      <Image
-        source={{ uri: venue.coverPhoto || 'https://via.placeholder.com/800x400' }}
-        style={styles.coverImage}
-      />
+      {/* Cover Photo with Back Button */}
+      <View style={styles.coverContainer}>
+        <Image
+          source={{ uri: venue.coverPhoto || 'https://images.unsplash.com/photo-1633416476697-1e589ae6e76b?w=600' }}
+          style={styles.coverImage}
+        />
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => router.back()}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="chevron-back" size={28} color="#FFFFFF" />
+        </TouchableOpacity>
+        <View style={styles.ratingOverlay}>
+          <Ionicons name="star" size={16} color={colors.warning} />
+          <Text style={styles.overlayRating}>{venue.rating.toFixed(1)}</Text>
+        </View>
+      </View>
 
       {/* Photo Gallery */}
       {venue.photos && venue.photos.length > 0 && (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.photoGallery}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.photoGallery}
+          contentContainerStyle={styles.photoGalleryContent}
+        >
           {venue.photos.map((photo, index) => (
             <Image key={index} source={{ uri: photo }} style={styles.galleryPhoto} />
           ))}
         </ScrollView>
       )}
 
-      {/* Venue Info */}
-      <View style={styles.infoContainer}>
-        <View style={styles.headerRow}>
-          <View style={styles.headerContent}>
-            <Text style={styles.venueName}>{venue.name}</Text>
-            <Text style={styles.venueCategory}>
-              {venue.category.replace(/_/g, ' ')}
-            </Text>
-          </View>
-          <View style={styles.ratingContainer}>
-            <Text style={styles.ratingStars}>{renderStars(venue.rating)}</Text>
-            <Text style={styles.ratingNumber}>{venue.rating.toFixed(1)}</Text>
-            <Text style={styles.reviewCount}>({venue.reviewCount})</Text>
-          </View>
+      {/* Venue Header Info */}
+      <View style={styles.headerSection}>
+        <View>
+          <Text style={styles.venueName}>{venue.name}</Text>
+          <Text style={styles.venueCategory}>
+            {venue.category.replace(/_/g, ' ')}
+          </Text>
         </View>
+      </View>
 
-        {/* Address */}
-        <View style={styles.infoRow}>
-          <Text style={styles.infoIcon}>📍</Text>
-          <Text style={styles.infoText}>{venue.address}, {venue.city}</Text>
-        </View>
-
-        {/* Phone */}
-        <View style={styles.infoRow}>
-          <Text style={styles.infoIcon}>📞</Text>
-          <Text style={styles.infoText}>{venue.phone}</Text>
-        </View>
-
-        {/* Amenities */}
-        {venue.amenities && venue.amenities.length > 0 && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Amenities</Text>
-            <View style={styles.amenitiesRow}>
-              {venue.amenities.map((amenity, index) => (
-                <View key={index} style={styles.amenityBadge}>
-                  <Text style={styles.amenityText}>{amenity}</Text>
-                </View>
-              ))}
+      {/* Key Info Cards */}
+      <View style={styles.infoCardsSection}>
+        <ThemedCard shadow="sm" style={styles.infoCard}>
+          <View style={styles.infoCardContent}>
+            <Ionicons name="location-outline" size={20} color={colors.primary} />
+            <View style={{ flex: 1, marginLeft: spacing.md }}>
+              <Text style={styles.infoCardLabel}>Location</Text>
+              <Text style={styles.infoCardValue} numberOfLines={2}>
+                {venue.address}, {venue.city}
+              </Text>
             </View>
           </View>
-        )}
+        </ThemedCard>
 
-        {/* Opening Hours */}
-        {venue.openingHours && venue.openingHours.length > 0 && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Opening Hours</Text>
-            {venue.openingHours.sort((a, b) => a.dayOfWeek - b.dayOfWeek).map((hour) => (
-              <View key={hour.id} style={styles.hoursRow}>
-                <Text style={styles.dayName}>
-                  {DAY_NAMES[hour.dayOfWeek]}
-                </Text>
-                <Text style={[styles.hoursText, hour.isClosed && styles.closedText]}>
-                  {hour.isClosed ? 'Closed' : `${hour.openTime} - ${hour.closeTime}`}
-                </Text>
-              </View>
+        <ThemedCard shadow="sm" style={styles.infoCard}>
+          <View style={styles.infoCardContent}>
+            <Ionicons name="call-outline" size={20} color={colors.primary} />
+            <View style={{ flex: 1, marginLeft: spacing.md }}>
+              <Text style={styles.infoCardLabel}>Phone</Text>
+              <Text style={styles.infoCardValue}>{venue.phone}</Text>
+            </View>
+          </View>
+        </ThemedCard>
+      </View>
+
+      {/* Amenities */}
+      {venue.amenities && venue.amenities.length > 0 && (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Amenities</Text>
+          <View style={styles.amenitiesContainer}>
+            {venue.amenities.map((amenity, index) => (
+              <Badge key={index} variant="info" label={amenity} />
             ))}
           </View>
-        )}
-
-        {/* Tabs */}
-        <View style={styles.tabContainer}>
-          <TouchableOpacity
-            style={[styles.tab, activeTab === 'services' && styles.tabActive]}
-            onPress={() => setActiveTab('services')}
-          >
-            <Text style={[styles.tabText, activeTab === 'services' && styles.tabTextActive]}>
-              Services
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.tab, activeTab === 'team' && styles.tabActive]}
-            onPress={() => setActiveTab('team')}
-          >
-            <Text style={[styles.tabText, activeTab === 'team' && styles.tabTextActive]}>
-              Team
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.tab, activeTab === 'reviews' && styles.tabActive]}
-            onPress={() => setActiveTab('reviews')}
-          >
-            <Text style={[styles.tabText, activeTab === 'reviews' && styles.tabTextActive]}>
-              Reviews
-            </Text>
-          </TouchableOpacity>
         </View>
+      )}
 
-        {/* Tab Content */}
-        {activeTab === 'services' && venue.services && (
-          <View style={styles.tabContent}>
-            {venue.services.map((service) => (
-              <TouchableOpacity
-                key={service.id}
-                style={styles.serviceCard}
-                onPress={() => handleBookNow(service)}
-              >
-                <View style={styles.serviceInfo}>
-                  <Text style={styles.serviceName}>{service.name}</Text>
-                  {service.description && (
-                    <Text style={styles.serviceDescription} numberOfLines={1}>
-                      {service.description}
-                    </Text>
-                  )}
-                  <Text style={styles.serviceDuration}>{service.duration} min</Text>
-                </View>
-                <View style={styles.servicePriceContainer}>
-                  <Text style={styles.servicePrice}>K {service.price.toFixed(0)}</Text>
-                  <Text style={styles.bookButton}>Book</Text>
-                </View>
-              </TouchableOpacity>
-            ))}
-          </View>
-        )}
-
-        {activeTab === 'team' && venue.staff && (
-          <View style={styles.tabContent}>
-            {venue.staff.map((member) => (
-              <View key={member.id} style={styles.staffCard}>
-                <View style={styles.staffAvatar}>
-                  <Text style={styles.staffAvatarText}>
-                    {member.user.firstName.charAt(0)}{member.user.lastName.charAt(0)}
+      {/* Opening Hours */}
+      {venue.openingHours && venue.openingHours.length > 0 && (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Opening Hours</Text>
+          <ThemedCard shadow="sm">
+            {venue.openingHours
+              .sort((a, b) => a.dayOfWeek - b.dayOfWeek)
+              .map((hour, index) => (
+                <View
+                  key={hour.id}
+                  style={[
+                    styles.hoursRow,
+                    index !== venue.openingHours!.length - 1 && styles.hoursRowBorder,
+                  ]}
+                >
+                  <Text style={styles.dayName}>{DAY_NAMES[hour.dayOfWeek]}</Text>
+                  <Text style={[styles.hoursText, hour.isClosed && styles.closedText]}>
+                    {hour.isClosed ? 'Closed' : `${hour.openTime} - ${hour.closeTime}`}
                   </Text>
                 </View>
+              ))}
+          </ThemedCard>
+        </View>
+      )}
+
+      {/* Tabs */}
+      <View style={styles.tabContainer}>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'services' && styles.tabActive]}
+          onPress={() => setActiveTab('services')}
+          activeOpacity={0.7}
+        >
+          <Text style={[styles.tabText, activeTab === 'services' && styles.tabTextActive]}>
+            Services ({venue.services?.length || 0})
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'team' && styles.tabActive]}
+          onPress={() => setActiveTab('team')}
+          activeOpacity={0.7}
+        >
+          <Text style={[styles.tabText, activeTab === 'team' && styles.tabTextActive]}>
+            Team ({venue.staff?.length || 0})
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'reviews' && styles.tabActive]}
+          onPress={() => setActiveTab('reviews')}
+          activeOpacity={0.7}
+        >
+          <Text style={[styles.tabText, activeTab === 'reviews' && styles.tabTextActive]}>
+            Reviews
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Tab Content */}
+      {activeTab === 'services' && venue.services && venue.services.length > 0 && (
+        <View style={styles.tabContent}>
+          {venue.services.map((service) => (
+            <ThemedCard
+              key={service.id}
+              shadow="sm"
+              style={styles.serviceCard}
+              onPress={() => handleBookNow(service)}
+            >
+              <View>
+                <Text style={styles.serviceName}>{service.name}</Text>
+                {service.description && (
+                  <Text style={styles.serviceDescription} numberOfLines={1}>
+                    {service.description}
+                  </Text>
+                )}
+                <View style={styles.serviceFooter}>
+                  <View style={styles.serviceDetails}>
+                    <Ionicons name="time-outline" size={14} color={colors.text.secondary} />
+                    <Text style={styles.serviceDuration}>{service.duration} min</Text>
+                  </View>
+                  <Text style={styles.servicePrice}>K {service.price.toFixed(0)}</Text>
+                </View>
+              </View>
+            </ThemedCard>
+          ))}
+        </View>
+      )}
+
+      {activeTab === 'team' && venue.staff && venue.staff.length > 0 && (
+        <View style={styles.tabContent}>
+          {venue.staff.map((member) => (
+            <ThemedCard key={member.id} shadow="sm" style={styles.staffCard}>
+              <View style={styles.staffContent}>
+                {member.user.avatarUrl ? (
+                  <Image source={{ uri: member.user.avatarUrl }} style={styles.staffAvatar} />
+                ) : (
+                  <View style={styles.staffAvatarPlaceholder}>
+                    <Text style={styles.staffAvatarText}>
+                      {member.user.firstName.charAt(0)}{member.user.lastName.charAt(0)}
+                    </Text>
+                  </View>
+                )}
                 <View style={styles.staffInfo}>
                   <Text style={styles.staffName}>
                     {member.user.firstName} {member.user.lastName}
@@ -304,41 +339,40 @@ export default function VenueDetailScreen() {
                   <Text style={styles.staffTitle}>{member.title || 'Staff Member'}</Text>
                 </View>
               </View>
-            ))}
-          </View>
-        )}
+            </ThemedCard>
+          ))}
+        </View>
+      )}
 
-        {activeTab === 'reviews' && venue.reviews && (
-          <View style={styles.tabContent}>
-            {venue.reviews.map((review) => (
-              <View key={review.id} style={styles.reviewCard}>
-                <View style={styles.reviewHeader}>
+      {activeTab === 'reviews' && venue.reviews && venue.reviews.length > 0 && (
+        <View style={styles.tabContent}>
+          {venue.reviews.map((review) => (
+            <ThemedCard key={review.id} shadow="sm" style={styles.reviewCard}>
+              <View style={styles.reviewHeader}>
+                <View>
                   <Text style={styles.reviewCustomer}>
                     {review.customer.firstName} {review.customer.lastName}
                   </Text>
-                  <Text style={styles.reviewRating}>{renderStars(review.rating)}</Text>
+                  <Text style={styles.reviewDate}>
+                    {new Date(review.createdAt).toLocaleDateString()}
+                  </Text>
                 </View>
-                {review.comment && (
-                  <Text style={styles.reviewComment}>{review.comment}</Text>
-                )}
-                <Text style={styles.reviewDate}>
-                  {new Date(review.createdAt).toLocaleDateString()}
-                </Text>
+                <View style={styles.reviewRatingContainer}>
+                  {[...Array(Math.floor(review.rating))].map((_, i) => (
+                    <Ionicons key={i} name="star" size={14} color={colors.warning} />
+                  ))}
+                </View>
               </View>
-            ))}
-          </View>
-        )}
-      </View>
+              {review.comment && (
+                <Text style={styles.reviewComment}>{review.comment}</Text>
+              )}
+            </ThemedCard>
+          ))}
+        </View>
+      )}
 
-      {/* Book Now Button */}
-      <View style={styles.footer}>
-        <TouchableOpacity
-          style={styles.bookNowButton}
-          onPress={() => handleBookNow()}
-        >
-          <Text style={styles.bookNowButtonText}>Book Now</Text>
-        </TouchableOpacity>
-      </View>
+      {/* Bottom Spacing */}
+      <View style={styles.bottomSpacing} />
     </ScrollView>
   );
 }
@@ -346,312 +380,314 @@ export default function VenueDetailScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
-    paddingBottom: 80,
+    backgroundColor: colors.bg.secondary,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: colors.bg.secondary,
   },
   errorContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: colors.bg.secondary,
+    gap: spacing.md,
   },
   errorText: {
-    fontSize: 16,
-    color: '#6B7280',
+    ...typography.bodyMedium,
+    color: colors.text.secondary,
+  },
+  
+  // Cover Image
+  coverContainer: {
+    position: 'relative',
+    width: '100%',
+    height: 240,
   },
   coverImage: {
     width: '100%',
-    height: 200,
+    height: '100%',
   },
+  backButton: {
+    position: 'absolute',
+    top: spacing.lg,
+    left: spacing.lg,
+    width: 40,
+    height: 40,
+    borderRadius: radius.md,
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  ratingOverlay: {
+    position: 'absolute',
+    bottom: spacing.md,
+    right: spacing.md,
+    backgroundColor: colors.bg.primary,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.full,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    ...shadows.md,
+  },
+  overlayRating: {
+    ...typography.small,
+    color: colors.text.primary,
+    fontWeight: '600',
+  },
+
+  // Photo Gallery
   photoGallery: {
     maxHeight: 100,
-    paddingVertical: 8,
-    paddingLeft: 16,
+  },
+  photoGalleryContent: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    gap: spacing.md,
   },
   galleryPhoto: {
     width: 120,
     height: 80,
-    borderRadius: 8,
-    marginRight: 8,
+    borderRadius: radius.md,
   },
-  infoContainer: {
-    padding: 16,
-  },
-  headerRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 12,
-  },
-  headerContent: {
-    flex: 1,
+
+  // Header
+  headerSection: {
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.md,
   },
   venueName: {
-    fontSize: 24,
+    ...typography.h2,
+    color: colors.text.primary,
     fontWeight: 'bold',
-    color: '#111827',
+    marginBottom: spacing.xs,
   },
   venueCategory: {
-    fontSize: 14,
-    color: '#6B7280',
-    marginTop: 4,
+    ...typography.body,
+    color: colors.text.secondary,
   },
-  ratingContainer: {
-    alignItems: 'flex-end',
+
+  // Info Cards
+  infoCardsSection: {
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.lg,
+    gap: spacing.md,
   },
-  ratingStars: {
-    fontSize: 14,
+  infoCard: {
+    padding: spacing.md,
   },
-  ratingNumber: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#111827',
-  },
-  reviewCount: {
-    fontSize: 12,
-    color: '#6B7280',
-  },
-  infoRow: {
+  infoCardContent: {
     flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
+    alignItems: 'flex-start',
   },
-  infoIcon: {
-    fontSize: 16,
-    marginRight: 8,
+  infoCardLabel: {
+    ...typography.small,
+    color: colors.text.secondary,
+    marginBottom: spacing.xs,
   },
-  infoText: {
-    fontSize: 14,
-    color: '#374151',
-  },
-  section: {
-    marginTop: 20,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#111827',
-    marginBottom: 12,
-  },
-  amenitiesRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-  },
-  amenityBadge: {
-    backgroundColor: '#E0E7FF',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    marginRight: 8,
-    marginBottom: 8,
-  },
-  amenityText: {
-    fontSize: 12,
-    color: '#1A56DB',
+  infoCardValue: {
+    ...typography.bodyMedium,
+    color: colors.text.primary,
     fontWeight: '500',
   },
+
+  // Amenities
+  section: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.lg,
+  },
+  sectionTitle: {
+    ...typography.h4,
+    color: colors.text.primary,
+    fontWeight: 'bold',
+    marginBottom: spacing.md,
+  },
+  amenitiesContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.md,
+  },
+
+  // Hours
   hoursRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingVertical: 8,
+    alignItems: 'center',
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.md,
+  },
+  hoursRowBorder: {
     borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+    borderBottomColor: colors.border,
   },
   dayName: {
-    fontSize: 14,
-    color: '#374151',
+    ...typography.bodyMedium,
+    color: colors.text.primary,
+    fontWeight: '500',
+    width: '40%',
   },
   hoursText: {
-    fontSize: 14,
-    color: '#374151',
+    ...typography.bodyMedium,
+    color: colors.text.secondary,
+    textAlign: 'right',
   },
   closedText: {
-    color: '#EF4444',
+    color: colors.error,
+    fontWeight: '600',
   },
+
+  // Tabs
   tabContainer: {
     flexDirection: 'row',
-    marginTop: 24,
-    marginBottom: 16,
-    backgroundColor: '#F3F4F6',
-    borderRadius: 8,
-    padding: 4,
+    marginHorizontal: spacing.lg,
+    marginVertical: spacing.lg,
+    backgroundColor: colors.bg.tertiary,
+    borderRadius: radius.lg,
+    padding: spacing.sm,
+    gap: spacing.sm,
   },
   tab: {
     flex: 1,
-    paddingVertical: 10,
+    paddingVertical: spacing.md,
     alignItems: 'center',
-    borderRadius: 6,
+    borderRadius: radius.md,
   },
   tabActive: {
-    backgroundColor: '#FFFFFF',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
+    backgroundColor: colors.bg.primary,
+    ...shadows.sm,
   },
   tabText: {
-    fontSize: 14,
-    color: '#6B7280',
+    ...typography.small,
+    color: colors.text.secondary,
     fontWeight: '500',
   },
   tabTextActive: {
-    color: '#1A56DB',
+    color: colors.primary,
     fontWeight: '600',
   },
+
+  // Tab Content
   tabContent: {
-    marginTop: 8,
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.lg,
+    gap: spacing.md,
   },
+
+  // Services
   serviceCard: {
+    padding: spacing.md,
+  },
+  serviceName: {
+    ...typography.bodyMedium,
+    color: colors.text.primary,
+    fontWeight: '600',
+    marginBottom: spacing.xs,
+  },
+  serviceDescription: {
+    ...typography.small,
+    color: colors.text.secondary,
+    marginBottom: spacing.sm,
+  },
+  serviceFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
+    marginTop: spacing.sm,
   },
-  serviceInfo: {
-    flex: 1,
-  },
-  serviceName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#111827',
-    marginBottom: 4,
-  },
-  serviceDescription: {
-    fontSize: 12,
-    color: '#6B7280',
-    marginBottom: 4,
-  },
-  serviceDuration: {
-    fontSize: 12,
-    color: '#9CA3AF',
-  },
-  servicePriceContainer: {
-    alignItems: 'flex-end',
-  },
-  servicePrice: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#1A56DB',
-    marginBottom: 4,
-  },
-  bookButton: {
-    backgroundColor: '#1A56DB',
-    paddingHorizontal: 16,
-    paddingVertical: 6,
-    borderRadius: 16,
-  },
-  bookButtonText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  staffCard: {
+  serviceDetails: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
+    gap: spacing.xs,
+  },
+  serviceDuration: {
+    ...typography.small,
+    color: colors.text.secondary,
+  },
+  servicePrice: {
+    ...typography.bodyMedium,
+    color: colors.primary,
+    fontWeight: '600',
+  },
+
+  // Staff
+  staffCard: {
+    padding: spacing.md,
+  },
+  staffContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   staffAvatar: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: '#1A56DB',
+    width: 48,
+    height: 48,
+    borderRadius: radius.full,
+    marginRight: spacing.md,
+  },
+  staffAvatarPlaceholder: {
+    width: 48,
+    height: 48,
+    borderRadius: radius.full,
+    backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 12,
+    marginRight: spacing.md,
   },
   staffAvatarText: {
-    fontSize: 18,
-    fontWeight: 'bold',
+    ...typography.small,
     color: '#FFFFFF',
+    fontWeight: 'bold',
   },
   staffInfo: {
     flex: 1,
   },
   staffName: {
-    fontSize: 16,
+    ...typography.bodyMedium,
+    color: colors.text.primary,
     fontWeight: '600',
-    color: '#111827',
   },
   staffTitle: {
-    fontSize: 14,
-    color: '#6B7280',
-    marginTop: 2,
+    ...typography.small,
+    color: colors.text.secondary,
+    marginTop: spacing.xs,
   },
+
+  // Reviews
   reviewCard: {
-    backgroundColor: '#FFFFFF',
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
+    padding: spacing.md,
   },
   reviewHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
+    alignItems: 'flex-start',
+    marginBottom: spacing.md,
   },
   reviewCustomer: {
-    fontSize: 14,
+    ...typography.bodyMedium,
+    color: colors.text.primary,
     fontWeight: '600',
-    color: '#111827',
-  },
-  reviewRating: {
-    fontSize: 14,
-  },
-  reviewComment: {
-    fontSize: 14,
-    color: '#374151',
-    lineHeight: 20,
   },
   reviewDate: {
-    fontSize: 12,
-    color: '#9CA3AF',
-    marginTop: 8,
+    ...typography.caption,
+    color: colors.text.secondary,
+    marginTop: spacing.xs,
   },
-  footer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: '#FFFFFF',
-    padding: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
+  reviewRatingContainer: {
+    flexDirection: 'row',
+    gap: spacing.xs,
   },
-  bookNowButton: {
-    backgroundColor: '#1A56DB',
-    paddingVertical: 16,
-    borderRadius: 12,
-    alignItems: 'center',
+  reviewComment: {
+    ...typography.body,
+    color: colors.text.primary,
+    lineHeight: 20,
   },
-  bookNowButtonText: {
-    color: '#FFFFFF',
-    fontSize: 18,
-    fontWeight: '600',
+
+  // Bottom Spacing
+  bottomSpacing: {
+    height: spacing.xl,
   },
 });

@@ -12,8 +12,10 @@ import {
   Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { api } from '../../services/api';
 import { useAuthStore } from '../../stores/authStore';
+import { colors, typography, spacing, radius, shadows } from '../../constants/theme';
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -21,6 +23,7 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
 
   const setAuth = useAuthStore((state) => state.setAuth);
 
@@ -61,9 +64,12 @@ export default function LoginScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={styles.container}
     >
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         {/* Logo */}
         <View style={styles.logoContainer}>
+          <View style={styles.logoIconContainer}>
+            <Ionicons name="sparkles-outline" size={48} color="#FFFFFF" />
+          </View>
           <Text style={styles.logoText}>ZANA</Text>
           <Text style={styles.tagline}>Beauty at your fingertips</Text>
         </View>
@@ -73,36 +79,57 @@ export default function LoginScreen() {
           <Text style={styles.title}>Welcome Back</Text>
           <Text style={styles.subtitle}>Sign in to continue</Text>
 
-          {error ? <Text style={styles.errorText}>{error}</Text> : null}
+          {error ? (
+            <View style={styles.errorContainer}>
+              <Ionicons name="alert-circle-outline" size={16} color={colors.semantic.error} />
+              <Text style={styles.errorText}>{error}</Text>
+            </View>
+          ) : null}
 
           <View style={styles.inputContainer}>
             <Text style={styles.label}>Email or Phone</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Enter your email or phone"
-              placeholderTextColor="#9CA3AF"
-              value={email}
-              onChangeText={setEmail}
-              autoCapitalize="none"
-              keyboardType="email-address"
-            />
+            <View style={styles.inputWrapper}>
+              <Ionicons name="mail-outline" size={18} color={colors.text.secondary} />
+              <TextInput
+                style={styles.input}
+                placeholder="Enter your email or phone"
+                placeholderTextColor={colors.text.tertiary}
+                value={email}
+                onChangeText={setEmail}
+                autoCapitalize="none"
+                keyboardType="email-address"
+              />
+            </View>
           </View>
 
           <View style={styles.inputContainer}>
             <Text style={styles.label}>Password</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Enter your password"
-              placeholderTextColor="#9CA3AF"
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry
-            />
+            <View style={styles.inputWrapper}>
+              <Ionicons name="lock-closed-outline" size={18} color={colors.text.secondary} />
+              <TextInput
+                style={styles.input}
+                placeholder="Enter your password"
+                placeholderTextColor={colors.text.tertiary}
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry={!showPassword}
+              />
+              <TouchableOpacity
+                onPress={() => setShowPassword(!showPassword)}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <Ionicons
+                  name={showPassword ? 'eye-outline' : 'eye-off-outline'}
+                  size={18}
+                  color={colors.text.secondary}
+                />
+              </TouchableOpacity>
+            </View>
           </View>
 
           <TouchableOpacity 
             style={styles.forgotPassword}
-            onPress={() => Alert.alert('Password Reset', 'Please contact support to reset your password.')}
+            onPress={() => router.push('/(auth)/forgot-password')}
           >
             <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
           </TouchableOpacity>
@@ -111,11 +138,15 @@ export default function LoginScreen() {
             style={[styles.loginButton, loading && styles.loginButtonDisabled]}
             onPress={handleLogin}
             disabled={loading}
+            activeOpacity={0.8}
           >
             {loading ? (
               <ActivityIndicator size="small" color="#FFFFFF" />
             ) : (
-              <Text style={styles.loginButtonText}>Sign In</Text>
+              <>
+                <Ionicons name="log-in-outline" size={18} color="#FFFFFF" />
+                <Text style={styles.loginButtonText}>Sign In</Text>
+              </>
             )}
           </TouchableOpacity>
 
@@ -127,8 +158,10 @@ export default function LoginScreen() {
 
           <TouchableOpacity 
             style={styles.registerButton}
-            onPress={() => router.push('/register')}
+            onPress={() => router.push('/(auth)/register')}
+            activeOpacity={0.7}
           >
+            <Ionicons name="person-add-outline" size={18} color={colors.primary} />
             <Text style={styles.registerButtonText}>Create New Account</Text>
           </TouchableOpacity>
         </View>
@@ -149,137 +182,184 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: colors.bg.secondary,
   },
   scrollContent: {
     flexGrow: 1,
     justifyContent: 'center',
-    padding: 24,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.xl,
   },
+  
+  // Logo
   logoContainer: {
     alignItems: 'center',
-    marginBottom: 40,
+    marginBottom: spacing.xxl,
+  },
+  logoIconContainer: {
+    width: 80,
+    height: 80,
+    backgroundColor: colors.primary,
+    borderRadius: radius.full,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: spacing.lg,
+    ...shadows.md,
   },
   logoText: {
-    fontSize: 48,
-    fontWeight: 'bold',
-    color: '#1A56DB',
+    ...typography.display,
+    color: colors.primary,
+    fontWeight: '700',
   },
   tagline: {
-    fontSize: 16,
-    color: '#6B7280',
-    marginTop: 8,
+    ...typography.bodyMedium,
+    color: colors.text.secondary,
+    marginTop: spacing.sm,
   },
+
+  // Form
   formContainer: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    backgroundColor: colors.bg.primary,
+    borderRadius: radius.xl,
+    padding: spacing.xl,
+    ...shadows.md,
+    marginBottom: spacing.lg,
   },
   title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#111827',
-    marginBottom: 4,
+    ...typography.h2,
+    color: colors.text.primary,
+    fontWeight: '700',
+    marginBottom: spacing.xs,
   },
   subtitle: {
-    fontSize: 14,
-    color: '#6B7280',
-    marginBottom: 24,
+    ...typography.body,
+    color: colors.text.secondary,
+    marginBottom: spacing.lg,
+  },
+
+  // Error
+  errorContainer: {
+    backgroundColor: colors.bg.error,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    marginBottom: spacing.lg,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    borderLeftWidth: 4,
+    borderLeftColor: colors.semantic.error,
   },
   errorText: {
-    backgroundColor: '#FEF2F2',
-    color: '#DC2626',
-    padding: 12,
-    borderRadius: 8,
-    fontSize: 14,
-    marginBottom: 16,
+    ...typography.small,
+    color: colors.semantic.error,
+    flex: 1,
   },
+
+  // Input
   inputContainer: {
-    marginBottom: 16,
+    marginBottom: spacing.lg,
   },
   label: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#374151',
-    marginBottom: 8,
+    ...typography.bodyMedium,
+    color: colors.text.primary,
+    fontWeight: '600',
+    marginBottom: spacing.sm,
+  },
+  inputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.bg.secondary,
+    borderRadius: radius.lg,
+    paddingHorizontal: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    gap: spacing.sm,
   },
   input: {
-    backgroundColor: '#F3F4F6',
-    borderRadius: 8,
-    padding: 14,
-    fontSize: 16,
-    color: '#111827',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
+    flex: 1,
+    paddingVertical: spacing.md,
+    ...typography.body,
+    color: colors.text.primary,
   },
+
+  // Links
   forgotPassword: {
     alignItems: 'flex-end',
-    marginBottom: 24,
+    marginBottom: spacing.lg,
   },
   forgotPasswordText: {
-    fontSize: 14,
-    color: '#1A56DB',
-    fontWeight: '500',
+    ...typography.small,
+    color: colors.primary,
+    fontWeight: '600',
   },
+
+  // Buttons
   loginButton: {
-    backgroundColor: '#1A56DB',
-    paddingVertical: 16,
-    borderRadius: 12,
+    backgroundColor: colors.primary,
+    paddingVertical: spacing.lg,
+    borderRadius: radius.lg,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.md,
+    ...shadows.md,
   },
   loginButtonDisabled: {
     opacity: 0.7,
   },
   loginButtonText: {
+    ...typography.bodyMedium,
     color: '#FFFFFF',
-    fontSize: 18,
-    fontWeight: '600',
+    fontWeight: '700',
   },
+
   divider: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginVertical: 24,
+    marginVertical: spacing.lg,
   },
   dividerLine: {
     flex: 1,
     height: 1,
-    backgroundColor: '#E5E7EB',
+    backgroundColor: colors.border,
   },
   dividerText: {
-    marginHorizontal: 16,
-    fontSize: 14,
-    color: '#9CA3AF',
+    marginHorizontal: spacing.md,
+    ...typography.small,
+    color: colors.text.tertiary,
   },
+
   registerButton: {
-    backgroundColor: '#FFFFFF',
-    paddingVertical: 16,
-    borderRadius: 12,
+    backgroundColor: colors.bg.secondary,
+    paddingVertical: spacing.lg,
+    borderRadius: radius.lg,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.md,
     borderWidth: 2,
-    borderColor: '#1A56DB',
+    borderColor: colors.primary,
   },
   registerButtonText: {
-    color: '#1A56DB',
-    fontSize: 16,
+    ...typography.bodyMedium,
+    color: colors.primary,
     fontWeight: '600',
   },
+
+  // Footer
   footer: {
-    marginTop: 24,
+    marginTop: spacing.xl,
     alignItems: 'center',
   },
   footerText: {
-    fontSize: 12,
-    color: '#9CA3AF',
+    ...typography.caption,
+    color: colors.text.tertiary,
     textAlign: 'center',
     lineHeight: 18,
   },
   footerLink: {
-    color: '#1A56DB',
-    fontWeight: '500',
+    color: colors.primary,
+    fontWeight: '600',
   },
 });

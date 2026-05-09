@@ -162,10 +162,12 @@ router.post('/register', async (req, res) => {
     await saveRefreshToken(user.id, refreshToken);
 
     res.status(201).json({
-      message: 'User registered successfully',
-      user,
-      accessToken,
-      refreshToken
+      data: {
+        user,
+        accessToken,
+        refreshToken
+      },
+      meta: { message: 'User registered successfully' }
     });
 
   } catch (error) {
@@ -231,19 +233,21 @@ router.post('/login', async (req, res) => {
     await saveRefreshToken(user.id, refreshToken);
 
     res.json({
-      message: 'Login successful',
-      user: {
-        id: user.id,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        email: user.email,
-        phone: user.phone,
-        role: user.role,
-        isVerified: user.isVerified,
-        avatarUrl: user.avatarUrl
+      data: {
+        user: {
+          id: user.id,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          email: user.email,
+          phone: user.phone,
+          role: user.role,
+          isVerified: user.isVerified,
+          avatarUrl: user.avatarUrl
+        },
+        accessToken,
+        refreshToken
       },
-      accessToken,
-      refreshToken
+      meta: { message: 'Login successful' }
     });
 
   } catch (error) {
@@ -278,9 +282,11 @@ router.post('/refresh', async (req, res) => {
     await saveRefreshToken(userId, newRefreshToken);
 
     res.json({
-      message: 'Token refreshed successfully',
-      accessToken,
-      refreshToken: newRefreshToken
+      data: {
+        accessToken,
+        refreshToken: newRefreshToken
+      },
+      meta: { message: 'Token refreshed successfully' }
     });
 
   } catch (error) {
@@ -305,7 +311,8 @@ router.post('/logout', async (req, res) => {
     }
 
     res.json({
-      message: 'Logout successful'
+      data: { ok: true },
+      meta: { message: 'Logout successful' }
     });
 
   } catch (error) {
@@ -444,6 +451,50 @@ router.post('/reset-password', async (req, res) => {
   }
 });
 
+const profileUpdateSchema = Joi.object({
+  firstName: Joi.string().min(1).max(50).optional(),
+  lastName: Joi.string().min(1).max(50).optional(),
+  phone: Joi.string().pattern(/^[0-9]{10,15}$/).optional().allow(null, ''),
+  avatarUrl: Joi.string().uri().optional().allow(null, ''),
+  fcmToken: Joi.string().max(512).optional().allow(null, ''),
+});
+
+// PATCH /api/v1/auth/me — update profile
+router.patch('/me', verifyToken, async (req, res) => {
+  try {
+    const { error, value } = profileUpdateSchema.validate(req.body);
+    if (error) {
+      return res.status(400).json({ error: 'Validation failed', message: error.details[0].message });
+    }
+    const data = {};
+    if (value.firstName !== undefined) data.firstName = value.firstName;
+    if (value.lastName !== undefined) data.lastName = value.lastName;
+    if (value.phone !== undefined) data.phone = value.phone || null;
+    if (value.avatarUrl !== undefined) data.avatarUrl = value.avatarUrl || null;
+    if (value.fcmToken !== undefined) data.fcmToken = value.fcmToken || null;
+
+    const user = await prisma.user.update({
+      where: { id: req.user.id },
+      data,
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        phone: true,
+        role: true,
+        isVerified: true,
+        avatarUrl: true,
+        createdAt: true,
+      },
+    });
+    res.json({ data: { user }, meta: { message: 'Profile updated' } });
+  } catch (e) {
+    console.error('Profile update error:', e);
+    res.status(500).json({ error: 'Failed to update profile' });
+  }
+});
+
 // GET /api/v1/auth/me
 router.get('/me', verifyToken, async (req, res) => {
   try {
@@ -455,16 +506,18 @@ router.get('/me', verifyToken, async (req, res) => {
     }
 
     res.json({
-      user: {
-        id: req.user.id,
-        firstName: req.user.firstName,
-        lastName: req.user.lastName,
-        email: req.user.email,
-        phone: req.user.phone,
-        role: req.user.role,
-        isVerified: req.user.isVerified,
-        avatarUrl: req.user.avatarUrl,
-        createdAt: req.user.createdAt
+      data: {
+        user: {
+          id: req.user.id,
+          firstName: req.user.firstName,
+          lastName: req.user.lastName,
+          email: req.user.email,
+          phone: req.user.phone,
+          role: req.user.role,
+          isVerified: req.user.isVerified,
+          avatarUrl: req.user.avatarUrl,
+          createdAt: req.user.createdAt
+        }
       }
     });
 

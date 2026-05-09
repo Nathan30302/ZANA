@@ -18,6 +18,7 @@ const openingHoursRoutes = require('./routes/openingHours');
 const bookingRoutes = require('./routes/bookings');
 const reviewRoutes = require('./routes/reviews');
 const paymentRoutes = require('./routes/payments');
+const adminRoutes = require('./routes/admin');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -45,18 +46,41 @@ const limiter = rateLimit({
 });
 
 app.use('/api/', limiter);
+app.use('/v1/', limiter);
+
+const DEV_ORIGINS = [
+  'http://localhost:3000',
+  'http://localhost:3001',
+  'http://localhost:3002',
+  'http://localhost:3003',
+  'http://localhost:8081',
+  'http://localhost:8082',
+  'http://localhost:8083',
+  'http://localhost:19006',
+  'http://127.0.0.1:8081',
+  'http://127.0.0.1:19006',
+];
 
 // CORS configuration
 app.use(cors({
-  origin: process.env.NODE_ENV === 'production' 
-    ? ['https://customer.zana.zm', 'https://provider.zana.zm'] 
-    : ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:8081'],
-  credentials: true
+  origin:
+    process.env.NODE_ENV === 'production'
+      ? ['https://customer.zana.zm', 'https://provider.zana.zm', 'https://admin.zana.zm']
+      : DEV_ORIGINS,
+  credentials: true,
 }));
 
 // Body parsing middleware
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// Minimal env sanity checks (fail fast in dev)
+if (!process.env.DATABASE_URL) {
+  console.warn('⚠️  DATABASE_URL is not set. API will fail on DB queries.');
+}
+if (!process.env.JWT_SECRET) {
+  console.warn('⚠️  JWT_SECRET is not set. Auth will not work correctly.');
+}
 
 // Health check endpoint
 app.get('/health', (req, res) => {
@@ -67,17 +91,23 @@ app.get('/health', (req, res) => {
   });
 });
 
-// API routes
-app.use('/api/v1/auth', authRoutes);
-app.use('/api/v1/venues', venuesRoutes);
-app.use('/api/v1/venue', venueProfileRoutes);
-app.use('/api/v1/mobile-providers', mobileProviderRoutes);
-app.use('/api/v1/services', serviceRoutes);
-app.use('/api/v1/staff', staffRoutes);
-app.use('/api/v1/opening-hours', openingHoursRoutes);
-app.use('/api/v1/bookings', bookingRoutes);
-app.use('/api/v1/reviews', reviewRoutes);
-app.use('/api/v1/payments', paymentRoutes);
+function mountV1(prefix) {
+  app.use(`${prefix}/auth`, authRoutes);
+  app.use(`${prefix}/venues`, venuesRoutes);
+  app.use(`${prefix}/venue`, venueProfileRoutes);
+  app.use(`${prefix}/mobile-providers`, mobileProviderRoutes);
+  app.use(`${prefix}/services`, serviceRoutes);
+  app.use(`${prefix}/staff`, staffRoutes);
+  app.use(`${prefix}/opening-hours`, openingHoursRoutes);
+  app.use(`${prefix}/bookings`, bookingRoutes);
+  app.use(`${prefix}/reviews`, reviewRoutes);
+  app.use(`${prefix}/payments`, paymentRoutes);
+  app.use(`${prefix}/admin`, adminRoutes);
+}
+
+// Spec: /api/v1/* (apps) and alias /v1/* (document shorthand)
+mountV1('/api/v1');
+mountV1('/v1');
 
 // 404 handler
 app.use('*', (req, res) => {

@@ -5,29 +5,87 @@ const { validateService } = require('../middleware/validation');
 
 const prisma = new PrismaClient();
 const router = express.Router();
+const MOCK_MODE = process.env.MOCK_MODE === 'true' || process.env.MOCK_MODE === '1';
+const mock = require('../mock/data');
+
+// GET /services/:id - Fetch single service (used by customer booking funnel)
+router.get('/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    let service = null;
+    try {
+      service = await prisma.service.findUnique({
+        where: { id },
+        include: {
+          venue: true,
+          mobileProvider: {
+            include: {
+              user: {
+                select: { id: true, firstName: true, lastName: true, avatarUrl: true }
+              }
+            }
+          }
+        }
+      });
+    } catch (e) {
+      if (!MOCK_MODE) throw e;
+      service = mock.services.find((s) => s.id === id) || null;
+      if (service) {
+        service = {
+          ...service,
+          venue: service.venueId ? mock.venues.find((v) => v.id === service.venueId) || null : null,
+          mobileProvider: service.mobileProviderId
+            ? (mock.mobileProviders.find((p) => p.id === service.mobileProviderId) || null)
+            : null,
+        };
+      }
+    }
+
+    if (!service) {
+      return res.status(404).json({ error: 'Service not found' });
+    }
+
+    res.json({ data: service });
+  } catch (error) {
+    console.error('Error fetching service:', error);
+    res.status(500).json({ error: 'Failed to fetch service' });
+  }
+});
 
 // GET /venues/:id/services - List all services for a venue
 router.get('/venues/:id/services', async (req, res) => {
   try {
     const { id } = req.params;
     
-    const venue = await prisma.venue.findUnique({
-      where: { id }
-    });
+    let venue = null;
+    try {
+      venue = await prisma.venue.findUnique({
+        where: { id }
+      });
+    } catch (e) {
+      if (!MOCK_MODE) throw e;
+      venue = mock.venues.find((v) => v.id === id) || null;
+    }
 
     if (!venue) {
       return res.status(404).json({ error: 'Venue not found' });
     }
 
-    const services = await prisma.service.findMany({
-      where: { 
-        venueId: id,
-        isActive: true
-      },
-      orderBy: { price: 'asc' }
-    });
+    let services = [];
+    try {
+      services = await prisma.service.findMany({
+        where: { 
+          venueId: id,
+          isActive: true
+        },
+        orderBy: { price: 'asc' }
+      });
+    } catch (e) {
+      if (!MOCK_MODE) throw e;
+      services = mock.services.filter((s) => s.venueId === id && s.isActive);
+    }
 
-    res.json(services);
+    res.json({ data: services });
   } catch (error) {
     console.error('Error fetching venue services:', error);
     res.status(500).json({ error: 'Failed to fetch venue services' });
@@ -70,7 +128,7 @@ router.post('/venues/:id/services', verifyToken, async (req, res) => {
       }
     });
 
-    res.status(201).json(service);
+    res.status(201).json({ data: service });
   } catch (error) {
     console.error('Error creating service:', error);
     res.status(500).json({ error: 'Failed to create service' });
@@ -124,7 +182,7 @@ router.put('/venues/:venueId/services/:serviceId', verifyToken, async (req, res)
       }
     });
 
-    res.json(updatedService);
+    res.json({ data: updatedService });
   } catch (error) {
     console.error('Error updating service:', error);
     res.status(500).json({ error: 'Failed to update service' });
@@ -162,7 +220,7 @@ router.delete('/venues/:venueId/services/:serviceId', verifyToken, async (req, r
       where: { id: serviceId }
     });
 
-    res.json({ message: 'Service deleted successfully' });
+    res.json({ data: { ok: true }, meta: { message: 'Service deleted successfully' } });
   } catch (error) {
     console.error('Error deleting service:', error);
     res.status(500).json({ error: 'Failed to delete service' });
@@ -205,7 +263,7 @@ router.post('/mobile-providers/:id/services', verifyToken, async (req, res) => {
       }
     });
 
-    res.status(201).json(service);
+    res.status(201).json({ data: service });
   } catch (error) {
     console.error('Error creating mobile provider service:', error);
     res.status(500).json({ error: 'Failed to create service' });

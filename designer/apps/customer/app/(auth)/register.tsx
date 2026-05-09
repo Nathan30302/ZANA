@@ -12,8 +12,10 @@ import {
   Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { api } from '../../services/api';
 import { useAuthStore } from '../../stores/authStore';
+import { colors, typography, spacing, radius, shadows } from '../../constants/theme';
 
 export default function RegisterScreen() {
   const router = useRouter();
@@ -26,6 +28,8 @@ export default function RegisterScreen() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const handleRegister = async () => {
     // Validation
@@ -83,9 +87,12 @@ export default function RegisterScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={styles.container}
     >
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         {/* Header */}
         <View style={styles.headerContainer}>
+          <View style={styles.logoIconContainer}>
+            <Ionicons name="sparkles" size={40} color="#FFFFFF" />
+          </View>
           <Text style={styles.logoText}>ZANA</Text>
           <Text style={styles.title}>Create Account</Text>
           <Text style={styles.subtitle}>Join the beauty revolution</Text>
@@ -93,95 +100,149 @@ export default function RegisterScreen() {
 
         {/* Form */}
         <View style={styles.formContainer}>
-          {error ? <Text style={styles.errorText}>{error}</Text> : null}
+          {error ? (
+            <View style={styles.errorContainer}>
+              <Ionicons name="alert-circle-outline" size={16} color={colors.semantic.error} />
+              <Text style={styles.errorText}>{error}</Text>
+            </View>
+          ) : null}
 
+          {/* Name Fields */}
           <View style={styles.nameRow}>
             <View style={[styles.inputContainer, styles.halfWidth]}>
               <Text style={styles.label}>First Name</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="First"
-                placeholderTextColor="#9CA3AF"
-                value={firstName}
-                onChangeText={setFirstName}
-              />
+              <View style={styles.inputWrapper}>
+                <Ionicons name="person-outline" size={18} color={colors.text.secondary} />
+                <TextInput
+                  style={styles.input}
+                  placeholder="First"
+                  placeholderTextColor={colors.text.tertiary}
+                  value={firstName}
+                  onChangeText={setFirstName}
+                />
+              </View>
             </View>
             <View style={[styles.inputContainer, styles.halfWidth]}>
               <Text style={styles.label}>Last Name</Text>
+              <View style={styles.inputWrapper}>
+                <Ionicons name="person-outline" size={18} color={colors.text.secondary} />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Last"
+                  placeholderTextColor={colors.text.tertiary}
+                  value={lastName}
+                  onChangeText={setLastName}
+                />
+              </View>
+            </View>
+          </View>
+
+          {/* Email Field */}
+          <View style={styles.inputContainer}>
+            <Text style={styles.label}>Email</Text>
+            <View style={styles.inputWrapper}>
+              <Ionicons name="mail-outline" size={18} color={colors.text.secondary} />
               <TextInput
                 style={styles.input}
-                placeholder="Last"
-                placeholderTextColor="#9CA3AF"
-                value={lastName}
-                onChangeText={setLastName}
+                placeholder="Enter your email"
+                placeholderTextColor={colors.text.tertiary}
+                value={email}
+                onChangeText={setEmail}
+                autoCapitalize="none"
+                keyboardType="email-address"
               />
             </View>
           </View>
 
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>Email</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Enter your email"
-              placeholderTextColor="#9CA3AF"
-              value={email}
-              onChangeText={setEmail}
-              autoCapitalize="none"
-              keyboardType="email-address"
-            />
-          </View>
-
+          {/* Phone Field */}
           <View style={styles.inputContainer}>
             <Text style={styles.label}>Phone Number</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Enter your phone number"
-              placeholderTextColor="#9CA3AF"
-              value={phone}
-              onChangeText={setPhone}
-              keyboardType="phone-pad"
-            />
+            <View style={styles.inputWrapper}>
+              <Ionicons name="call-outline" size={18} color={colors.text.secondary} />
+              <TextInput
+                style={styles.input}
+                placeholder="Enter your phone number"
+                placeholderTextColor={colors.text.tertiary}
+                value={phone}
+                onChangeText={setPhone}
+                keyboardType="phone-pad"
+              />
+            </View>
           </View>
 
+          {/* Password Field */}
           <View style={styles.inputContainer}>
             <Text style={styles.label}>Password</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Enter your password"
-              placeholderTextColor="#9CA3AF"
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry
-            />
+            <View style={styles.inputWrapper}>
+              <Ionicons name="lock-closed-outline" size={18} color={colors.text.secondary} />
+              <TextInput
+                style={styles.input}
+                placeholder="Enter your password"
+                placeholderTextColor={colors.text.tertiary}
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry={!showPassword}
+              />
+              <TouchableOpacity
+                onPress={() => setShowPassword(!showPassword)}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <Ionicons
+                  name={showPassword ? 'eye-outline' : 'eye-off-outline'}
+                  size={18}
+                  color={colors.text.secondary}
+                />
+              </TouchableOpacity>
+            </View>
           </View>
 
+          {/* Confirm Password Field */}
           <View style={styles.inputContainer}>
             <Text style={styles.label}>Confirm Password</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Confirm your password"
-              placeholderTextColor="#9CA3AF"
-              value={confirmPassword}
-              onChangeText={setConfirmPassword}
-              secureTextEntry
-            />
+            <View style={styles.inputWrapper}>
+              <Ionicons name="lock-closed-outline" size={18} color={colors.text.secondary} />
+              <TextInput
+                style={styles.input}
+                placeholder="Confirm your password"
+                placeholderTextColor={colors.text.tertiary}
+                value={confirmPassword}
+                onChangeText={setConfirmPassword}
+                secureTextEntry={!showConfirmPassword}
+              />
+              <TouchableOpacity
+                onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <Ionicons
+                  name={showConfirmPassword ? 'eye-outline' : 'eye-off-outline'}
+                  size={18}
+                  color={colors.text.secondary}
+                />
+              </TouchableOpacity>
+            </View>
           </View>
 
+          {/* Register Button */}
           <TouchableOpacity
             style={[styles.registerButton, loading && styles.registerButtonDisabled]}
             onPress={handleRegister}
             disabled={loading}
+            activeOpacity={0.8}
           >
             {loading ? (
               <ActivityIndicator size="small" color="#FFFFFF" />
             ) : (
-              <Text style={styles.registerButtonText}>Create Account</Text>
+              <>
+                <Ionicons name="person-add-outline" size={18} color="#FFFFFF" />
+                <Text style={styles.registerButtonText}>Create Account</Text>
+              </>
             )}
           </TouchableOpacity>
 
+          {/* Sign In Link */}
           <View style={styles.loginContainer}>
             <Text style={styles.loginText}>Already have an account? </Text>
-            <TouchableOpacity onPress={() => router.push('/(auth)/login')}>
+            <TouchableOpacity onPress={() => router.push('/(auth)/login')} activeOpacity={0.7}>
               <Text style={styles.loginLink}>Sign In</Text>
             </TouchableOpacity>
           </View>
@@ -203,116 +264,159 @@ export default function RegisterScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: colors.bg.secondary,
   },
   scrollContent: {
     flexGrow: 1,
-    padding: 24,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.xl,
   },
+
+  // Header
   headerContainer: {
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: spacing.xl,
+  },
+  logoIconContainer: {
+    width: 80,
+    height: 80,
+    backgroundColor: colors.primary,
+    borderRadius: radius.full,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: spacing.lg,
+    ...shadows.md,
   },
   logoText: {
-    fontSize: 36,
-    fontWeight: 'bold',
-    color: '#1A56DB',
-    marginBottom: 16,
+    ...typography.display,
+    color: colors.primary,
+    fontWeight: '700',
+    marginBottom: spacing.sm,
   },
   title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#111827',
-    marginBottom: 4,
+    ...typography.h2,
+    color: colors.text.primary,
+    fontWeight: '700',
+    marginBottom: spacing.xs,
   },
   subtitle: {
-    fontSize: 14,
-    color: '#6B7280',
+    ...typography.body,
+    color: colors.text.secondary,
   },
+
+  // Form
   formContainer: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    backgroundColor: colors.bg.primary,
+    borderRadius: radius.xl,
+    padding: spacing.xl,
+    ...shadows.md,
+    marginBottom: spacing.lg,
+  },
+
+  // Error
+  errorContainer: {
+    backgroundColor: colors.bg.error,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    marginBottom: spacing.lg,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    borderLeftWidth: 4,
+    borderLeftColor: colors.semantic.error,
   },
   errorText: {
-    backgroundColor: '#FEF2F2',
-    color: '#DC2626',
-    padding: 12,
-    borderRadius: 8,
-    fontSize: 14,
-    marginBottom: 16,
+    ...typography.small,
+    color: colors.semantic.error,
+    flex: 1,
   },
+
+  // Input
   nameRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    gap: spacing.md,
   },
   halfWidth: {
     flex: 1,
   },
   inputContainer: {
-    marginBottom: 16,
+    marginBottom: spacing.lg,
   },
   label: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#374151',
-    marginBottom: 8,
+    ...typography.bodyMedium,
+    color: colors.text.primary,
+    fontWeight: '600',
+    marginBottom: spacing.sm,
+  },
+  inputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.bg.secondary,
+    borderRadius: radius.lg,
+    paddingHorizontal: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    gap: spacing.sm,
   },
   input: {
-    backgroundColor: '#F3F4F6',
-    borderRadius: 8,
-    padding: 14,
-    fontSize: 16,
-    color: '#111827',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
+    flex: 1,
+    paddingVertical: spacing.md,
+    ...typography.body,
+    color: colors.text.primary,
   },
+
+  // Button
   registerButton: {
-    backgroundColor: '#1A56DB',
-    paddingVertical: 16,
-    borderRadius: 12,
+    backgroundColor: colors.primary,
+    paddingVertical: spacing.lg,
+    borderRadius: radius.lg,
+    flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 8,
+    justifyContent: 'center',
+    gap: spacing.md,
+    marginTop: spacing.md,
+    ...shadows.md,
   },
   registerButtonDisabled: {
     opacity: 0.7,
   },
   registerButtonText: {
+    ...typography.bodyMedium,
     color: '#FFFFFF',
-    fontSize: 18,
-    fontWeight: '600',
+    fontWeight: '700',
   },
+
+  // Sign In Link
   loginContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
-    marginTop: 24,
+    marginTop: spacing.lg,
   },
   loginText: {
-    fontSize: 14,
-    color: '#6B7280',
+    ...typography.body,
+    color: colors.text.secondary,
   },
   loginLink: {
-    fontSize: 14,
-    color: '#1A56DB',
+    ...typography.body,
+    color: colors.primary,
     fontWeight: '600',
   },
+
+  // Footer
   footer: {
-    marginTop: 24,
+    marginTop: spacing.xl,
     alignItems: 'center',
   },
   footerText: {
-    fontSize: 12,
-    color: '#9CA3AF',
+    ...typography.caption,
+    color: colors.text.tertiary,
     textAlign: 'center',
     lineHeight: 18,
   },
   footerLink: {
-    color: '#1A56DB',
-    fontWeight: '500',
+    color: colors.primary,
+    fontWeight: '600',
   },
 });

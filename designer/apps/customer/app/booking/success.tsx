@@ -36,7 +36,7 @@ export default function BookingSuccessScreen() {
       <View style={styles.buttonContainer}>
         <TouchableOpacity
           style={styles.primaryButton}
-          onPress={() => router.push('/appointments')}
+          onPress={() => router.push('/(tabs)/appointments')}
         >
           <Text style={styles.primaryButtonText}>View My Bookings</Text>
         </TouchableOpacity>

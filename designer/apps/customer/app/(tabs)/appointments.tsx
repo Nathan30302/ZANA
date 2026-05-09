@@ -6,12 +6,14 @@ import {
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { api } from '../../services/api';
-import { Alert } from 'react-native';
-
-const API_BASE_URL = 'http://localhost:3000/v1';
+import { colors, typography, spacing, radius, shadows } from '../../constants/theme';
+import { ThemedCard } from '../../components/ThemedCard';
+import { Badge } from '../../components/Badge';
 
 interface Booking {
   id: string;
@@ -71,7 +73,6 @@ export default function AppointmentsScreen() {
         setBookings(response.data || []);
       } catch (error: any) {
         console.error('Error fetching bookings:', error);
-        // Keep empty array on error
       } finally {
         setLoading(false);
       }
@@ -87,22 +88,39 @@ export default function AppointmentsScreen() {
     (b) => b.status === 'COMPLETED' || b.status === 'CANCELLED'
   );
 
-  const getStatusColor = (status: Booking['status']) => {
+  const getStatusVariant = (status: Booking['status']): 'success' | 'warning' | 'error' | 'info' | 'default' => {
     switch (status) {
       case 'PENDING':
-        return '#F59E0B';
+        return 'warning';
       case 'CONFIRMED':
-        return '#10B981';
-      case 'IN_PROGRESS':
-        return '#3B82F6';
       case 'COMPLETED':
-        return '#10B981';
+        return 'success';
+      case 'IN_PROGRESS':
+        return 'info';
       case 'CANCELLED':
-        return '#EF4444';
       case 'NO_SHOW':
-        return '#6B7280';
+        return 'error';
       default:
-        return '#6B7280';
+        return 'default';
+    }
+  };
+
+  const getStatusIcon = (status: Booking['status']): any => {
+    switch (status) {
+      case 'PENDING':
+        return 'hourglass-outline';
+      case 'CONFIRMED':
+        return 'checkmark-circle-outline';
+      case 'IN_PROGRESS':
+        return 'play-circle-outline';
+      case 'COMPLETED':
+        return 'checkmark-done-circle-outline';
+      case 'CANCELLED':
+        return 'close-circle-outline';
+      case 'NO_SHOW':
+        return 'alert-circle-outline';
+      default:
+        return 'information-circle-outline';
     }
   };
 
@@ -116,66 +134,63 @@ export default function AppointmentsScreen() {
   };
 
   const renderBookingCard = (booking: Booking) => (
-    <TouchableOpacity
+    <ThemedCard
       key={booking.id}
+      shadow="md"
+      onPress={() => router.push(`/appointments/${booking.id}`)}
       style={styles.bookingCard}
-      onPress={() => Alert.alert('Appointment Details', `Booking ${booking.reference}\nStatus: ${booking.status}\nService: ${booking.service?.name || 'N/A'}\nDate: ${new Date(booking.date).toLocaleDateString()}\nTime: ${booking.startTime}`)}
     >
+      {/* Header */}
       <View style={styles.bookingHeader}>
-        <Text style={styles.bookingReference}>{booking.reference}</Text>
-        <View
-          style={[
-            styles.statusBadge,
-            { backgroundColor: getStatusColor(booking.status) },
-          ]}
-        >
-          <Text style={styles.statusText}>{booking.status}</Text>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.bookingReference}>{booking.reference}</Text>
         </View>
+        <Badge variant={getStatusVariant(booking.status)} label={booking.status} />
       </View>
 
-      <Text style={styles.serviceName}>
-        {booking.service?.name || 'Service'}
-      </Text>
+      {/* Service & Venue */}
+      <Text style={styles.serviceName}>{booking.service?.name || 'Service'}</Text>
+      <Text style={styles.venueName}>{booking.venue?.name || 'Venue'}</Text>
 
-      <Text style={styles.venueName}>
-        {booking.venue?.name || 'Venue'}
-      </Text>
-
+      {/* Details */}
       <View style={styles.bookingDetails}>
         <View style={styles.detailRow}>
-          <Text style={styles.detailLabel}>📅</Text>
+          <Ionicons name="calendar-outline" size={14} color={colors.text.secondary} />
           <Text style={styles.detailText}>{formatDate(booking.date)}</Text>
         </View>
         <View style={styles.detailRow}>
-          <Text style={styles.detailLabel}>🕐</Text>
+          <Ionicons name="time-outline" size={14} color={colors.text.secondary} />
           <Text style={styles.detailText}>
             {booking.startTime} - {booking.endTime}
           </Text>
         </View>
         <View style={styles.detailRow}>
-          <Text style={styles.detailLabel}>💰</Text>
+          <Ionicons name="cash-outline" size={14} color={colors.text.secondary} />
           <Text style={styles.detailText}>K {booking.totalAmount.toFixed(0)}</Text>
         </View>
       </View>
 
+      {/* Staff */}
       {booking.staff && (
         <Text style={styles.staffName}>
           with {booking.staff.user.firstName} {booking.staff.user.lastName}
         </Text>
       )}
 
+      {/* Review Button */}
       {booking.status === 'COMPLETED' && (
-        <TouchableOpacity style={styles.reviewButton}>
+        <TouchableOpacity style={styles.reviewButton} activeOpacity={0.7}>
+          <Ionicons name="star-outline" size={16} color="#FFFFFF" />
           <Text style={styles.reviewButtonText}>Leave a Review</Text>
         </TouchableOpacity>
       )}
-    </TouchableOpacity>
+    </ThemedCard>
   );
 
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#1A56DB" />
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
@@ -189,20 +204,30 @@ export default function AppointmentsScreen() {
         <TouchableOpacity
           style={[styles.tab, activeTab === 'upcoming' && styles.tabActive]}
           onPress={() => setActiveTab('upcoming')}
+          activeOpacity={0.7}
         >
-          <Text
-            style={[styles.tabText, activeTab === 'upcoming' && styles.tabTextActive]}
-          >
+          <Ionicons 
+            name="calendar" 
+            size={18} 
+            color={activeTab === 'upcoming' ? colors.primary : colors.text.secondary}
+            style={styles.tabIcon}
+          />
+          <Text style={[styles.tabText, activeTab === 'upcoming' && styles.tabTextActive]}>
             Upcoming
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.tab, activeTab === 'past' && styles.tabActive]}
           onPress={() => setActiveTab('past')}
+          activeOpacity={0.7}
         >
-          <Text
-            style={[styles.tabText, activeTab === 'past' && styles.tabTextActive]}
-          >
+          <Ionicons 
+            name="checkmark-done-circle" 
+            size={18} 
+            color={activeTab === 'past' ? colors.primary : colors.text.secondary}
+            style={styles.tabIcon}
+          />
+          <Text style={[styles.tabText, activeTab === 'past' && styles.tabTextActive]}>
             Past
           </Text>
         </TouchableOpacity>
@@ -210,14 +235,20 @@ export default function AppointmentsScreen() {
 
       {/* Bookings List */}
       {currentBookings.length > 0 ? (
-        <ScrollView style={styles.listContainer}>
+        <ScrollView 
+          style={styles.listContainer}
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+        >
           {currentBookings.map(renderBookingCard)}
         </ScrollView>
       ) : (
         <View style={styles.emptyContainer}>
-          <Text style={styles.emptyIcon}>
-            {activeTab === 'upcoming' ? '📅' : '✅'}
-          </Text>
+          <Ionicons 
+            name={activeTab === 'upcoming' ? 'calendar-outline' : 'checkmark-done-circle-outline'} 
+            size={64} 
+            color={colors.text.tertiary}
+          />
           <Text style={styles.emptyTitle}>
             {activeTab === 'upcoming'
               ? 'No upcoming appointments'
@@ -232,7 +263,9 @@ export default function AppointmentsScreen() {
             <TouchableOpacity
               style={styles.bookButton}
               onPress={() => router.push('/search')}
+              activeOpacity={0.7}
             >
+              <Ionicons name="search" size={16} color="#FFFFFF" />
               <Text style={styles.bookButtonText}>Browse Venues</Text>
             </TouchableOpacity>
           )}
@@ -245,152 +278,151 @@ export default function AppointmentsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: colors.bg.secondary,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: colors.bg.secondary,
   },
+  
+  // Tabs
   tabContainer: {
     flexDirection: 'row',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.bg.primary,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: colors.border,
   },
   tab: {
     flex: 1,
-    paddingVertical: 16,
+    paddingVertical: spacing.md,
     alignItems: 'center',
-    borderBottomWidth: 2,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    borderBottomWidth: 3,
     borderBottomColor: 'transparent',
   },
   tabActive: {
-    borderBottomColor: '#1A56DB',
+    borderBottomColor: colors.primary,
+  },
+  tabIcon: {
+    marginRight: spacing.sm,
   },
   tabText: {
-    fontSize: 16,
+    ...typography.bodyMedium,
     fontWeight: '500',
-    color: '#6B7280',
+    color: colors.text.secondary,
   },
   tabTextActive: {
-    color: '#1A56DB',
+    color: colors.primary,
     fontWeight: '600',
   },
+
+  // List
   listContainer: {
     flex: 1,
-    padding: 16,
+  },
+  listContent: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    gap: spacing.md,
   },
   bookingCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    padding: spacing.md,
   },
   bookingHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: spacing.md,
   },
   bookingReference: {
-    fontSize: 12,
-    color: '#9CA3AF',
+    ...typography.caption,
+    color: colors.text.secondary,
     fontWeight: '500',
   },
-  statusBadge: {
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  statusText: {
-    fontSize: 12,
-    color: '#FFFFFF',
-    fontWeight: '600',
-  },
   serviceName: {
-    fontSize: 18,
+    ...typography.bodyMedium,
+    color: colors.text.primary,
     fontWeight: '600',
-    color: '#111827',
-    marginBottom: 4,
+    marginBottom: spacing.xs,
   },
   venueName: {
-    fontSize: 14,
-    color: '#6B7280',
-    marginBottom: 12,
+    ...typography.body,
+    color: colors.text.secondary,
+    marginBottom: spacing.md,
   },
   bookingDetails: {
-    marginBottom: 8,
+    marginBottom: spacing.md,
+    gap: spacing.sm,
   },
   detailRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 4,
-  },
-  detailLabel: {
-    fontSize: 14,
-    marginRight: 8,
+    gap: spacing.md,
   },
   detailText: {
-    fontSize: 14,
-    color: '#374151',
+    ...typography.small,
+    color: colors.text.primary,
+    fontWeight: '500',
   },
   staffName: {
-    fontSize: 14,
-    color: '#6B7280',
-    marginTop: 8,
+    ...typography.small,
+    color: colors.text.secondary,
     fontStyle: 'italic',
+    marginTop: spacing.sm,
   },
   reviewButton: {
-    backgroundColor: '#1A56DB',
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    marginTop: 12,
+    backgroundColor: colors.primary,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+    borderRadius: radius.md,
+    marginTop: spacing.md,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
   },
   reviewButtonText: {
+    ...typography.small,
     color: '#FFFFFF',
-    fontSize: 14,
     fontWeight: '600',
   },
+
+  // Empty State
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 24,
-  },
-  emptyIcon: {
-    fontSize: 64,
-    marginBottom: 16,
+    paddingHorizontal: spacing.lg,
   },
   emptyTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#111827',
-    marginBottom: 8,
+    ...typography.h3,
+    color: colors.text.primary,
+    fontWeight: 'bold',
+    marginTop: spacing.lg,
+    marginBottom: spacing.sm,
     textAlign: 'center',
   },
   emptySubtitle: {
-    fontSize: 16,
-    color: '#6B7280',
+    ...typography.body,
+    color: colors.text.secondary,
     textAlign: 'center',
-    marginBottom: 24,
+    marginBottom: spacing.lg,
   },
   bookButton: {
-    backgroundColor: '#1A56DB',
-    paddingVertical: 14,
-    paddingHorizontal: 32,
-    borderRadius: 8,
+    backgroundColor: colors.primary,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.xl,
+    borderRadius: radius.lg,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
   },
   bookButtonText: {
+    ...typography.bodyMedium,
     color: '#FFFFFF',
-    fontSize: 16,
     fontWeight: '600',
   },
 });

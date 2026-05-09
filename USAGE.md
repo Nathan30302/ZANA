@@ -9,6 +9,7 @@ ZANA is a comprehensive beauty and wellness booking marketplace that connects cu
 - **Backend**: Node.js/Express API with Prisma ORM and PostgreSQL database
 - **Customer App**: React Native (Expo) application for booking services
 - **Provider App**: React Native (Expo) application for managing business operations
+- **Admin App**: React Native (Expo) application for approval workflows and queue management
 - **Authentication**: JWT-based authentication system
 - **Payments**: Integrated payment processing
 - **File Upload**: Cloud storage for images and documents
@@ -75,6 +76,23 @@ The backend will run on `http://localhost:3000`
 1. **Navigate to provider app:**
    ```bash
    cd designer/apps/provider
+   ```
+
+2. **Install dependencies:**
+   ```bash
+   npm install
+   ```
+
+3. **Start the app:**
+   ```bash
+   npx expo start
+   ```
+
+#### Admin App
+
+1. **Navigate to admin app:**
+   ```bash
+   cd designer/apps/admin
    ```
 
 2. **Install dependencies:**

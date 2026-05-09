@@ -1,8 +1,25 @@
-import { Stack } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { View, StyleSheet } from 'react-native';
+import { useEffect } from 'react';
+import { useProviderAuthStore } from '../stores/authStore';
 
 export default function RootLayout() {
+  const router = useRouter();
+  const isAuthenticated = useProviderAuthStore((state) => state.isAuthenticated);
+  const isLoading = useProviderAuthStore((state) => state.isLoading);
+  const restoreAuth = useProviderAuthStore((state) => state.restoreAuth);
+
+  useEffect(() => {
+    // Restore auth on app startup
+    restoreAuth();
+  }, []);
+
+  useEffect(() => {
+    if (!isLoading && isAuthenticated) {
+      router.replace('/(tabs)/dashboard');
+    }
+  }, [isAuthenticated, isLoading]);
+
   return (
     <>
       <StatusBar style="light" />
@@ -34,6 +51,13 @@ export default function RootLayout() {
           options={{
             headerShown: false,
             title: 'ZANA Provider',
+          }}
+        />
+        <Stack.Screen
+          name="onboarding"
+          options={{
+            headerShown: false,
+            title: 'Onboarding',
           }}
         />
         <Stack.Screen

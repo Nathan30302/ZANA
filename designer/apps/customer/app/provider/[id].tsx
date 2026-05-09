@@ -9,9 +9,11 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { api } from '../../services/api';
-
-const API_BASE_URL = 'http://localhost:3000/v1';
+import { colors, typography, spacing, radius, shadows } from '../../constants/theme';
+import { ThemedCard } from '../../components/ThemedCard';
+import { Badge } from '../../components/Badge';
 
 interface MobileProvider {
   id: string;
@@ -64,7 +66,6 @@ export default function ProviderDetailScreen() {
   useEffect(() => {
     const fetchProviderData = async () => {
       try {
-        // Fetch provider details
         const providerResponse = await api.getMobileProvider(params.id as string);
         if (!providerResponse.data) {
           throw new Error('Provider not found');
@@ -72,8 +73,6 @@ export default function ProviderDetailScreen() {
 
         let providerData = providerResponse.data;
 
-        // For now, add mock services and reviews
-        // These would need additional API endpoints for mobile providers
         providerData.services = [
           { id: '1', name: 'Haircut & Style', description: 'Professional haircut with styling', category: 'HAIRCUT', price: 250, duration: 45 },
           { id: '2', name: 'Braiding', description: 'Professional braiding service', category: 'BRAIDING', price: 500, duration: 120 },
@@ -85,7 +84,6 @@ export default function ProviderDetailScreen() {
         setProvider(providerData);
       } catch (error: any) {
         console.error('Error fetching provider:', error);
-        // Keep empty state on error
       } finally {
         setLoading(false);
       }
@@ -101,7 +99,7 @@ export default function ProviderDetailScreen() {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#1A56DB" />
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
@@ -109,46 +107,69 @@ export default function ProviderDetailScreen() {
   if (!provider) {
     return (
       <View style={styles.errorContainer}>
+        <Ionicons name="alert-circle-outline" size={48} color={colors.error} />
         <Text style={styles.errorText}>Provider not found</Text>
       </View>
     );
   }
 
-  const renderStars = (rating: number) => {
-    return '⭐'.repeat(Math.floor(rating)) + (rating % 1 >= 0.5 ? '½' : '');
-  };
-
   return (
-    <ScrollView style={styles.container}>
-      {/* Profile Header */}
-      <View style={styles.profileHeader}>
-        <View style={styles.avatarContainer}>
-          {provider.user.avatarUrl ? (
-            <Image source={{ uri: provider.user.avatarUrl }} style={styles.avatar} />
-          ) : (
-            <View style={styles.avatarPlaceholder}>
-              <Text style={styles.avatarText}>
-                {provider.user.firstName.charAt(0)}{provider.user.lastName.charAt(0)}
-              </Text>
-            </View>
-          )}
-        </View>
+    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+      {/* Hero Section */}
+      <View style={styles.heroSection}>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => router.back()}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="chevron-back" size={28} color="#FFFFFF" />
+        </TouchableOpacity>
+
+        {/* Avatar */}
+        {provider.user.avatarUrl ? (
+          <Image source={{ uri: provider.user.avatarUrl }} style={styles.avatar} />
+        ) : (
+          <View style={styles.avatarPlaceholder}>
+            <Text style={styles.avatarText}>
+              {provider.user.firstName.charAt(0)}{provider.user.lastName.charAt(0)}
+            </Text>
+          </View>
+        )}
+
         <Text style={styles.providerName}>
           {provider.user.firstName} {provider.user.lastName}
         </Text>
+
         {provider.isVerified && (
           <View style={styles.verifiedBadge}>
-            <Text style={styles.verifiedText}>✓ Verified Professional</Text>
+            <Ionicons name="checkmark-circle" size={14} color="#FFFFFF" />
+            <Text style={styles.verifiedText}>Verified Professional</Text>
           </View>
         )}
+
+        {/* Rating */}
         <View style={styles.ratingContainer}>
-          <Text style={styles.ratingStars}>{renderStars(provider.rating)}</Text>
-          <Text style={styles.ratingNumber}>{provider.rating.toFixed(1)}</Text>
-          <Text style={styles.reviewCount}>({provider.reviewCount} reviews)</Text>
+          <View style={styles.ratingBox}>
+            <View style={styles.stars}>
+              {[...Array(Math.floor(provider.rating))].map((_, i) => (
+                <Ionicons key={i} name="star" size={16} color={colors.warning} />
+              ))}
+            </View>
+            <Text style={styles.ratingNumber}>{provider.rating.toFixed(1)}</Text>
+            <Text style={styles.reviewCount}>({provider.reviewCount} reviews)</Text>
+          </View>
         </View>
-        <Text style={styles.serviceRadius}>
-          📍 Serves within {provider.serviceRadius}km of Lusaka
-        </Text>
+
+        {/* Service Area */}
+        <ThemedCard shadow="sm" style={styles.serviceAreaCard}>
+          <View style={styles.serviceAreaContent}>
+            <Ionicons name="location-outline" size={18} color={colors.primary} />
+            <View style={{ marginLeft: spacing.md, flex: 1 }}>
+              <Text style={styles.serviceAreaLabel}>Service Area</Text>
+              <Text style={styles.serviceAreaValue}>Within {provider.serviceRadius}km radius</Text>
+            </View>
+          </View>
+        </ThemedCard>
       </View>
 
       {/* Bio */}
@@ -163,7 +184,11 @@ export default function ProviderDetailScreen() {
       {provider.portfolioPhotos && provider.portfolioPhotos.length > 0 && (
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Portfolio</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.portfolioContainer}
+          >
             {provider.portfolioPhotos.map((photo, index) => (
               <Image key={index} source={{ uri: photo }} style={styles.portfolioPhoto} />
             ))}
@@ -176,14 +201,16 @@ export default function ProviderDetailScreen() {
         <TouchableOpacity
           style={[styles.tab, activeTab === 'services' && styles.tabActive]}
           onPress={() => setActiveTab('services')}
+          activeOpacity={0.7}
         >
           <Text style={[styles.tabText, activeTab === 'services' && styles.tabTextActive]}>
-            Services
+            Services ({provider.services?.length || 0})
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.tab, activeTab === 'reviews' && styles.tabActive]}
           onPress={() => setActiveTab('reviews')}
+          activeOpacity={0.7}
         >
           <Text style={[styles.tabText, activeTab === 'reviews' && styles.tabTextActive]}>
             Reviews
@@ -192,62 +219,64 @@ export default function ProviderDetailScreen() {
       </View>
 
       {/* Tab Content */}
-      {activeTab === 'services' && provider.services && (
+      {activeTab === 'services' && provider.services && provider.services.length > 0 && (
         <View style={styles.tabContent}>
           {provider.services.map((service) => (
-            <TouchableOpacity
+            <ThemedCard
               key={service.id}
+              shadow="sm"
               style={styles.serviceCard}
               onPress={() => handleBookNow(service)}
             >
-              <View style={styles.serviceInfo}>
+              <View>
                 <Text style={styles.serviceName}>{service.name}</Text>
                 {service.description && (
                   <Text style={styles.serviceDescription} numberOfLines={2}>
                     {service.description}
                   </Text>
                 )}
-                <Text style={styles.serviceDuration}>⏱ {service.duration} min</Text>
+                <View style={styles.serviceFooter}>
+                  <View style={styles.serviceDetails}>
+                    <Ionicons name="time-outline" size={14} color={colors.text.secondary} />
+                    <Text style={styles.serviceDuration}>{service.duration} min</Text>
+                  </View>
+                  <Text style={styles.servicePrice}>K {service.price.toFixed(0)}</Text>
+                </View>
               </View>
-              <View style={styles.servicePriceContainer}>
-                <Text style={styles.servicePrice}>K {service.price.toFixed(0)}</Text>
-                <Text style={styles.bookButton}>Book</Text>
-              </View>
-            </TouchableOpacity>
+            </ThemedCard>
           ))}
         </View>
       )}
 
-      {activeTab === 'reviews' && provider.reviews && (
+      {activeTab === 'reviews' && provider.reviews && provider.reviews.length > 0 && (
         <View style={styles.tabContent}>
           {provider.reviews.map((review) => (
-            <View key={review.id} style={styles.reviewCard}>
+            <ThemedCard key={review.id} shadow="sm" style={styles.reviewCard}>
               <View style={styles.reviewHeader}>
-                <Text style={styles.reviewCustomer}>
-                  {review.customer.firstName} {review.customer.lastName.charAt(0)}.
-                </Text>
-                <Text style={styles.reviewRating}>{renderStars(review.rating)}</Text>
+                <View>
+                  <Text style={styles.reviewCustomer}>
+                    {review.customer.firstName} {review.customer.lastName.charAt(0)}.
+                  </Text>
+                  <Text style={styles.reviewDate}>
+                    {new Date(review.createdAt).toLocaleDateString()}
+                  </Text>
+                </View>
+                <View style={styles.reviewRatingContainer}>
+                  {[...Array(Math.floor(review.rating))].map((_, i) => (
+                    <Ionicons key={i} name="star" size={14} color={colors.warning} />
+                  ))}
+                </View>
               </View>
               {review.comment && (
                 <Text style={styles.reviewComment}>{review.comment}</Text>
               )}
-              <Text style={styles.reviewDate}>
-                {new Date(review.createdAt).toLocaleDateString()}
-              </Text>
-            </View>
+            </ThemedCard>
           ))}
         </View>
       )}
 
-      {/* Book Now Button */}
-      <View style={styles.footer}>
-        <TouchableOpacity
-          style={styles.bookNowButton}
-          onPress={() => handleBookNow()}
-        >
-          <Text style={styles.bookNowButtonText}>Book Now</Text>
-        </TouchableOpacity>
-      </View>
+      {/* Bottom Spacing */}
+      <View style={styles.bottomSpacing} />
     </ScrollView>
   );
 }
@@ -255,257 +284,269 @@ export default function ProviderDetailScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
-    paddingBottom: 80,
+    backgroundColor: colors.bg.secondary,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: colors.bg.secondary,
   },
   errorContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: colors.bg.secondary,
+    gap: spacing.md,
   },
   errorText: {
-    fontSize: 16,
-    color: '#6B7280',
+    ...typography.bodyMedium,
+    color: colors.text.secondary,
   },
-  profileHeader: {
-    backgroundColor: '#FFFFFF',
-    padding: 24,
+
+  // Hero Section
+  heroSection: {
+    backgroundColor: colors.primary,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.xl,
+    paddingBottom: spacing.lg,
     alignItems: 'center',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    position: 'relative',
   },
-  avatarContainer: {
-    marginBottom: 16,
+  backButton: {
+    position: 'absolute',
+    top: spacing.lg,
+    left: spacing.lg,
+    width: 40,
+    height: 40,
+    borderRadius: radius.md,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 10,
   },
   avatar: {
     width: 100,
     height: 100,
-    borderRadius: 50,
-    borderWidth: 3,
-    borderColor: '#1A56DB',
+    borderRadius: radius.full,
+    borderWidth: 4,
+    borderColor: '#FFFFFF',
+    marginTop: spacing.md,
+    marginBottom: spacing.md,
   },
   avatarPlaceholder: {
     width: 100,
     height: 100,
-    borderRadius: 50,
-    backgroundColor: '#1A56DB',
+    borderRadius: radius.full,
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 3,
-    borderColor: '#1A56DB',
+    borderWidth: 4,
+    borderColor: '#FFFFFF',
+    marginTop: spacing.md,
+    marginBottom: spacing.md,
   },
   avatarText: {
-    fontSize: 36,
-    fontWeight: 'bold',
+    ...typography.h1,
     color: '#FFFFFF',
+    fontWeight: 'bold',
   },
   providerName: {
-    fontSize: 24,
+    ...typography.h2,
+    color: '#FFFFFF',
+    marginBottom: spacing.md,
     fontWeight: 'bold',
-    color: '#111827',
-    marginBottom: 8,
   },
   verifiedBadge: {
-    backgroundColor: '#10B981',
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 12,
-    marginBottom: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.success,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.full,
+    marginBottom: spacing.md,
+    gap: spacing.xs,
   },
   verifiedText: {
+    ...typography.small,
     color: '#FFFFFF',
-    fontSize: 12,
     fontWeight: '600',
   },
   ratingContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
+    width: '100%',
+    marginBottom: spacing.md,
   },
-  ratingStars: {
-    fontSize: 14,
+  ratingBox: {
+    alignItems: 'center',
+  },
+  stars: {
+    flexDirection: 'row',
+    marginBottom: spacing.sm,
+    gap: spacing.xs,
   },
   ratingNumber: {
-    fontSize: 18,
+    ...typography.h3,
+    color: '#FFFFFF',
     fontWeight: 'bold',
-    color: '#111827',
-    marginHorizontal: 4,
   },
   reviewCount: {
-    fontSize: 14,
-    color: '#6B7280',
+    ...typography.small,
+    color: 'rgba(255, 255, 255, 0.8)',
+    marginTop: spacing.xs,
   },
-  serviceRadius: {
-    fontSize: 14,
-    color: '#6B7280',
+  serviceAreaCard: {
+    width: '100%',
+    padding: spacing.md,
+    marginTop: spacing.md,
   },
+  serviceAreaContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  serviceAreaLabel: {
+    ...typography.small,
+    color: colors.text.secondary,
+  },
+  serviceAreaValue: {
+    ...typography.bodyMedium,
+    color: colors.text.primary,
+    fontWeight: '500',
+    marginTop: spacing.xs,
+  },
+
+  // Sections
   section: {
-    padding: 16,
-    backgroundColor: '#FFFFFF',
-    marginTop: 1,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.lg,
   },
   sectionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#111827',
-    marginBottom: 12,
+    ...typography.h4,
+    color: colors.text.primary,
+    fontWeight: 'bold',
+    marginBottom: spacing.md,
   },
   bioText: {
-    fontSize: 14,
-    color: '#374151',
+    ...typography.body,
+    color: colors.text.primary,
     lineHeight: 22,
+  },
+
+  // Portfolio
+  portfolioContainer: {
+    gap: spacing.md,
+    paddingRight: spacing.lg,
   },
   portfolioPhoto: {
     width: 150,
     height: 120,
-    borderRadius: 8,
-    marginRight: 8,
+    borderRadius: radius.md,
   },
+
+  // Tabs
   tabContainer: {
     flexDirection: 'row',
-    marginHorizontal: 16,
-    marginTop: 16,
-    backgroundColor: '#F3F4F6',
-    borderRadius: 8,
-    padding: 4,
+    marginHorizontal: spacing.lg,
+    marginVertical: spacing.lg,
+    backgroundColor: colors.bg.tertiary,
+    borderRadius: radius.lg,
+    padding: spacing.sm,
+    gap: spacing.sm,
   },
   tab: {
     flex: 1,
-    paddingVertical: 10,
+    paddingVertical: spacing.md,
     alignItems: 'center',
-    borderRadius: 6,
+    borderRadius: radius.md,
   },
   tabActive: {
-    backgroundColor: '#FFFFFF',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
+    backgroundColor: colors.bg.primary,
+    ...shadows.sm,
   },
   tabText: {
-    fontSize: 14,
-    color: '#6B7280',
+    ...typography.small,
+    color: colors.text.secondary,
     fontWeight: '500',
   },
   tabTextActive: {
-    color: '#1A56DB',
+    color: colors.primary,
     fontWeight: '600',
   },
+
+  // Tab Content
   tabContent: {
-    padding: 16,
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.lg,
+    gap: spacing.md,
   },
+
+  // Services
   serviceCard: {
+    padding: spacing.md,
+  },
+  serviceName: {
+    ...typography.bodyMedium,
+    color: colors.text.primary,
+    fontWeight: '600',
+    marginBottom: spacing.xs,
+  },
+  serviceDescription: {
+    ...typography.small,
+    color: colors.text.secondary,
+    marginBottom: spacing.sm,
+  },
+  serviceFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
+    marginTop: spacing.sm,
   },
-  serviceInfo: {
-    flex: 1,
-  },
-  serviceName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#111827',
-    marginBottom: 4,
-  },
-  serviceDescription: {
-    fontSize: 12,
-    color: '#6B7280',
-    marginBottom: 4,
+  serviceDetails: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
   },
   serviceDuration: {
-    fontSize: 12,
-    color: '#9CA3AF',
-  },
-  servicePriceContainer: {
-    alignItems: 'flex-end',
+    ...typography.small,
+    color: colors.text.secondary,
   },
   servicePrice: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#1A56DB',
-    marginBottom: 4,
-  },
-  bookButton: {
-    backgroundColor: '#1A56DB',
-    paddingHorizontal: 16,
-    paddingVertical: 6,
-    borderRadius: 16,
-  },
-  bookButtonText: {
-    color: '#FFFFFF',
-    fontSize: 12,
+    ...typography.bodyMedium,
+    color: colors.primary,
     fontWeight: '600',
   },
+
+  // Reviews
   reviewCard: {
-    backgroundColor: '#FFFFFF',
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
+    padding: spacing.md,
   },
   reviewHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
+    alignItems: 'flex-start',
+    marginBottom: spacing.md,
   },
   reviewCustomer: {
-    fontSize: 14,
+    ...typography.bodyMedium,
+    color: colors.text.primary,
     fontWeight: '600',
-    color: '#111827',
-  },
-  reviewRating: {
-    fontSize: 14,
-  },
-  reviewComment: {
-    fontSize: 14,
-    color: '#374151',
-    lineHeight: 20,
   },
   reviewDate: {
-    fontSize: 12,
-    color: '#9CA3AF',
-    marginTop: 8,
+    ...typography.caption,
+    color: colors.text.secondary,
+    marginTop: spacing.xs,
   },
-  footer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: '#FFFFFF',
-    padding: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
+  reviewRatingContainer: {
+    flexDirection: 'row',
+    gap: spacing.xs,
   },
-  bookNowButton: {
-    backgroundColor: '#1A56DB',
-    paddingVertical: 16,
-    borderRadius: 12,
-    alignItems: 'center',
+  reviewComment: {
+    ...typography.body,
+    color: colors.text.primary,
+    lineHeight: 20,
   },
-  bookNowButtonText: {
-    color: '#FFFFFF',
-    fontSize: 18,
-    fontWeight: '600',
+
+  // Bottom Spacing
+  bottomSpacing: {
+    height: spacing.xl,
   },
 });

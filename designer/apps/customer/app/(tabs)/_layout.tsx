@@ -1,40 +1,46 @@
 import { Tabs } from 'expo-router';
-import { View, Text, StyleSheet } from 'react-native';
-
-// Simple icon components (replace with actual icons from react-native-vector-icons or expo icons)
-function TabIcon({ name, color, size }: { name: string; color: string; size: number }) {
-  return (
-    <View style={[styles.iconContainer, { backgroundColor: color }]}>
-      <Text style={styles.iconText}>{name.charAt(0).toUpperCase()}</Text>
-    </View>
-  );
-}
+import { StyleSheet, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { colors } from '../../constants/theme';
 
 export default function TabLayout() {
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: '#1A56DB',
-        tabBarInactiveTintColor: '#6B7280',
+        tabBarActiveTintColor: colors.primary,
+        tabBarInactiveTintColor: colors.text.tertiary,
+        tabBarShowLabel: false,
         tabBarStyle: {
-          backgroundColor: '#FFFFFF',
-          borderTopWidth: 1,
-          borderTopColor: '#E5E7EB',
-          paddingBottom: 8,
+          backgroundColor: colors.bg.primary,
+          borderTopWidth: 0,
+          paddingBottom: 12,
           paddingTop: 8,
-          height: 60,
-        },
-        tabBarLabelStyle: {
-          fontSize: 12,
-          fontWeight: '500',
+          height: 70,
+          borderRadius: 18,
+          marginHorizontal: 16,
+          position: 'absolute',
+          left: 12,
+          right: 12,
+          bottom: 12,
+          ...{
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 6 },
+            shadowOpacity: 0.08,
+            shadowRadius: 12,
+            elevation: 6,
+          },
         },
         headerStyle: {
-          backgroundColor: '#1A56DB',
+          backgroundColor: colors.primary,
+          borderBottomWidth: 0,
+          shadowColor: 'transparent',
         },
         headerTintColor: '#fff',
         headerTitleStyle: {
-          fontWeight: 'bold',
+          fontWeight: '700',
+          fontSize: 18,
         },
+        headerShadowVisible: false,
       }}
     >
       <Tabs.Screen
@@ -42,9 +48,12 @@ export default function TabLayout() {
         options={{
           title: 'Home',
           headerTitle: 'ZANA',
-          tabBarIcon: ({ color, size }) => (
-            <TabIcon name="home" color={color} size={size} />
+          tabBarIcon: ({ color, size, focused }) => (
+            <View style={[styles.iconWrap, focused && styles.iconWrapActive]}>
+              <Ionicons name="home" size={size} color={focused ? '#fff' : color} />
+            </View>
           ),
+          tabBarLabel: 'Home',
         }}
       />
       <Tabs.Screen
@@ -52,9 +61,12 @@ export default function TabLayout() {
         options={{
           title: 'Search',
           headerTitle: 'Search',
-          tabBarIcon: ({ color, size }) => (
-            <TabIcon name="search" color={color} size={size} />
+          tabBarIcon: ({ color, size, focused }) => (
+            <View style={[styles.iconWrap, focused && styles.iconWrapActive]}>
+              <Ionicons name="search" size={size} color={focused ? '#fff' : color} />
+            </View>
           ),
+          tabBarLabel: 'Search',
         }}
       />
       <Tabs.Screen
@@ -62,9 +74,12 @@ export default function TabLayout() {
         options={{
           title: 'Appointments',
           headerTitle: 'My Appointments',
-          tabBarIcon: ({ color, size }) => (
-            <TabIcon name="appointments" color={color} size={size} />
+          tabBarIcon: ({ color, size, focused }) => (
+            <View style={[styles.iconWrap, focused && styles.iconWrapActive]}>
+              <Ionicons name="calendar" size={size} color={focused ? '#fff' : color} />
+            </View>
           ),
+          tabBarLabel: 'Appointments',
         }}
       />
       <Tabs.Screen
@@ -72,9 +87,12 @@ export default function TabLayout() {
         options={{
           title: 'Account',
           headerTitle: 'My Account',
-          tabBarIcon: ({ color, size }) => (
-            <TabIcon name="account" color={color} size={size} />
+          tabBarIcon: ({ color, size, focused }) => (
+            <View style={[styles.iconWrap, focused && styles.iconWrapActive]}>
+              <Ionicons name="person" size={size} color={focused ? '#fff' : color} />
+            </View>
           ),
+          tabBarLabel: 'Account',
         }}
       />
     </Tabs>
@@ -82,16 +100,18 @@ export default function TabLayout() {
 }
 
 const styles = StyleSheet.create({
-  iconContainer: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+  iconWrap: {
+    padding: 8,
+    borderRadius: 999,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  iconText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: 'bold',
+  iconWrapActive: {
+    backgroundColor: colors.primary,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 4,
   },
 });

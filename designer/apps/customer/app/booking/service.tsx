@@ -9,8 +9,7 @@ import {
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { api } from '../../services/api';
-
-const API_BASE_URL = 'http://localhost:3000/v1';
+import { colors, typography, spacing, radius, shadows } from '../../constants/theme';
 
 interface Service {
   id: string;
@@ -34,6 +33,7 @@ interface MobileProvider {
     firstName: string;
     lastName: string;
   };
+  services?: Service[];
 }
 
 export default function SelectServiceScreen() {
@@ -66,12 +66,11 @@ export default function SelectServiceScreen() {
             venueData = venueResponse.data;
           }
         } else if (params.providerId) {
-          // For mobile providers, we might need a different endpoint
-          // For now, use mock or assume services are available
-          servicesData = [
-            { id: '1', name: 'Haircut & Style', description: 'Professional haircut with styling', category: 'HAIRCUT', price: 250, duration: 45 },
-            { id: '2', name: 'Beard Trim', description: 'Precision beard trimming', category: 'BEARD_TRIM', price: 100, duration: 20 },
-          ];
+          // Mobile provider services are included on provider details; fetch provider profile and use its services.
+          const providerRes = await api.getMobileProvider(params.providerId as string);
+          if (providerRes.error) throw new Error(providerRes.error);
+          providerData = providerRes.data;
+          servicesData = providerData?.services || [];
         }
 
         setServices(servicesData);
@@ -97,10 +96,14 @@ export default function SelectServiceScreen() {
   }, [params.venueId, params.providerId, params.serviceId]);
 
   const handleContinue = () => {
-    if (selectedService && venue) {
+    if (!selectedService) return;
+    if (venue) {
       router.push(`/booking/staff?venueId=${venue.id}&serviceId=${selectedService.id}`);
-    } else if (selectedService && provider) {
+      return;
+    }
+    if (provider) {
       router.push(`/booking/staff?providerId=${provider.id}&serviceId=${selectedService.id}`);
+      return;
     }
   };
 
@@ -208,7 +211,7 @@ export default function SelectServiceScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: colors.bg.secondary,
   },
   loadingContainer: {
     flex: 1,
@@ -219,14 +222,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 24,
-    backgroundColor: '#FFFFFF',
+    padding: spacing.lg,
+    backgroundColor: colors.bg.primary,
   },
   progressStep: {
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#E5E7EB',
+    backgroundColor: colors.bg.tertiary,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -234,14 +237,14 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#1A56DB',
+    backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
   progressStepText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#9CA3AF',
+    color: colors.text.tertiary,
   },
   progressStepTextActive: {
     fontSize: 14,
@@ -251,75 +254,76 @@ const styles = StyleSheet.create({
   progressLine: {
     flex: 1,
     height: 2,
-    backgroundColor: '#E5E7EB',
+    backgroundColor: colors.border,
     marginHorizontal: 8,
   },
   infoCard: {
-    backgroundColor: '#FFFFFF',
-    padding: 16,
-    marginHorizontal: 16,
-    borderRadius: 12,
-    marginBottom: 16,
+    backgroundColor: colors.bg.primary,
+    padding: spacing.md,
+    marginHorizontal: spacing.md,
+    borderRadius: radius.lg,
+    marginBottom: spacing.md,
+    ...shadows.sm,
   },
   infoTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#111827',
-    marginBottom: 4,
+    ...typography.bodyMedium,
+    fontWeight: '700',
+    color: colors.text.primary,
+    marginBottom: spacing.xs,
   },
   infoAddress: {
-    fontSize: 14,
-    color: '#6B7280',
+    ...typography.small,
+    color: colors.text.secondary,
   },
   section: {
     flex: 1,
-    paddingHorizontal: 16,
+    paddingHorizontal: spacing.md,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#111827',
-    marginBottom: 16,
+    ...typography.h4,
+    fontWeight: '700',
+    color: colors.text.primary,
+    marginBottom: spacing.md,
   },
   serviceCard: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 12,
+    backgroundColor: colors.bg.primary,
+    padding: spacing.md,
+    borderRadius: radius.lg,
+    marginBottom: spacing.sm,
     borderWidth: 2,
-    borderColor: '#E5E7EB',
+    borderColor: colors.border,
   },
   serviceCardSelected: {
-    borderColor: '#1A56DB',
-    backgroundColor: '#EFF6FF',
+    borderColor: colors.primary,
+    backgroundColor: 'rgba(26, 86, 219, 0.08)',
   },
   serviceContent: {
     flex: 1,
   },
   serviceName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#111827',
-    marginBottom: 4,
+    ...typography.bodyMedium,
+    fontWeight: '700',
+    color: colors.text.primary,
+    marginBottom: spacing.xs,
   },
   serviceNameSelected: {
-    color: '#1A56DB',
+    color: colors.primary,
   },
   serviceDescription: {
-    fontSize: 14,
-    color: '#6B7280',
-    marginBottom: 8,
+    ...typography.small,
+    color: colors.text.secondary,
+    marginBottom: spacing.sm,
   },
   serviceMeta: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   serviceDuration: {
-    fontSize: 12,
-    color: '#9CA3AF',
+    ...typography.caption,
+    color: colors.text.tertiary,
   },
   servicePriceContainer: {
     alignItems: 'flex-end',
@@ -327,7 +331,7 @@ const styles = StyleSheet.create({
   servicePrice: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#1A56DB',
+    color: colors.primary,
     marginBottom: 4,
   },
   servicePriceSelected: {
@@ -337,7 +341,7 @@ const styles = StyleSheet.create({
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: '#1A56DB',
+    backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -347,23 +351,24 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   footer: {
-    padding: 16,
-    backgroundColor: '#FFFFFF',
+    padding: spacing.md,
+    backgroundColor: colors.bg.primary,
     borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
+    borderTopColor: colors.border,
   },
   continueButton: {
-    backgroundColor: '#1A56DB',
+    backgroundColor: colors.primary,
     paddingVertical: 16,
-    borderRadius: 12,
+    borderRadius: radius.lg,
     alignItems: 'center',
+    ...shadows.md,
   },
   continueButtonDisabled: {
-    backgroundColor: '#9CA3AF',
+    backgroundColor: colors.text.tertiary,
   },
   continueButtonText: {
+    ...typography.bodyMedium,
     color: '#FFFFFF',
-    fontSize: 18,
-    fontWeight: '600',
+    fontWeight: '800',
   },
 });

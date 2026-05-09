@@ -3,6 +3,10 @@ const router = express.Router();
 const { PrismaClient } = require('@prisma/client');
 const { verifyToken, requireRole } = require('../middleware/auth');
 const emailService = require('../services/emailService');
+const { sendExpoPush } = require('../services/pushNotifications');
+const MOCK_MODE = process.env.MOCK_MODE === 'true' || process.env.MOCK_MODE === '1';
+const mock = require('../mock/data');
+const mockStore = require('../mock/store');
 
 const prisma = new PrismaClient();
 
@@ -21,6 +25,18 @@ router.get('/', verifyToken, async (req, res) => {
     const userRole = req.user.role;
 
     let bookings;
+
+    if (MOCK_MODE) {
+      const customerId = req.user.id;
+      const list = mockStore.listBookingsForCustomer(customerId).map((b) => ({
+        ...b,
+        service: mock.services.find((s) => s.id === b.serviceId) || null,
+        venue: b.venueId ? mock.venues.find((v) => v.id === b.venueId) || null : null,
+        mobileProvider: b.mobileProviderId ? mock.mobileProviders.find((p) => p.id === b.mobileProviderId) || null : null,
+        staff: b.staffId ? mock.staff.find((s) => s.id === b.staffId) || null : null,
+      }));
+      return res.json({ data: list });
+    }
 
     if (userRole === 'CUSTOMER') {
       // Customer sees their own bookings
@@ -98,7 +114,7 @@ router.get('/', verifyToken, async (req, res) => {
       bookings = [];
     }
 
-    res.json({ bookings });
+    res.json({ data: bookings });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -107,6 +123,19 @@ router.get('/', verifyToken, async (req, res) => {
 // Get single booking
 router.get('/:id', verifyToken, async (req, res) => {
   try {
+    if (MOCK_MODE) {
+      const b = mockStore.getBooking(req.params.id);
+      if (!b) return res.status(404).json({ error: 'Booking not found' });
+      const booking = {
+        ...b,
+        service: mock.services.find((s) => s.id === b.serviceId) || null,
+        venue: b.venueId ? mock.venues.find((v) => v.id === b.venueId) || null : null,
+        mobileProvider: b.mobileProviderId ? mock.mobileProviders.find((p) => p.id === b.mobileProviderId) || null : null,
+        staff: b.staffId ? mock.staff.find((s) => s.id === b.staffId) || null : null,
+      };
+      return res.json({ data: booking });
+    }
+
     const booking = await prisma.booking.findUnique({
       where: { id: req.params.id },
       include: {
@@ -128,7 +157,7 @@ router.get('/:id', verifyToken, async (req, res) => {
       return res.status(404).json({ error: 'Booking not found' });
     }
 
-    res.json({ booking });
+    res.json({ data: booking });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -139,6 +168,26 @@ router.post('/', verifyToken, async (req, res) => {
   try {
     const { serviceId, venueId, mobileProviderId, staffId, date, startTime, notes, clientAddress } = req.body;
     const customerId = req.user.id;
+
+    if (MOCK_MODE) {
+      const service = mock.services.find((s) => s.id === serviceId);
+      if (!service) return res.status(404).json({ error: 'Service not found' });
+      const endTime = startTime; // keep simple for demo
+      const booking = mockStore.createBooking({
+        customerId,
+        serviceId,
+        venueId: venueId || null,
+        mobileProviderId: mobileProviderId || null,
+        staffId: staffId || null,
+        date: new Date(date).toISOString(),
+        startTime,
+        endTime,
+        notes: notes || null,
+        clientAddress: clientAddress || null,
+        totalAmount: service.price,
+      });
+      return res.status(201).json({ data: booking, meta: { message: 'Booking created successfully (mock mode)' } });
+    }
 
     // Get service details
     const service = await prisma.service.findUnique({
@@ -189,6 +238,14 @@ router.post('/', verifyToken, async (req, res) => {
       return res.status(409).json({ error: 'This time slot is already booked' });
     }
 
+    let serviceMode = 'SALON_VISIT';
+    if (mobileProviderId) {
+      serviceMode = 'MOBILE';
+    } else if (venueId) {
+      const v = await prisma.venue.findUnique({ where: { id: venueId }, select: { category: true } });
+      serviceMode = v?.category === 'BARBERSHOP' ? 'BARBERSHOP_VISIT' : 'SALON_VISIT';
+    }
+
     // Create booking
     const booking = await prisma.booking.create({
       data: {
@@ -202,7 +259,7 @@ router.post('/', verifyToken, async (req, res) => {
         startTime,
         endTime,
         status: 'PENDING',
-        serviceMode: mobileProviderId ? 'MOBILE' : (venueId ? 'SALON_VISIT' : 'BARBERSHOP_VISIT'),
+        serviceMode,
         notes,
         clientAddress: mobileProviderId ? clientAddress : null,
         totalAmount: service.price
@@ -234,7 +291,34 @@ router.post('/', verifyToken, async (req, res) => {
       );
     }
 
-    res.status(201).json({ booking, message: 'Booking created successfully' });
+    try {
+      let pushToken = null;
+      if (booking.venueId) {
+        const v = await prisma.venue.findUnique({
+          where: { id: booking.venueId },
+          include: { owner: { select: { fcmToken: true } } },
+        });
+        pushToken = v?.owner?.fcmToken;
+      } else if (booking.mobileProviderId) {
+        const mp = await prisma.mobileProvider.findUnique({
+          where: { id: booking.mobileProviderId },
+          include: { user: { select: { fcmToken: true } } },
+        });
+        pushToken = mp?.user?.fcmToken;
+      }
+      if (pushToken) {
+        await sendExpoPush(
+          pushToken,
+          'New ZANA booking',
+          `${booking.customer?.firstName || 'A customer'} booked ${booking.service?.name || 'a service'}`,
+          { bookingId: booking.id, type: 'NEW_BOOKING' }
+        );
+      }
+    } catch (pushErr) {
+      console.warn('Push notify skipped:', pushErr.message);
+    }
+
+    res.status(201).json({ data: booking, meta: { message: 'Booking created successfully' } });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -243,6 +327,12 @@ router.post('/', verifyToken, async (req, res) => {
 // Cancel booking
 router.patch('/:id/cancel', verifyToken, async (req, res) => {
   try {
+    if (MOCK_MODE) {
+      const updated = mockStore.cancelBooking(req.params.id);
+      if (!updated) return res.status(404).json({ error: 'Booking not found' });
+      return res.json({ data: updated, meta: { message: 'Booking cancelled (mock mode)' } });
+    }
+
     const booking = await prisma.booking.findUnique({
       where: { id: req.params.id }
     });
@@ -266,7 +356,7 @@ router.patch('/:id/cancel', verifyToken, async (req, res) => {
       include: { service: true, customer: true }
     });
 
-    res.json({ booking: updated, message: 'Booking cancelled' });
+    res.json({ data: updated, meta: { message: 'Booking cancelled' } });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -293,7 +383,7 @@ router.patch('/:id/confirm', verifyToken, requireRole(['PROVIDER_VENUE', 'PROVID
       );
     }
 
-    res.json({ booking: updated, message: 'Booking confirmed' });
+    res.json({ data: updated, meta: { message: 'Booking confirmed' } });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -312,7 +402,7 @@ router.patch('/:id/complete', verifyToken, requireRole(['PROVIDER_VENUE', 'PROVI
       include: { service: true, customer: true }
     });
 
-    res.json({ booking: updated, message: 'Booking completed' });
+    res.json({ data: updated, meta: { message: 'Booking completed' } });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -331,7 +421,7 @@ router.patch('/:id/no-show', verifyToken, requireRole(['PROVIDER_VENUE', 'PROVID
       include: { service: true, customer: true }
     });
 
-    res.json({ booking: updated, message: 'Booking marked as no-show' });
+    res.json({ data: updated, meta: { message: 'Booking marked as no-show' } });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

@@ -5,6 +5,21 @@ const { validateMobileProvider } = require('../middleware/validation');
 
 const prisma = new PrismaClient();
 const router = express.Router();
+const MOCK_MODE = process.env.MOCK_MODE === 'true' || process.env.MOCK_MODE === '1';
+const mock = require('../mock/data');
+
+function haversineKm(lat1, lng1, lat2, lng2) {
+  const R = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLng = ((lng2 - lng1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLng / 2) *
+      Math.sin(dLng / 2);
+  return 2 * R * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
 
 // GET /mobile-providers - List mobile providers with filters
 router.get('/', async (req, res) => {
@@ -21,7 +36,7 @@ router.get('/', async (req, res) => {
     } = req.query;
 
     // Build where clause
-    let where = {
+    const where = {
       status: 'APPROVED', // Only show approved providers
       ...(minRating > 0 && { rating: { gte: parseFloat(minRating) } }),
       ...(search && {
@@ -35,93 +50,43 @@ router.get('/', async (req, res) => {
 
     // Filter by price if maxPrice is provided
     if (maxPrice) {
-      const services = await prisma.service.findMany({
-        where: {
-          price: { lte: parseFloat(maxPrice) },
-          mobileProviderId: { not: null }
-        },
-        select: { mobileProviderId: true }
-      });
+      let services = [];
+      try {
+        services = await prisma.service.findMany({
+          where: {
+            price: { lte: parseFloat(maxPrice) },
+            mobileProviderId: { not: null }
+          },
+          select: { mobileProviderId: true }
+        });
+      } catch (e) {
+        if (!MOCK_MODE) throw e;
+        services = mock.services
+          .filter((s) => s.mobileProviderId && s.isActive && s.price <= parseFloat(maxPrice))
+          .map((s) => ({ mobileProviderId: s.mobileProviderId }));
+      }
       const providerIds = services.map(s => s.mobileProviderId);
+      if (providerIds.length === 0) {
+        return res.json({
+          data: [],
+          meta: {
+            pagination: {
+              page: parseInt(page),
+              limit: parseInt(limit),
+              total: 0,
+              totalPages: 0,
+              hasNext: false,
+              hasPrev: false
+            }
+          }
+        });
+      }
       where.id = { in: providerIds };
     }
 
-    // Calculate pagination
-    const skip = (parseInt(page) - 1) * parseInt(limit);
-    const take = parseInt(limit);
-
-    // Get mobile providers with location filtering
-    let providers;
-    if (lat && lng) {
-      // Use Haversine formula for distance calculation
-      providers = await prisma.$queryRaw`
-        SELECT mp.*, 
-               u.firstName,
-               u.lastName,
-               u.avatarUrl,
-               (6371 * acos(
-                 cos(radians(${parseFloat(lat)})) * 
-                 cos(radians(mp.baseLat)) * 
-                 cos(radians(mp.baseLng) - radians(${parseFloat(lng)})) + 
-                 sin(radians(${parseFloat(lat)})) * 
-                 sin(radians(mp.baseLat))
-               )) AS distance
-        FROM MobileProvider mp
-        JOIN User u ON mp.userId = u.id
-        WHERE mp.status = 'APPROVED'
-        ${minRating > 0 ? `AND mp.rating >= ${parseFloat(minRating)}` : ''}
-        ${search ? `AND (mp.bio LIKE '%${search}%' OR u.firstName LIKE '%${search}%' OR u.lastName LIKE '%${search}%')` : ''}
-        HAVING distance <= ${parseFloat(radius)}
-        ORDER BY distance
-        LIMIT ${take} OFFSET ${skip}
-      `;
-    } else {
-      providers = await prisma.mobileProvider.findMany({
-        where,
-        skip,
-        take,
-        orderBy: { createdAt: 'desc' },
-        include: {
-          user: {
-            select: {
-              id: true,
-              firstName: true,
-              lastName: true,
-              avatarUrl: true
-            }
-          }
-        }
-      });
-    }
-
-    // Get total count for pagination
-    const total = await prisma.mobileProvider.count({ where });
-    const totalPages = Math.ceil(total / parseInt(limit));
-
-    res.json({
-      data: providers,
-      pagination: {
-        page: parseInt(page),
-        limit: parseInt(limit),
-        total,
-        totalPages,
-        hasNext: parseInt(page) < totalPages,
-        hasPrev: parseInt(page) > 1
-      }
-    });
-  } catch (error) {
-    console.error('Error fetching mobile providers:', error);
-    res.status(500).json({ error: 'Failed to fetch mobile providers' });
-  }
-});
-
-// GET /mobile-providers/:id - Get provider profile with services and reviews
-router.get('/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    
-    const provider = await prisma.mobileProvider.findUnique({
-      where: { id },
+    const candidates = await prisma.mobileProvider.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
       include: {
         user: {
           select: {
@@ -134,29 +99,177 @@ router.get('/:id', async (req, res) => {
         services: {
           where: { isActive: true },
           orderBy: { price: 'asc' }
-        },
-        reviews: {
-          include: {
-            customer: {
-              select: {
-                id: true,
-                firstName: true,
-                lastName: true,
-                avatarUrl: true
-              }
-            }
-          },
-          orderBy: { createdAt: 'desc' },
-          take: 10
         }
       }
     });
+
+    let filtered = candidates;
+    if (lat && lng) {
+      const latNum = parseFloat(lat);
+      const lngNum = parseFloat(lng);
+      const radiusNum = parseFloat(radius);
+      filtered = candidates
+        .map((p) => ({
+          ...p,
+          distanceKm: haversineKm(latNum, lngNum, p.baseLat, p.baseLng)
+        }))
+        .filter((p) => p.distanceKm <= radiusNum)
+        .sort((a, b) => a.distanceKm - b.distanceKm);
+    }
+
+    const pageNum = parseInt(page);
+    const limitNum = parseInt(limit);
+    const total = filtered.length;
+    const totalPages = Math.ceil(total / limitNum);
+    const start = (pageNum - 1) * limitNum;
+    const end = start + limitNum;
+    const providers = filtered.slice(start, end);
+
+    res.json({
+      data: providers,
+      meta: {
+        pagination: {
+          page: pageNum,
+          limit: limitNum,
+          total,
+          totalPages,
+          hasNext: pageNum < totalPages,
+          hasPrev: pageNum > 1
+        }
+      }
+    });
+    // Fallback to mock mode if DB is down
+    // eslint-disable-next-line no-unused-vars
+  } catch (error) {
+    console.error('Error fetching mobile providers:', error);
+    const isDbDown =
+      (error && typeof error.message === 'string' && (error.message.includes('connect') || error.message.includes("Can't reach database server"))) ||
+      (error && typeof error.code === 'string' && error.code.startsWith('P'));
+    if (MOCK_MODE && isDbDown) {
+      const pageNum = parseInt(req.query.page || '1');
+      const limitNum = parseInt(req.query.limit || '20');
+      const candidates = mock.mobileProviders.filter((p) => p.status === 'APPROVED');
+
+      let filtered = candidates;
+      const lat = req.query.lat;
+      const lng = req.query.lng;
+      const radius = req.query.radius || 10;
+      if (lat && lng) {
+        const latNum = parseFloat(lat);
+        const lngNum = parseFloat(lng);
+        const radiusNum = parseFloat(radius);
+        filtered = candidates
+          .map((p) => ({
+            ...p,
+            distanceKm: haversineKm(latNum, lngNum, p.baseLat, p.baseLng)
+          }))
+          .filter((p) => p.distanceKm <= radiusNum)
+          .sort((a, b) => a.distanceKm - b.distanceKm);
+      }
+
+      const total = filtered.length;
+      const totalPages = Math.ceil(total / limitNum);
+      const start = (pageNum - 1) * limitNum;
+      const end = start + limitNum;
+      const providers = filtered.slice(start, end).map((p) => ({
+        ...p,
+        services: mock.services.filter((s) => s.mobileProviderId === p.id && s.isActive),
+      }));
+
+      return res.json({
+        data: providers,
+        meta: {
+          pagination: {
+            page: pageNum,
+            limit: limitNum,
+            total,
+            totalPages,
+            hasNext: pageNum < totalPages,
+            hasPrev: pageNum > 1
+          }
+        }
+      });
+    }
+
+    res.status(isDbDown ? 503 : 500).json({
+      error: isDbDown ? 'Database unavailable' : 'Failed to fetch mobile providers'
+    });
+  }
+});
+
+// GET /mobile-providers/profile - Get current mobile provider profile
+router.get('/profile', verifyToken, async (req, res) => {
+  try {
+    const provider = await prisma.mobileProvider.findFirst({
+      where: { userId: req.user.id }
+    });
+
+    if (!provider) {
+      return res.status(404).json({ error: 'Mobile provider profile not found' });
+    }
+
+    res.json(provider);
+  } catch (error) {
+    console.error('Error fetching mobile provider profile:', error);
+    res.status(500).json({ error: 'Failed to fetch mobile provider profile' });
+  }
+});
+
+// GET /mobile-providers/:id - Get provider profile with services and reviews
+router.get('/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    let provider = null;
+    try {
+      provider = await prisma.mobileProvider.findUnique({
+        where: { id },
+        include: {
+          user: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              avatarUrl: true
+            }
+          },
+          services: {
+            where: { isActive: true },
+            orderBy: { price: 'asc' }
+          },
+          reviews: {
+            include: {
+              customer: {
+                select: {
+                  id: true,
+                  firstName: true,
+                  lastName: true,
+                  avatarUrl: true
+                }
+              }
+            },
+            orderBy: { createdAt: 'desc' },
+            take: 10
+          }
+        }
+      });
+    } catch (e) {
+      if (!MOCK_MODE) throw e;
+      const base = mock.mobileProviders.find((p) => p.id === id) || null;
+      if (base) {
+        provider = {
+          ...base,
+          services: mock.services.filter((s) => s.mobileProviderId === id && s.isActive),
+          reviews: [],
+        };
+      }
+    }
 
     if (!provider) {
       return res.status(404).json({ error: 'Provider not found' });
     }
 
-    res.json(provider);
+    res.json({ data: provider });
   } catch (error) {
     console.error('Error fetching provider:', error);
     res.status(500).json({ error: 'Failed to fetch provider' });
@@ -237,7 +350,7 @@ router.get('/:id/availability', async (req, res) => {
       }
     }
 
-    res.json({ slots });
+    res.json({ data: { timeSlots: slots } });
   } catch (error) {
     console.error('Error fetching availability:', error);
     res.status(500).json({ error: 'Failed to fetch availability' });

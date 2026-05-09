@@ -23,7 +23,7 @@ router.get('/venues/:id/hours', async (req, res) => {
       orderBy: { dayOfWeek: 'asc' }
     });
 
-    res.json(openingHours);
+    res.json({ data: openingHours });
   } catch (error) {
     console.error('Error fetching opening hours:', error);
     res.status(500).json({ error: 'Failed to fetch opening hours' });
@@ -67,7 +67,7 @@ router.post('/venues/:id/hours', verifyToken, async (req, res) => {
       data: openingHoursRecords
     });
 
-    res.json({ message: 'Opening hours updated successfully' });
+    res.json({ data: { ok: true }, meta: { message: 'Opening hours updated successfully' } });
   } catch (error) {
     console.error('Error updating opening hours:', error);
     res.status(500).json({ error: 'Failed to update opening hours' });

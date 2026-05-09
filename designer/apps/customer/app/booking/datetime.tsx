@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { api } from '../../services/api';
+import { colors, typography, spacing, radius, shadows } from '../../constants/theme';
 
 interface TimeSlot {
   time: string;
@@ -48,20 +49,28 @@ export default function SelectDateTimeScreen() {
 
         // Fetch service details if serviceId provided
         if (params.serviceId) {
-          serviceData = {
-            id: params.serviceId as string,
-            name: 'Selected Service',
-            price: 0,
-            duration: 0,
-          };
+          const serviceRes = await api.getService(params.serviceId as string);
+          if (serviceRes.error) throw new Error(serviceRes.error);
+          if (serviceRes.data) {
+            serviceData = {
+              id: serviceRes.data.id,
+              name: serviceRes.data.name,
+              price: serviceRes.data.price,
+              duration: serviceRes.data.duration,
+            };
+          }
         }
 
         // Fetch staff details if staffId provided
         if (params.staffId) {
-          staffData = {
-            id: params.staffId as string,
-            user: { firstName: 'Selected', lastName: 'Staff' },
-          };
+          const staffRes = await api.getStaffMember(params.staffId as string);
+          if (staffRes.error) throw new Error(staffRes.error);
+          if (staffRes.data) {
+            staffData = {
+              id: staffRes.data.id,
+              user: { firstName: staffRes.data.user.firstName, lastName: staffRes.data.user.lastName },
+            };
+          }
         }
 
         // Fetch availability for the selected date
@@ -71,54 +80,31 @@ export default function SelectDateTimeScreen() {
             selectedDate.toISOString().split('T')[0],
             params.serviceId as string
           );
-          if (availabilityResponse.data) {
-            // Convert availability data to time slots
-            const slots: TimeSlot[] = [];
-            if (availabilityResponse.data.timeSlots) {
-              availabilityResponse.data.timeSlots.forEach((slot: any) => {
-                slots.push({
-                  time: slot.startTime,
-                  available: slot.available,
-                });
-              });
-            }
-            setTimeSlots(slots);
-          } else {
-            // Fallback to mock slots
-            const slots: TimeSlot[] = [];
-            const startHour = 9;
-            const endHour = 18;
-            for (let hour = startHour; hour < endHour; hour++) {
-              for (let min = 0; min < 60; min += 30) {
-                const time = `${hour.toString().padStart(2, '0')}:${min.toString().padStart(2, '0')}`;
-                slots.push({
-                  time,
-                  available: Math.random() > 0.3,
-                });
-              }
-            }
-            setTimeSlots(slots);
-          }
+          if (availabilityResponse.error) throw new Error(availabilityResponse.error);
+          const slots: TimeSlot[] = (availabilityResponse.data?.timeSlots || []).map((slot: any) => ({
+            time: slot.time,
+            available: !!slot.available,
+          }));
+          setTimeSlots(slots);
+        } else if (params.providerId) {
+          const availabilityResponse = await api.getMobileProviderAvailability(
+            params.providerId as string,
+            selectedDate.toISOString().split('T')[0],
+            params.serviceId as string
+          );
+          if (availabilityResponse.error) throw new Error(availabilityResponse.error);
+          const slots: TimeSlot[] = (availabilityResponse.data?.timeSlots || []).map((slot: any) => ({
+            time: slot.time,
+            available: !!slot.available,
+          }));
+          setTimeSlots(slots);
         }
 
         setService(serviceData);
         setStaff(staffData);
       } catch (error: any) {
         console.error('Error fetching availability:', error);
-        // Fallback to mock slots
-        const slots: TimeSlot[] = [];
-        const startHour = 9;
-        const endHour = 18;
-        for (let hour = startHour; hour < endHour; hour++) {
-          for (let min = 0; min < 60; min += 30) {
-            const time = `${hour.toString().padStart(2, '0')}:${min.toString().padStart(2, '0')}`;
-            slots.push({
-              time,
-              available: Math.random() > 0.3,
-            });
-          }
-        }
-        setTimeSlots(slots);
+        setTimeSlots([]);
       } finally {
         setLoading(false);
       }
@@ -129,7 +115,12 @@ export default function SelectDateTimeScreen() {
 
   const handleContinue = () => {
     if (selectedDate && selectedTime) {
-      router.push(`/booking/confirm?venueId=${params.venueId}&serviceId=${params.serviceId}&date=${selectedDate.toISOString()}&time=${selectedTime}${params.staffId ? `&staffId=${params.staffId}` : ''}`);
+      const base = params.venueId
+        ? `venueId=${params.venueId}`
+        : `providerId=${params.providerId}`;
+      router.push(
+        `/booking/confirm?${base}&serviceId=${params.serviceId}&date=${selectedDate.toISOString()}&time=${selectedTime}${params.staffId ? `&staffId=${params.staffId}` : ''}`
+      );
     }
   };
 
@@ -281,7 +272,7 @@ export default function SelectDateTimeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: colors.bg.secondary,
   },
   loadingContainer: {
     flex: 1,
@@ -292,14 +283,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 24,
-    backgroundColor: '#FFFFFF',
+    padding: spacing.lg,
+    backgroundColor: colors.bg.primary,
   },
   progressStep: {
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#E5E7EB',
+    backgroundColor: colors.bg.tertiary,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -307,7 +298,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#1A56DB',
+    backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -315,14 +306,14 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#10B981',
+    backgroundColor: colors.success,
     alignItems: 'center',
     justifyContent: 'center',
   },
   progressStepText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#9CA3AF',
+    color: colors.text.tertiary,
   },
   progressStepTextActive: {
     fontSize: 14,
@@ -332,15 +323,16 @@ const styles = StyleSheet.create({
   progressLine: {
     flex: 1,
     height: 2,
-    backgroundColor: '#E5E7EB',
+    backgroundColor: colors.border,
     marginHorizontal: 8,
   },
   infoCard: {
-    backgroundColor: '#FFFFFF',
-    padding: 16,
-    marginHorizontal: 16,
-    borderRadius: 12,
-    marginBottom: 16,
+    backgroundColor: colors.bg.primary,
+    padding: spacing.md,
+    marginHorizontal: spacing.md,
+    borderRadius: radius.lg,
+    marginBottom: spacing.md,
+    ...shadows.sm,
   },
   infoRow: {
     flexDirection: 'row',
@@ -348,23 +340,23 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   infoLabel: {
-    fontSize: 14,
-    color: '#6B7280',
+    ...typography.small,
+    color: colors.text.secondary,
   },
   infoValue: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#111827',
+    ...typography.smallMedium,
+    fontWeight: '700',
+    color: colors.text.primary,
   },
   section: {
-    paddingHorizontal: 16,
-    marginBottom: 16,
+    paddingHorizontal: spacing.md,
+    marginBottom: spacing.md,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#111827',
-    marginBottom: 12,
+    ...typography.h4,
+    fontWeight: '800',
+    color: colors.text.primary,
+    marginBottom: spacing.sm,
   },
   dateScroll: {
     paddingRight: 16,
@@ -373,21 +365,21 @@ const styles = StyleSheet.create({
     width: 60,
     height: 70,
     borderRadius: 12,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.bg.primary,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 8,
     borderWidth: 2,
-    borderColor: '#E5E7EB',
+    borderColor: colors.border,
   },
   dateCardSelected: {
-    borderColor: '#1A56DB',
-    backgroundColor: '#1A56DB',
+    borderColor: colors.primary,
+    backgroundColor: colors.primary,
   },
   dateDay: {
-    fontSize: 12,
-    color: '#6B7280',
-    marginBottom: 4,
+    ...typography.caption,
+    color: colors.text.secondary,
+    marginBottom: spacing.xs,
   },
   dateDaySelected: {
     color: '#FFFFFF',
@@ -395,7 +387,7 @@ const styles = StyleSheet.create({
   dateNumber: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#111827',
+    color: colors.text.primary,
   },
   dateNumberSelected: {
     color: '#FFFFFF',
@@ -409,48 +401,49 @@ const styles = StyleSheet.create({
     width: '30%',
     paddingVertical: 12,
     borderRadius: 8,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.bg.primary,
     alignItems: 'center',
     borderWidth: 2,
-    borderColor: '#E5E7EB',
+    borderColor: colors.border,
   },
   timeSlotSelected: {
-    borderColor: '#1A56DB',
-    backgroundColor: '#1A56DB',
+    borderColor: colors.primary,
+    backgroundColor: colors.primary,
   },
   timeSlotUnavailable: {
-    backgroundColor: '#F3F4F6',
-    borderColor: '#E5E7EB',
+    backgroundColor: colors.bg.tertiary,
+    borderColor: colors.border,
   },
   timeSlotText: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#111827',
+    ...typography.smallMedium,
+    fontWeight: '700',
+    color: colors.text.primary,
   },
   timeSlotTextSelected: {
     color: '#FFFFFF',
   },
   timeSlotTextUnavailable: {
-    color: '#9CA3AF',
+    color: colors.text.tertiary,
   },
   footer: {
-    padding: 16,
-    backgroundColor: '#FFFFFF',
+    padding: spacing.md,
+    backgroundColor: colors.bg.primary,
     borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
+    borderTopColor: colors.border,
   },
   continueButton: {
-    backgroundColor: '#1A56DB',
+    backgroundColor: colors.primary,
     paddingVertical: 16,
-    borderRadius: 12,
+    borderRadius: radius.lg,
     alignItems: 'center',
+    ...shadows.md,
   },
   continueButtonDisabled: {
-    backgroundColor: '#9CA3AF',
+    backgroundColor: colors.text.tertiary,
   },
   continueButtonText: {
+    ...typography.bodyMedium,
     color: '#FFFFFF',
-    fontSize: 18,
-    fontWeight: '600',
+    fontWeight: '800',
   },
 });

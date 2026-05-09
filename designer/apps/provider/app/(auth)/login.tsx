@@ -12,6 +12,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { providerApi } from '../../services/api';
 import { useProviderAuthStore } from '../../stores/authStore';
 
@@ -25,6 +26,7 @@ export default function ProviderLoginScreen() {
   const setAuth = useProviderAuthStore((state) => state.setAuth);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [credentials, setCredentials] = useState<LoginCredentials>({
     email: '',
     password: '',
@@ -72,50 +74,92 @@ export default function ProviderLoginScreen() {
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        {/* Header */}
         <View style={styles.header}>
+          <View style={styles.iconContainer}>
+            <Ionicons name="storefront-outline" size={48} color="#FFFFFF" />
+          </View>
           <Text style={styles.title}>Provider Portal</Text>
           <Text style={styles.subtitle}>Welcome back to ZANA</Text>
         </View>
 
+        {/* Form */}
         <View style={styles.form}>
-          {error ? <Text style={styles.errorText}>{error}</Text> : null}
+          {error ? (
+            <View style={styles.errorContainer}>
+              <Ionicons name="alert-circle-outline" size={16} color="#DC2626" />
+              <Text style={styles.errorText}>{error}</Text>
+            </View>
+          ) : null}
 
-          <Text style={styles.label}>Email</Text>
-          <TextInput
-            style={styles.input}
-            value={credentials.email}
-            onChangeText={(text) => setCredentials({ ...credentials, email: text })}
-            keyboardType="email-address"
-            autoCapitalize="none"
-            placeholder="Enter your email"
-          />
+          {/* Email */}
+          <View style={styles.fieldContainer}>
+            <Text style={styles.label}>Email</Text>
+            <View style={styles.inputWrapper}>
+              <Ionicons name="mail-outline" size={18} color="#6B7280" />
+              <TextInput
+                style={styles.input}
+                value={credentials.email}
+                onChangeText={(text) => setCredentials({ ...credentials, email: text })}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                placeholder="Enter your email"
+                placeholderTextColor="#D1D5DB"
+              />
+            </View>
+          </View>
 
-          <Text style={styles.label}>Password</Text>
-          <TextInput
-            style={styles.input}
-            value={credentials.password}
-            onChangeText={(text) => setCredentials({ ...credentials, password: text })}
-            secureTextEntry
-            placeholder="Enter your password"
-          />
+          {/* Password */}
+          <View style={styles.fieldContainer}>
+            <Text style={styles.label}>Password</Text>
+            <View style={styles.inputWrapper}>
+              <Ionicons name="lock-closed-outline" size={18} color="#6B7280" />
+              <TextInput
+                style={styles.input}
+                value={credentials.password}
+                onChangeText={(text) => setCredentials({ ...credentials, password: text })}
+                secureTextEntry={!showPassword}
+                placeholder="Enter your password"
+                placeholderTextColor="#D1D5DB"
+              />
+              <TouchableOpacity
+                onPress={() => setShowPassword(!showPassword)}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <Ionicons
+                  name={showPassword ? 'eye-outline' : 'eye-off-outline'}
+                  size={18}
+                  color="#6B7280"
+                />
+              </TouchableOpacity>
+            </View>
+          </View>
 
+          {/* Login Button */}
           <TouchableOpacity
             style={[styles.loginButton, loading && styles.loginButtonDisabled]}
             onPress={handleLogin}
             disabled={loading}
+            activeOpacity={0.8}
           >
             {loading ? (
               <ActivityIndicator size="small" color="#FFFFFF" />
             ) : (
-              <Text style={styles.loginButtonText}>Login</Text>
+              <>
+                <Ionicons name="log-in-outline" size={18} color="#FFFFFF" />
+                <Text style={styles.loginButtonText}>Sign In</Text>
+              </>
             )}
           </TouchableOpacity>
 
+          {/* Register Link */}
           <TouchableOpacity
             style={styles.registerButton}
             onPress={() => router.push('/(auth)/register')}
+            activeOpacity={0.7}
           >
+            <Ionicons name="person-add-outline" size={16} color="#1A56DB" />
             <Text style={styles.registerButtonText}>Don't have an account? Register</Text>
           </TouchableOpacity>
         </View>
@@ -135,22 +179,40 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingVertical: 40,
   },
+
+  // Header
   header: {
     alignItems: 'center',
-    marginBottom: 40,
+    marginBottom: 48,
+  },
+  iconContainer: {
+    width: 80,
+    height: 80,
+    backgroundColor: '#1A56DB',
+    borderRadius: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 8,
   },
   title: {
     fontSize: 32,
     fontWeight: 'bold',
     color: '#1A56DB',
     textAlign: 'center',
+    marginBottom: 8,
   },
   subtitle: {
     fontSize: 16,
     color: '#6B7280',
-    marginTop: 8,
     textAlign: 'center',
   },
+
+  // Form
   form: {
     backgroundColor: '#FFFFFF',
     borderRadius: 16,
@@ -161,13 +223,29 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 5,
   },
-  errorText: {
+
+  // Error
+  errorContainer: {
     backgroundColor: '#FEF2F2',
-    color: '#DC2626',
-    padding: 12,
     borderRadius: 8,
-    fontSize: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
     marginBottom: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    borderLeftWidth: 4,
+    borderLeftColor: '#DC2626',
+  },
+  errorText: {
+    fontSize: 14,
+    color: '#DC2626',
+    flex: 1,
+  },
+
+  // Fields
+  fieldContainer: {
+    marginBottom: 20,
   },
   label: {
     fontSize: 14,
@@ -175,24 +253,42 @@ const styles = StyleSheet.create({
     color: '#374151',
     marginBottom: 8,
   },
-  input: {
+  inputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F9FAFB',
+    borderRadius: 8,
+    paddingHorizontal: 12,
     borderWidth: 1,
     borderColor: '#E5E7EB',
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-    backgroundColor: '#F9FAFB',
-    marginBottom: 20,
+    gap: 8,
   },
+  input: {
+    flex: 1,
+    paddingVertical: 12,
+    fontSize: 16,
+    color: '#111827',
+  },
+
+  // Buttons
   loginButton: {
     backgroundColor: '#1A56DB',
     borderRadius: 8,
-    padding: 16,
+    paddingVertical: 16,
+    paddingHorizontal: 24,
     alignItems: 'center',
     marginBottom: 16,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   loginButtonDisabled: {
-    backgroundColor: '#93C5FD',
+    opacity: 0.7,
   },
   loginButtonText: {
     color: '#FFFFFF',
@@ -201,6 +297,10 @@ const styles = StyleSheet.create({
   },
   registerButton: {
     alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    gap: 8,
   },
   registerButtonText: {
     color: '#1A56DB',

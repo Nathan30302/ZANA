@@ -5,6 +5,21 @@ const { validateVenue } = require('../middleware/validation');
 
 const prisma = new PrismaClient();
 const router = express.Router();
+const MOCK_MODE = process.env.MOCK_MODE === 'true' || process.env.MOCK_MODE === '1';
+const mock = require('../mock/data');
+
+function haversineKm(lat1, lng1, lat2, lng2) {
+  const R = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLng = ((lng2 - lng1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLng / 2) *
+      Math.sin(dLng / 2);
+  return 2 * R * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
 
 // GET /venues - List venues with filters
 router.get('/', async (req, res) => {
@@ -22,7 +37,7 @@ router.get('/', async (req, res) => {
     } = req.query;
 
     // Build where clause
-    let where = {
+    const where = {
       status: 'APPROVED', // Only show approved venues
       ...(category && { category }),
       ...(minRating > 0 && { rating: { gte: parseFloat(minRating) } }),
@@ -36,69 +51,115 @@ router.get('/', async (req, res) => {
 
     // Filter by price if maxPrice is provided
     if (maxPrice) {
-      const services = await prisma.service.findMany({
-        where: {
-          price: { lte: parseFloat(maxPrice) }
-        },
-        select: { venueId: true }
-      });
+      let services = [];
+      try {
+        services = await prisma.service.findMany({
+          where: {
+            price: { lte: parseFloat(maxPrice) }
+          },
+          select: { venueId: true }
+        });
+      } catch (e) {
+        if (!MOCK_MODE) throw e;
+        services = mock.services
+          .filter((s) => s.venueId && s.isActive && s.price <= parseFloat(maxPrice))
+          .map((s) => ({ venueId: s.venueId }));
+      }
       const venueIds = services.map(s => s.venueId);
+      // If none match, return empty list without querying Venue table further
+      if (venueIds.length === 0) {
+        return res.json({
+          data: [],
+          meta: {
+            pagination: {
+              page: parseInt(page),
+              limit: parseInt(limit),
+              total: 0,
+              totalPages: 0,
+              hasNext: false,
+              hasPrev: false
+            }
+          }
+        });
+      }
       where.id = { in: venueIds };
     }
 
-    // Calculate pagination
-    const skip = (parseInt(page) - 1) * parseInt(limit);
-    const take = parseInt(limit);
-
-    // Get venues with location filtering
-    let venues;
-    if (lat && lng) {
-      // Use Haversine formula for distance calculation
-      venues = await prisma.$queryRaw`
-        SELECT v.*, 
-               (6371 * acos(
-                 cos(radians(${parseFloat(lat)})) * 
-                 cos(radians(v.latitude)) * 
-                 cos(radians(v.longitude) - radians(${parseFloat(lng)})) + 
-                 sin(radians(${parseFloat(lat)})) * 
-                 sin(radians(v.latitude))
-               )) AS distance
-        FROM Venue v
-        WHERE v.status = 'APPROVED'
-        ${category ? `AND v.category = ${category}` : ''}
-        ${minRating > 0 ? `AND v.rating >= ${parseFloat(minRating)}` : ''}
-        ${search ? `AND (v.name LIKE '%${search}%' OR v.description LIKE '%${search}%')` : ''}
-        HAVING distance <= ${parseFloat(radius)}
-        ORDER BY distance
-        LIMIT ${take} OFFSET ${skip}
-      `;
-    } else {
-      venues = await prisma.venue.findMany({
+    // Fetch candidates with Prisma (no raw SQL injection risk)
+    let candidates;
+    try {
+      candidates = await prisma.venue.findMany({
         where,
-        skip,
-        take,
         orderBy: { createdAt: 'desc' }
       });
+    } catch (e) {
+      if (!MOCK_MODE) throw e;
+      candidates = mock.venues.filter((v) => v.status === 'APPROVED');
     }
 
-    // Get total count for pagination
-    const total = await prisma.venue.count({ where });
-    const totalPages = Math.ceil(total / parseInt(limit));
+    let filtered = candidates;
+    if (lat && lng) {
+      const latNum = parseFloat(lat);
+      const lngNum = parseFloat(lng);
+      const radiusNum = parseFloat(radius);
+      filtered = candidates
+        .map((v) => ({
+          ...v,
+          distanceKm: haversineKm(latNum, lngNum, v.latitude, v.longitude)
+        }))
+        .filter((v) => v.distanceKm <= radiusNum)
+        .sort((a, b) => a.distanceKm - b.distanceKm);
+    }
+
+    const pageNum = parseInt(page);
+    const limitNum = parseInt(limit);
+    const total = filtered.length;
+    const totalPages = Math.ceil(total / limitNum);
+    const start = (pageNum - 1) * limitNum;
+    const end = start + limitNum;
+    const venues = filtered.slice(start, end);
 
     res.json({
       data: venues,
-      pagination: {
-        page: parseInt(page),
-        limit: parseInt(limit),
-        total,
-        totalPages,
-        hasNext: parseInt(page) < totalPages,
-        hasPrev: parseInt(page) > 1
+      meta: {
+        pagination: {
+          page: pageNum,
+          limit: limitNum,
+          total,
+          totalPages,
+          hasNext: pageNum < totalPages,
+          hasPrev: pageNum > 1
+        }
       }
     });
   } catch (error) {
     console.error('Error fetching venues:', error);
-    res.status(500).json({ error: 'Failed to fetch venues' });
+    const isDbDown =
+      (error && typeof error.message === 'string' && (error.message.includes('connect') || error.message.includes("Can't reach database server"))) ||
+      (error && typeof error.code === 'string' && error.code.startsWith('P'));
+    res.status(isDbDown ? 503 : 500).json({
+      error: isDbDown ? 'Database unavailable' : 'Failed to fetch venues'
+    });
+  }
+});
+
+// GET /venues/:id/reviews — spec alias (paginated list)
+router.get('/:id/reviews', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const take = Math.min(parseInt(req.query.limit || '20', 10), 50);
+    const reviews = await prisma.review.findMany({
+      where: { venueId: id },
+      include: {
+        customer: { select: { id: true, firstName: true, lastName: true, avatarUrl: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+      take,
+    });
+    res.json({ data: reviews });
+  } catch (error) {
+    console.error('Venue reviews error:', error);
+    res.status(500).json({ error: 'Failed to fetch reviews' });
   }
 });
 
@@ -107,48 +168,65 @@ router.get('/:id', async (req, res) => {
   try {
     const { id } = req.params;
     
-    const venue = await prisma.venue.findUnique({
-      where: { id },
-      include: {
-        services: {
-          where: { isActive: true },
-          orderBy: { price: 'asc' }
-        },
-        staff: {
-          include: {
-            user: {
-              select: {
-                id: true,
-                firstName: true,
-                lastName: true,
-                avatarUrl: true
-              }
-            }
-          }
-        },
-        openingHours: true,
-        reviews: {
-          include: {
-            customer: {
-              select: {
-                id: true,
-                firstName: true,
-                lastName: true,
-                avatarUrl: true
+    let venue;
+    try {
+      venue = await prisma.venue.findUnique({
+        where: { id },
+        include: {
+          services: {
+            where: { isActive: true },
+            orderBy: { price: 'asc' }
+          },
+          staff: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  firstName: true,
+                  lastName: true,
+                  avatarUrl: true
+                }
               }
             }
           },
-          orderBy: { createdAt: 'desc' },
-          take: 10
+          openingHours: true,
+          reviews: {
+            include: {
+              customer: {
+                select: {
+                  id: true,
+                  firstName: true,
+                  lastName: true,
+                  avatarUrl: true
+                }
+              }
+            },
+            orderBy: { createdAt: 'desc' },
+            take: 10
+          }
         }
+      });
+    } catch (e) {
+      if (!MOCK_MODE) throw e;
+      const base = mock.venues.find((v) => v.id === id) || null;
+      if (base) {
+        venue = {
+          ...base,
+          services: mock.services.filter((s) => s.venueId === id && s.isActive),
+          staff: mock.staff.filter((st) => st.venueId === id && st.isActive),
+          openingHours: mock.openingHours.filter((h) => h.venueId === id),
+          reviews: [],
+        };
+      } else {
+        venue = null;
       }
-    });
+    }
 
     if (!venue) {
       return res.status(404).json({ error: 'Venue not found' });
     }
 
-    res.json(venue);
+    res.json({ data: venue });
   } catch (error) {
     console.error('Error fetching venue:', error);
     res.status(500).json({ error: 'Failed to fetch venue' });
@@ -159,7 +237,7 @@ router.get('/:id', async (req, res) => {
 router.get('/:id/availability', async (req, res) => {
   try {
     const { id } = req.params;
-    const { date, serviceId } = req.query;
+    const { date, serviceId, staffId } = req.query;
 
     if (!date) {
       return res.status(400).json({ error: 'Date is required' });
@@ -181,28 +259,45 @@ router.get('/:id/availability', async (req, res) => {
     const openingHour = venue.openingHours.find(h => h.dayOfWeek === dayOfWeek);
     
     if (!openingHour || openingHour.isClosed) {
-      return res.json({ slots: [] });
+      return res.json({ data: { timeSlots: [] } });
     }
 
     // Get all bookings for the day
-    const bookings = await prisma.booking.findMany({
-      where: {
-        venueId: id,
-        date: targetDate,
-        status: {
-          in: ['PENDING', 'CONFIRMED', 'IN_PROGRESS']
+    let bookings = [];
+    try {
+      bookings = await prisma.booking.findMany({
+        where: {
+          venueId: id,
+          date: targetDate,
+          status: {
+            in: ['PENDING', 'CONFIRMED', 'IN_PROGRESS']
+          }
+        },
+        include: {
+          service: true
         }
-      },
-      include: {
-        service: true
-      }
-    });
+      });
+    } catch (e) {
+      if (!MOCK_MODE) throw e;
+      bookings = [];
+    }
+
+    // Staff-specific availability (optional). If provided, clamp working window to availability records.
+    let staffWindows = null;
+    if (staffId) {
+      const availability = await prisma.availability.findMany({
+        where: { staffId: String(staffId), date: targetDate, isBlocked: false },
+        orderBy: [{ startTime: 'asc' }]
+      });
+      staffWindows = availability.map((a) => ({ startTime: a.startTime, endTime: a.endTime }));
+    }
 
     // Generate time slots
-    const slots = [];
+    const timeSlots = [];
     const startTime = new Date(`2000-01-01T${openingHour.openTime}:00`);
     const endTime = new Date(`2000-01-01T${openingHour.closeTime}:00`);
     const slotDuration = 30; // minutes
+    const bufferMinutes = 10; // small buffer between appointments
 
     // Get service duration if serviceId is provided
     let serviceDuration = 60; // default 1 hour
@@ -218,27 +313,35 @@ router.get('/:id/availability', async (req, res) => {
     for (let time = new Date(startTime); time < endTime; time.setMinutes(time.getMinutes() + slotDuration)) {
       const slotTime = time.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' });
       
+      if (staffWindows) {
+        const within = staffWindows.some((w) => {
+          const ws = new Date(`2000-01-01T${w.startTime}:00`);
+          const we = new Date(`2000-01-01T${w.endTime}:00`);
+          const slotEnd = new Date(time.getTime() + (serviceDuration + bufferMinutes) * 60000);
+          return time >= ws && slotEnd <= we;
+        });
+        if (!within) continue;
+      }
+
       // Check if slot is available
       const isBooked = bookings.some(booking => {
         const bookingTime = new Date(booking.date);
-        const bookingStart = bookingTime.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' });
-        
         // Check if this slot overlaps with any booking
-        const slotEnd = new Date(time.getTime() + serviceDuration * 60000);
-        const bookingEnd = new Date(bookingTime.getTime() + booking.service.duration * 60000);
+        const slotEnd = new Date(time.getTime() + (serviceDuration + bufferMinutes) * 60000);
+        const bookingEnd = new Date(bookingTime.getTime() + (booking.service.duration + bufferMinutes) * 60000);
         
         return (time < bookingEnd && slotEnd > bookingTime);
       });
 
       if (!isBooked) {
-        slots.push({
+        timeSlots.push({
           time: slotTime,
           available: true
         });
       }
     }
 
-    res.json({ slots });
+    res.json({ data: { timeSlots } });
   } catch (error) {
     console.error('Error fetching availability:', error);
     res.status(500).json({ error: 'Failed to fetch availability' });

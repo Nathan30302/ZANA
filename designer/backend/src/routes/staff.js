@@ -2,9 +2,51 @@ const express = require('express');
 const { PrismaClient } = require('@prisma/client');
 const { verifyToken, requireRole } = require('../middleware/auth');
 const { validateStaff } = require('../middleware/validation');
+const bcrypt = require('bcryptjs');
 
 const prisma = new PrismaClient();
 const router = express.Router();
+const MOCK_MODE = process.env.MOCK_MODE === 'true' || process.env.MOCK_MODE === '1';
+const mock = require('../mock/data');
+
+// GET /staff/:id - Fetch a single staff member (used by customer booking funnel)
+router.get('/:id', verifyToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    let staff = null;
+    try {
+      staff = await prisma.staff.findUnique({
+        where: { id },
+        include: {
+          user: {
+            select: { id: true, firstName: true, lastName: true, avatarUrl: true }
+          },
+          venue: {
+            select: { id: true, name: true }
+          }
+        }
+      });
+    } catch (e) {
+      if (!MOCK_MODE) throw e;
+      staff = mock.staff.find((s) => s.id === id) || null;
+      if (staff) {
+        staff = {
+          ...staff,
+          venue: mock.venues.find((v) => v.id === staff.venueId) || null,
+        };
+      }
+    }
+
+    if (!staff) {
+      return res.status(404).json({ error: 'Staff member not found' });
+    }
+
+    res.json({ data: staff });
+  } catch (error) {
+    console.error('Error fetching staff:', error);
+    res.status(500).json({ error: 'Failed to fetch staff member' });
+  }
+});
 
 // GET /venues/:id/staff - List venue staff
 router.get('/venues/:id/staff', async (req, res) => {
@@ -38,7 +80,7 @@ router.get('/venues/:id/staff', async (req, res) => {
       }
     });
 
-    res.json(staff);
+    res.json({ data: staff });
   } catch (error) {
     console.error('Error fetching venue staff:', error);
     res.status(500).json({ error: 'Failed to fetch venue staff' });
@@ -76,11 +118,15 @@ router.post('/venues/:id/staff/invite', verifyToken, async (req, res) => {
 
     // If user doesn't exist, create one
     if (!user) {
+      // Generate a strong temporary password; user should reset immediately.
+      const temporaryPassword = (await bcrypt.genSalt(12)).replace(/\./g, '') + Math.random().toString(36).slice(2);
+      const hashedPassword = await bcrypt.hash(temporaryPassword, 12);
+
       user = await prisma.user.create({
         data: {
           email,
           phone,
-          password: Math.random().toString(36).slice(-8), // Temporary password
+          password: hashedPassword,
           firstName: email.split('@')[0], // Use email prefix as first name
           lastName: '',
           role: 'STAFF'

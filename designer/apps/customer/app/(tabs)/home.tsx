@@ -12,19 +12,20 @@ import {
   Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { api } from '../../services/api';
+import { colors, typography, spacing, radius, shadows } from '../../constants/theme';
+import { ThemedCard } from '../../components/ThemedCard';
+import { SectionHeader } from '../../components/SectionHeader';
+import { EmptyState } from '../../components/EmptyState';
 
 const SERVICE_CATEGORIES = [
-  { key: 'HAIRCUT', label: 'Haircut' },
-  { key: 'HAIR_STYLING', label: 'Hair Styling' },
-  { key: 'BRAIDING', label: 'Braiding' },
-  { key: 'LOCS', label: 'Locs' },
-  { key: 'WEAVE', label: 'Weave' },
-  { key: 'BEARD_TRIM', label: 'Beard Trim' },
-  { key: 'SHAVE', label: 'Shave' },
-  { key: 'NAILS', label: 'Nails' },
-  { key: 'MAKEUP', label: 'Makeup' },
-  { key: 'EYEBROWS', label: 'Eyebrows' }
+  { key: 'HAIRCUT', label: 'Haircut', image: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=800&auto=format&fit=crop&q=60' },
+  { key: 'HAIR_STYLING', label: 'Hair Styling', image: 'https://images.unsplash.com/photo-1526045612212-70caf35c14df?w=800&auto=format&fit=crop&q=60' },
+  { key: 'BRAIDING', label: 'Braiding', image: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=800&auto=format&fit=crop&q=60' },
+  { key: 'NAILS', label: 'Nails', image: 'https://images.unsplash.com/photo-1540574163026-643ea20ade25?w=800&auto=format&fit=crop&q=60' },
+  { key: 'MAKEUP', label: 'Makeup', image: 'https://images.unsplash.com/photo-1556228720-1c9a9d0b9a6b?w=800&auto=format&fit=crop&q=60' },
+  { key: 'BEARD_TRIM', label: 'Beard Trim', image: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=800&auto=format&fit=crop&q=60' }
 ];
 
 interface Venue {
@@ -68,12 +69,10 @@ export default function HomeScreen() {
   const [venues, setVenues] = useState<Venue[]>([]);
   const [mobileProviders, setMobileProviders] = useState<MobileProvider[]>([]);
   const [loading, setLoading] = useState(true);
-  const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
 
   const fetchData = async () => {
     try {
-      const mockLocation = { latitude: -15.4089, longitude: 28.2815 }; // Lusaka
-      setUserLocation(mockLocation);
+      const mockLocation = { latitude: -15.4089, longitude: 28.2815 };
 
       const venuesResponse = await api.getVenues({
         lat: mockLocation.latitude.toString(),
@@ -117,55 +116,64 @@ export default function HomeScreen() {
   };
 
   const renderVenueCard = ({ item }: { item: Venue }) => (
-    <TouchableOpacity
-      style={styles.venueCard}
+    <ThemedCard
       onPress={() => router.push(`/venue/${item.id}`)}
+      shadow="md"
+      style={styles.venueCard}
     >
       <Image
-        source={{ uri: item.coverPhoto || 'https://via.placeholder.com/300x200' }}
+        source={{ uri: item.coverPhoto || 'https://images.unsplash.com/photo-1633416476697-1e589ae6e76b?w=300' }}
         style={styles.venueImage}
       />
       <View style={styles.venueInfo}>
         <Text style={styles.venueName} numberOfLines={1}>{item.name}</Text>
-        <Text style={styles.venueCategory}>{item.category.replace(/_/g, ' ')}</Text>
+        <Text style={styles.venueCategory} numberOfLines={1}>
+          {item.category.replace(/_/g, ' ')}
+        </Text>
         <View style={styles.venueRating}>
-          <Text style={styles.ratingText}>⭐ {item.rating.toFixed(1)}</Text>
-          <Text style={styles.reviewCount}>({item.reviewCount})</Text>
+          <Ionicons name="star" size={14} color={colors.warning} />
+          <Text style={styles.ratingText}> {item.rating.toFixed(1)}</Text>
+          <Text style={styles.reviewCount}> ({item.reviewCount})</Text>
         </View>
-        <Text style={styles.venueAddress} numberOfLines={1}>{item.address}, {item.city}</Text>
+        <Text style={styles.venueAddress} numberOfLines={1}>
+          📍 {item.address}
+        </Text>
       </View>
-    </TouchableOpacity>
+    </ThemedCard>
   );
 
   const renderMobileProviderCard = ({ item }: { item: MobileProvider }) => (
-    <TouchableOpacity
-      style={styles.providerCard}
+    <ThemedCard
       onPress={() => router.push(`/provider/${item.id}`)}
+      shadow="md"
+      style={styles.providerCard}
     >
-      <Image
-        source={{ uri: item.user.avatarUrl || 'https://via.placeholder.com/100' }}
-        style={styles.providerImage}
-      />
-      <View style={styles.providerInfo}>
-        <Text style={styles.providerName}>
-          {item.user.firstName} {item.user.lastName}
-        </Text>
-        <Text style={styles.providerBio} numberOfLines={2}>
-          {item.bio || 'Professional mobile beauty service'}
-        </Text>
-        <View style={styles.providerRating}>
-          <Text style={styles.ratingText}>⭐ {item.rating.toFixed(1)}</Text>
-          <Text style={styles.reviewCount}>({item.reviewCount})</Text>
+      <View style={styles.providerContent}>
+        <Image
+          source={{ uri: item.user.avatarUrl || 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100' }}
+          style={styles.providerImage}
+        />
+        <View style={styles.providerInfo}>
+          <Text style={styles.providerName} numberOfLines={1}>
+            {item.user.firstName} {item.user.lastName}
+          </Text>
+          <Text style={styles.providerBio} numberOfLines={2}>
+            {item.bio || 'Beauty Professional'}
+          </Text>
+          <View style={styles.providerRating}>
+            <Ionicons name="star" size={12} color={colors.warning} />
+            <Text style={styles.providerRatingText}> {item.rating.toFixed(1)}</Text>
+            <Text style={styles.providerReviewCount}> ({item.reviewCount})</Text>
+          </View>
         </View>
-        <Text style={styles.providerRadius}>{item.serviceRadius}km service radius</Text>
       </View>
-    </TouchableOpacity>
+    </ThemedCard>
   );
 
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#1A56DB" />
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
@@ -173,27 +181,51 @@ export default function HomeScreen() {
   return (
     <ScrollView
       style={styles.container}
+      showsVerticalScrollIndicator={false}
       refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
       }
     >
-      {/* Greeting Section */}
-      <View style={styles.greetingSection}>
-        <Text style={styles.greetingTitle}>Welcome to ZANA</Text>
-        <Text style={styles.greetingSubtitle}>Beauty at your fingertips</Text>
+      {/* Premium Hero Section */}
+      <View style={styles.heroSection}>
+        <View style={styles.heroContent}>
+          <Text style={styles.heroGreeting}>Welcome back! ✨</Text>
+          <Text style={styles.heroTitle}>Find Your Beauty Expert</Text>
+          <Text style={styles.heroSubtitle}>Discover top-rated salons and professionals</Text>
+        </View>
+        <TouchableOpacity 
+          style={styles.searchButton}
+          onPress={() => router.push('/search')}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="search" size={18} color={colors.text.secondary} />
+          <Text style={styles.searchPlaceholder}>Search here...</Text>
+        </TouchableOpacity>
       </View>
 
-      {/* Category Quick Links */}
+      {/* Quick Categories */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Categories</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          {SERVICE_CATEGORIES.slice(0, 6).map((category) => (
+        <SectionHeader 
+          title="Browse Categories"
+          actionText="View All"
+          onActionPress={() => router.push('/search')}
+        />
+        <ScrollView 
+          horizontal 
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.categoriesContainer}
+        >
+          {SERVICE_CATEGORIES.map((category) => (
             <TouchableOpacity
               key={category.key}
-              style={styles.categoryChip}
+              style={styles.categoryCard}
               onPress={() => router.push(`/search?category=${category.key}`)}
+              activeOpacity={0.7}
             >
-              <Text style={styles.categoryChipText}>{category.label}</Text>
+                <View style={styles.categoryIcon}> 
+                  <Image source={{ uri: category.image }} style={styles.categoryImage} />
+                </View>
+              <Text style={styles.categoryLabel}>{category.label}</Text>
             </TouchableOpacity>
           ))}
         </ScrollView>
@@ -201,15 +233,57 @@ export default function HomeScreen() {
 
       {/* Nearby Venues */}
       <View style={styles.section}>
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Nearby Venues</Text>
-          <TouchableOpacity onPress={() => router.push('/search')}>
-            <Text style={styles.seeAllText}>See All</Text>
-          </TouchableOpacity>
-        </View>
+        <SectionHeader 
+          title="Featured Venues"
+          actionText="See All"
+          onActionPress={() => router.push('/search')}
+        />
         {venues.length > 0 ? (
           <FlatList
-            data={venues}
+            data={venues.slice(0, 5)}
+            renderItem={renderVenueCard}
+            keyExtractor={(item) => item.id}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.venuesList}
+            scrollEventThrottle={16}
+          />
+        ) : (
+          <EmptyState icon="🏢" title="No venues found" description="Check your location settings" />
+        )}
+      </View>
+
+      {/* Mobile Professionals */}
+      <View style={styles.section}>
+        <SectionHeader 
+          title="Mobile Professionals"
+          actionText="See All"
+          onActionPress={() => router.push('/search?type=mobile')}
+        />
+        {mobileProviders.length > 0 ? (
+          <FlatList
+            data={mobileProviders}
+            renderItem={renderMobileProviderCard}
+            keyExtractor={(item) => item.id}
+            showsVerticalScrollIndicator={false}
+            scrollEnabled={false}
+            contentContainerStyle={styles.providersList}
+          />
+        ) : (
+          <EmptyState icon="👤" title="No professionals available" />
+        )}
+      </View>
+
+      {/* Top Rated Section */}
+      <View style={styles.section}>
+        <SectionHeader 
+          title="Highest Rated"
+          actionText="See All"
+          onActionPress={() => router.push('/search?minRating=4')}
+        />
+        {venues.length > 0 ? (
+          <FlatList
+            data={venues.sort((a, b) => b.rating - a.rating).slice(0, 3)}
             renderItem={renderVenueCard}
             keyExtractor={(item) => item.id}
             horizontal
@@ -217,64 +291,12 @@ export default function HomeScreen() {
             contentContainerStyle={styles.venuesList}
           />
         ) : (
-          <Text style={styles.emptyText}>No venues found nearby</Text>
+          <EmptyState icon="⭐" title="No rated venues yet" />
         )}
       </View>
 
-      {/* Mobile Professionals */}
-      <View style={styles.section}>
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Mobile Pros Near You</Text>
-          <TouchableOpacity onPress={() => router.push('/search?type=mobile')}>
-            <Text style={styles.seeAllText}>See All</Text>
-          </TouchableOpacity>
-        </View>
-        {mobileProviders.length > 0 ? (
-          <FlatList
-            data={mobileProviders}
-            renderItem={renderMobileProviderCard}
-            keyExtractor={(item) => item.id}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.providersList}
-          />
-        ) : (
-          <Text style={styles.emptyText}>No mobile providers found nearby</Text>
-        )}
-      </View>
-
-      {/* Top Rated Venues */}
-      <View style={styles.section}>
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Top Rated</Text>
-          <TouchableOpacity onPress={() => router.push('/search?minRating=4')}>
-            <Text style={styles.seeAllText}>See All</Text>
-          </TouchableOpacity>
-        </View>
-        {venues
-          .sort((a, b) => b.rating - a.rating)
-          .slice(0, 5)
-          .map((venue) => (
-            <TouchableOpacity
-              key={venue.id}
-              style={styles.venueCard}
-              onPress={() => router.push(`/venue/${venue.id}`)}
-            >
-              <Image
-                source={{ uri: venue.coverPhoto || 'https://via.placeholder.com/300x200' }}
-                style={styles.venueImage}
-              />
-              <View style={styles.venueInfo}>
-                <Text style={styles.venueName} numberOfLines={1}>{venue.name}</Text>
-                <Text style={styles.venueCategory}>{venue.category.replace(/_/g, ' ')}</Text>
-                <View style={styles.venueRating}>
-                  <Text style={styles.ratingText}>⭐ {venue.rating.toFixed(1)}</Text>
-                  <Text style={styles.reviewCount}>({venue.reviewCount})</Text>
-                </View>
-              </View>
-            </TouchableOpacity>
-          ))}
-      </View>
+      {/* Bottom Spacing */}
+      <View style={styles.bottomSpacing} />
     </ScrollView>
   );
 }
@@ -282,163 +304,193 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: colors.bg.secondary,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: colors.bg.secondary,
   },
-  greetingSection: {
-    backgroundColor: '#1A56DB',
-    padding: 24,
-    paddingTop: 32,
+  
+  // Hero Section
+  heroSection: {
+    backgroundColor: colors.primary,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.xl,
+    paddingBottom: spacing.lg,
+    borderBottomLeftRadius: radius.xl,
+    borderBottomRightRadius: radius.xl,
   },
-  greetingTitle: {
-    fontSize: 28,
+  heroContent: {
+    marginBottom: spacing.lg,
+  },
+  heroGreeting: {
+    ...typography.small,
+    color: 'rgba(255, 255, 255, 0.8)',
+    fontWeight: '500',
+  },
+  heroTitle: {
+    ...typography.display,
+    color: '#FFFFFF',
     fontWeight: 'bold',
-    color: '#FFFFFF',
+    marginTop: spacing.sm,
+    marginBottom: spacing.xs,
   },
-  greetingSubtitle: {
-    fontSize: 16,
-    color: '#FFFFFF',
-    opacity: 0.9,
-    marginTop: 4,
+  heroSubtitle: {
+    ...typography.bodyMedium,
+    color: 'rgba(255, 255, 255, 0.7)',
   },
-  section: {
-    marginTop: 24,
-    paddingHorizontal: 16,
-  },
-  sectionHeader: {
+  searchButton: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    backgroundColor: colors.bg.primary,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    borderRadius: radius.lg,
+    ...shadows.md,
   },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#111827',
+  searchPlaceholder: {
+    ...typography.body,
+    color: colors.text.secondary,
+    marginLeft: spacing.sm,
   },
-  seeAllText: {
-    fontSize: 14,
-    color: '#1A56DB',
+
+  // Sections
+  section: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.lg,
+  },
+  
+  // Categories
+  categoriesContainer: {
+    paddingRight: spacing.lg,
+  },
+  categoryCard: {
+    alignItems: 'center',
+    marginRight: spacing.md,
+    width: 80,
+  },
+  categoryIcon: {
+    width: 64,
+    height: 64,
+    borderRadius: radius.lg,
+    backgroundColor: colors.bg.tertiary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.sm,
+  },
+  categoryImage: {
+    width: 64,
+    height: 64,
+    borderRadius: radius.lg,
+  },
+  categoryIconText: {
+    fontSize: 28,
+  },
+  categoryLabel: {
+    ...typography.small,
+    color: colors.text.primary,
+    textAlign: 'center',
     fontWeight: '500',
   },
-  categoryChip: {
-    backgroundColor: '#1A56DB',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    marginRight: 8,
-  },
-  categoryChipText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '500',
-  },
+
+  // Venues
   venuesList: {
-    paddingRight: 16,
+    paddingRight: spacing.lg,
   },
   venueCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    width: 200,
-    marginRight: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    width: 160,
+    height: 220,
+    marginRight: spacing.md,
+    overflow: 'hidden',
   },
   venueImage: {
     width: '100%',
-    height: 120,
-    borderTopLeftRadius: 12,
-    borderTopRightRadius: 12,
+    height: 110,
   },
   venueInfo: {
-    padding: 12,
+    padding: spacing.md,
+    backgroundColor: colors.bg.primary,
   },
   venueName: {
-    fontSize: 16,
+    ...typography.smallMedium,
+    color: colors.text.primary,
     fontWeight: '600',
-    color: '#111827',
   },
   venueCategory: {
-    fontSize: 12,
-    color: '#6B7280',
-    marginTop: 2,
+    ...typography.caption,
+    color: colors.text.secondary,
+    marginTop: spacing.xs,
   },
   venueRating: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 4,
+    marginTop: spacing.xs,
   },
   ratingText: {
-    fontSize: 14,
-    fontWeight: '500',
+    ...typography.caption,
+    color: colors.text.primary,
+    fontWeight: '600',
   },
   reviewCount: {
-    fontSize: 12,
-    color: '#6B7280',
-    marginLeft: 4,
+    ...typography.caption,
+    color: colors.text.tertiary,
   },
   venueAddress: {
-    fontSize: 12,
-    color: '#9CA3AF',
-    marginTop: 4,
+    ...typography.caption,
+    color: colors.text.secondary,
+    marginTop: spacing.xs,
   },
+
+  // Providers
   providersList: {
-    paddingRight: 16,
+    paddingRight: spacing.lg,
   },
   providerCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    width: 180,
-    marginRight: 12,
-    padding: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    marginBottom: spacing.md,
+    overflow: 'hidden',
+  },
+  providerContent: {
     flexDirection: 'row',
-    alignItems: 'center',
+    padding: spacing.md,
   },
   providerImage: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
+    width: 56,
+    height: 56,
+    borderRadius: radius.full,
+    marginRight: spacing.md,
   },
   providerInfo: {
     flex: 1,
-    marginLeft: 12,
   },
   providerName: {
-    fontSize: 14,
+    ...typography.smallMedium,
+    color: colors.text.primary,
     fontWeight: '600',
-    color: '#111827',
   },
   providerBio: {
-    fontSize: 12,
-    color: '#6B7280',
-    marginTop: 2,
+    ...typography.caption,
+    color: colors.text.secondary,
+    marginTop: spacing.xs,
   },
   providerRating: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 4,
+    marginTop: spacing.xs,
   },
-  providerRadius: {
-    fontSize: 11,
-    color: '#1A56DB',
-    marginTop: 4,
+  providerRatingText: {
+    ...typography.caption,
+    color: colors.text.primary,
+    fontWeight: '600',
   },
-  emptyText: {
-    fontSize: 14,
-    color: '#6B7280',
-    textAlign: 'center',
-    padding: 16,
+  providerReviewCount: {
+    ...typography.caption,
+    color: colors.text.tertiary,
+  },
+
+  // Bottom spacing
+  bottomSpacing: {
+    height: spacing.xl,
   },
 });

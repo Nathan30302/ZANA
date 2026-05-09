@@ -39,6 +39,16 @@ export interface Venue {
   active: boolean;
 }
 
+export interface MobileProvider {
+  id: string;
+  bio: string;
+  portfolioPhotos: string[];
+  baseLat: number;
+  baseLng: number;
+  serviceRadius: number;
+  status: string;
+}
+
 export interface Booking {
   id: string;
   customerName: string;
@@ -86,6 +96,25 @@ const getDayIndex = (day: string) => {
   }
 };
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import Constants from 'expo-constants';
+import { Platform } from 'react-native';
+
+function resolveApiBaseUrl(): string {
+  const envUrl = process.env.EXPO_PUBLIC_API_URL;
+  if (envUrl && typeof envUrl === 'string') return envUrl.replace(/\/$/, '');
+
+  if (Platform.OS === 'web') return 'http://localhost:3000/api/v1';
+
+  const hostUri =
+    (Constants.expoConfig as any)?.hostUri ||
+    (Constants as any)?.manifest2?.extra?.expoClient?.hostUri ||
+    (Constants as any)?.manifest?.hostUri;
+
+  const host = typeof hostUri === 'string' ? hostUri.split(':')[0] : null;
+  if (host) return `http://${host}:3000/api/v1`;
+
+  return 'http://localhost:3000/api/v1';
+}
 
 // Simple storage helper using AsyncStorage
 const STORAGE_KEYS = {
@@ -267,7 +296,6 @@ class ProviderApiClient {
       body: JSON.stringify({
         email,
         password,
-        userType: 'PROVIDER',
       }),
     });
     
@@ -275,14 +303,54 @@ class ProviderApiClient {
       await this.storeTokens(result.data.accessToken, result.data.refreshToken);
       await this.storeUser(result.data.user);
       
-      // Get and store venue
-      const venueResult = await this.getVenueProfile();
-      if (venueResult.data) {
-        await this.storeVenue(venueResult.data);
+      if (result.data.user.role === 'PROVIDER_VENUE') {
+        const venueResult = await this.getVenueProfile();
+        if (venueResult.data) {
+          await this.storeVenue(venueResult.data);
+        }
+      } else if (result.data.user.role === 'PROVIDER_MOBILE') {
+        await this.getMobileProviderProfile();
       }
     }
     
     return result;
+  }
+
+  async createVenue(data: {
+    name: string;
+    description: string;
+    category: string;
+    phone: string;
+    email?: string;
+    address: string;
+    city: string;
+    latitude: number;
+    longitude: number;
+    coverPhoto?: string;
+    photos?: string[];
+    amenities?: string[];
+  }): Promise<ApiResponse<Venue>> {
+    return this.request<Venue>('/venues', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async createMobileProvider(data: {
+    bio: string;
+    portfolioPhotos?: string[];
+    baseLat: number;
+    baseLng: number;
+    serviceRadius: number;
+  }): Promise<ApiResponse<MobileProvider>> {
+    return this.request<MobileProvider>('/mobile-providers', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async getMobileProviderProfile(): Promise<ApiResponse<MobileProvider>> {
+    return this.request<MobileProvider>('/mobile-providers/profile');
   }
 
   async register(data: {
@@ -291,27 +359,27 @@ class ProviderApiClient {
     email: string;
     phone: string;
     password: string;
-    venueName: string;
-    venueCategory: string;
-    venueAddress: string;
-    venueCity: string;
+    role: 'PROVIDER_MOBILE' | 'PROVIDER_VENUE';
   }): Promise<ApiResponse<AuthResponse>> {
     const result = await this.request<AuthResponse>('/auth/register', {
       method: 'POST',
       body: JSON.stringify({
         ...data,
-        userType: 'PROVIDER',
+        role: data.role,
       }),
     });
     
     if (result.data) {
       await this.storeTokens(result.data.accessToken, result.data.refreshToken);
       await this.storeUser(result.data.user);
-      
-      // Get and store venue
-      const venueResult = await this.getVenueProfile();
-      if (venueResult.data) {
-        await this.storeVenue(venueResult.data);
+
+      if (result.data.user.role === 'PROVIDER_VENUE') {
+        const venueResult = await this.getVenueProfile();
+        if (venueResult.data) {
+          await this.storeVenue(venueResult.data);
+        }
+      } else if (result.data.user.role === 'PROVIDER_MOBILE') {
+        await this.getMobileProviderProfile();
       }
     }
     
@@ -386,14 +454,37 @@ class ProviderApiClient {
     price: number;
     duration: number;
     category: string;
+    providerType?: 'PROVIDER_VENUE' | 'PROVIDER_MOBILE';
+    profileId?: string;
   }): Promise<ApiResponse<Service>> {
+    if (data.providerType === 'PROVIDER_MOBILE' && data.profileId) {
+      return this.request<Service>(`/mobile-providers/${data.profileId}/services`, {
+        method: 'POST',
+        body: JSON.stringify({
+          name: data.name,
+          description: data.description,
+          category: data.category,
+          price: data.price,
+          duration: data.duration,
+        }),
+      });
+    }
+
     const venue = await this.getVenue();
-    if (!venue) {
+    const venueId = data.profileId || venue?.id;
+    if (!venueId) {
       return { error: 'Venue not loaded' };
     }
-    return this.request<Service>(`/venues/${venue.id}/services`, {
+
+    return this.request<Service>(`/venues/${venueId}/services`, {
       method: 'POST',
-      body: JSON.stringify(data),
+      body: JSON.stringify({
+        name: data.name,
+        description: data.description,
+        category: data.category,
+        price: data.price,
+        duration: data.duration,
+      }),
     });
   }
 
@@ -546,5 +637,5 @@ class ProviderApiClient {
 }
 
 // Export singleton instance
-export const providerApi = new ProviderApiClient('http://localhost:3000/api/v1');
+export const providerApi = new ProviderApiClient(resolveApiBaseUrl());
 export default providerApi;

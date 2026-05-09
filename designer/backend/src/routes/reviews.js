@@ -18,7 +18,7 @@ router.get('/venue/:venueId', async (req, res) => {
       take: 20
     });
 
-    res.json({ reviews });
+    res.json({ data: reviews });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -37,14 +37,14 @@ router.get('/provider/:providerId', async (req, res) => {
       take: 20
     });
 
-    res.json({ reviews });
+    res.json({ data: reviews });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
 // Create a review
-router.post('/', verifyToken, requireRole('CUSTOMER'), async (req, res) => {
+router.post('/', verifyToken, requireRole(['CUSTOMER']), async (req, res) => {
   try {
     const { bookingId, rating, comment, venueId, mobileProviderId } = req.body;
     const customerId = req.user.id;
@@ -78,13 +78,16 @@ router.post('/', verifyToken, requireRole('CUSTOMER'), async (req, res) => {
       return res.status(400).json({ error: 'Review already submitted for this booking' });
     }
 
+    let vId = venueId || booking.venueId || undefined;
+    let mId = mobileProviderId || booking.mobileProviderId || undefined;
+
     // Create review
     const review = await prisma.review.create({
       data: {
         bookingId,
         customerId,
-        venueId,
-        mobileProviderId,
+        venueId: vId || null,
+        mobileProviderId: mId || null,
         rating,
         comment
       },
@@ -95,16 +98,16 @@ router.post('/', verifyToken, requireRole('CUSTOMER'), async (req, res) => {
     });
 
     // Update venue rating if applicable
-    if (venueId) {
+    if (vId) {
       const venueReviews = await prisma.review.findMany({
-        where: { venueId },
+        where: { venueId: vId },
         select: { rating: true }
       });
 
       const avgRating = venueReviews.reduce((sum, r) => sum + r.rating, 0) / venueReviews.length;
 
       await prisma.venue.update({
-        where: { id: venueId },
+        where: { id: vId },
         data: {
           rating: Math.round(avgRating * 10) / 10,
           reviewCount: venueReviews.length
@@ -113,16 +116,16 @@ router.post('/', verifyToken, requireRole('CUSTOMER'), async (req, res) => {
     }
 
     // Update mobile provider rating if applicable
-    if (mobileProviderId) {
+    if (mId) {
       const providerReviews = await prisma.review.findMany({
-        where: { mobileProviderId },
+        where: { mobileProviderId: mId },
         select: { rating: true }
       });
 
       const avgRating = providerReviews.reduce((sum, r) => sum + r.rating, 0) / providerReviews.length;
 
       await prisma.mobileProvider.update({
-        where: { id: mobileProviderId },
+        where: { id: mId },
         data: {
           rating: Math.round(avgRating * 10) / 10,
           reviewCount: providerReviews.length
@@ -130,14 +133,14 @@ router.post('/', verifyToken, requireRole('CUSTOMER'), async (req, res) => {
       });
     }
 
-    res.status(201).json({ review, message: 'Review submitted successfully' });
+    res.status(201).json({ data: review, meta: { message: 'Review submitted successfully' } });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
 // Delete a review (admin only)
-router.delete('/:id', verifyToken, requireRole('ADMIN'), async (req, res) => {
+router.delete('/:id', verifyToken, requireRole(['ADMIN']), async (req, res) => {
   try {
     const review = await prisma.review.findUnique({
       where: { id: req.params.id },
@@ -204,7 +207,7 @@ router.delete('/:id', verifyToken, requireRole('ADMIN'), async (req, res) => {
       }
     }
 
-    res.json({ message: 'Review deleted successfully' });
+    res.json({ data: { ok: true }, meta: { message: 'Review deleted successfully' } });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

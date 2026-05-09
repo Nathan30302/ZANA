@@ -83,6 +83,9 @@ model Venue {
   bookings      Booking[]
   openingHours  OpeningHours[]
   reviews       Review[]
+
+  @@index([status])
+  @@index([latitude, longitude])
 }
 
 enum VenueCategory {
@@ -118,6 +121,9 @@ model MobileProvider {
   bookings       Booking[]
   availability   Availability[]
   reviews        Review[]
+
+  @@index([status])
+  @@index([baseLat, baseLng])
 }
 
 model Service {
@@ -209,6 +215,12 @@ model Booking {
   updatedAt        DateTime  @updatedAt
 
   review           Review?
+
+  @@index([customerId])
+  @@index([venueId])
+  @@index([mobileProviderId])
+  @@index([status])
+  @@index([date])
 }
 
 enum BookingStatus {

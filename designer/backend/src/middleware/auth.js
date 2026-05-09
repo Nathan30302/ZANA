@@ -3,12 +3,31 @@ const { PrismaClient } = require('@prisma/client');
 
 const prisma = new PrismaClient();
 
+const MOCK_MODE = process.env.MOCK_MODE === 'true' || process.env.MOCK_MODE === '1';
+
+const DEV_CUSTOMER = {
+  id: 'user_customer_dev',
+  email: 'customer@dev.zana',
+  phone: '0970000000',
+  firstName: 'Dev',
+  lastName: 'Customer',
+  role: 'CUSTOMER',
+  isVerified: true,
+  isActive: true,
+  avatarUrl: null,
+  createdAt: new Date(),
+};
+
 // Verify JWT token middleware
 const verifyToken = async (req, res, next) => {
   try {
     const authHeader = req.header('Authorization');
     
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      if (MOCK_MODE) {
+        req.user = DEV_CUSTOMER;
+        return next();
+      }
       return res.status(401).json({
         error: 'Access denied',
         message: 'No token provided'
@@ -18,6 +37,10 @@ const verifyToken = async (req, res, next) => {
     const token = authHeader.substring(7); // Remove 'Bearer ' prefix
 
     if (!token) {
+      if (MOCK_MODE) {
+        req.user = DEV_CUSTOMER;
+        return next();
+      }
       return res.status(401).json({
         error: 'Access denied',
         message: 'No token provided'
@@ -28,11 +51,24 @@ const verifyToken = async (req, res, next) => {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     
     // Get user from database to ensure they still exist and are active
-    const user = await prisma.user.findUnique({
-      where: { id: decoded.userId }
-    });
+    let user = null;
+    try {
+      user = await prisma.user.findUnique({
+        where: { id: decoded.userId }
+      });
+    } catch (e) {
+      if (MOCK_MODE) {
+        req.user = DEV_CUSTOMER;
+        return next();
+      }
+      throw e;
+    }
 
     if (!user || !user.isActive) {
+      if (MOCK_MODE) {
+        req.user = DEV_CUSTOMER;
+        return next();
+      }
       return res.status(401).json({
         error: 'Access denied',
         message: 'Invalid token or user not found'

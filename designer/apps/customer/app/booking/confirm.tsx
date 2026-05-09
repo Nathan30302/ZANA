@@ -7,9 +7,11 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   TextInput,
+  Alert,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { api } from '../../services/api';
+import { colors, typography, spacing, radius, shadows } from '../../constants/theme';
 
 interface Service {
   id: string;
@@ -38,28 +40,11 @@ export default function ConfirmBookingScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const [notes, setNotes] = useState('');
-  const [booking, setBooking] = useState<any>(null);
-  const [loading, setLoading] = useState(false);
-
-  // Mock data
-  const mockVenue: Venue = {
-    id: params.venueId as string,
-    name: 'Kutz by Daka',
-    address: 'Plot 123, Great East Road',
-    city: 'Lusaka',
-    phone: '0971234567',
-  };
-
-  const mockService: Service = {
-    id: params.serviceId as string,
-    name: 'Haircut & Style',
-    price: 250,
-    duration: 45,
-  };
-
-  const mockStaff: Staff | null = params.staffId
-    ? { id: params.staffId as string, user: { firstName: 'John', lastName: 'Phiri' } }
-    : null;
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [venue, setVenue] = useState<Venue | null>(null);
+  const [service, setService] = useState<Service | null>(null);
+  const [staff, setStaff] = useState<Staff | null>(null);
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -69,13 +54,19 @@ export default function ConfirmBookingScreen() {
   };
 
   const handleConfirmBooking = async () => {
-    setLoading(true);
+    if (!service || (!params.venueId && !params.providerId) || !params.date || !params.time) {
+      Alert.alert('Missing details', 'Please go back and complete your booking details.');
+      return;
+    }
+
+    setSubmitting(true);
 
     try {
-      const bookingData = {
+      const bookingData: any = {
         serviceId: params.serviceId as string,
-        venueId: params.venueId as string,
-        staffId: params.staffId as string || undefined,
+        venueId: params.venueId ? (params.venueId as string) : undefined,
+        mobileProviderId: params.providerId ? (params.providerId as string) : undefined,
+        staffId: params.staffId ? (params.staffId as string) : undefined,
         date: params.date as string,
         startTime: params.time as string,
         notes: notes || undefined,
@@ -87,16 +78,49 @@ export default function ConfirmBookingScreen() {
       }
 
       if (response.data) {
-        router.push(`/booking/success?reference=${response.data.reference || 'ZNA-0001'}`);
+        router.push(`/booking/success?reference=${response.data.reference}`);
       }
     } catch (error: any) {
       console.error('Error creating booking:', error);
-      // For now, just show success anyway
-      router.push('/booking/success?reference=ZNA-20260330-0001');
+      Alert.alert('Booking failed', error?.message || 'Please try again.');
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
   };
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const serviceRes = await api.getService(params.serviceId as string);
+        if (serviceRes.error) throw new Error(serviceRes.error);
+        setService(serviceRes.data);
+
+        if (params.venueId) {
+          const venueRes = await api.getVenue(params.venueId as string);
+          if (venueRes.error) throw new Error(venueRes.error);
+          setVenue(venueRes.data);
+        }
+
+        if (params.staffId) {
+          const staffRes = await api.getStaffMember(params.staffId as string);
+          if (staffRes.error) throw new Error(staffRes.error);
+          setStaff(staffRes.data);
+        }
+      } catch (e: any) {
+        Alert.alert('Unable to load booking', e?.message || 'Please try again.');
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [params.serviceId, params.venueId, params.staffId]);
+
+  if (loading) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator size="large" color="#1A56DB" />
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -125,16 +149,18 @@ export default function ConfirmBookingScreen() {
           <Text style={styles.sectionTitle}>Booking Summary</Text>
 
           {/* Venue Card */}
-          <View style={styles.summaryCard}>
-            <View style={styles.summaryIconContainer}>
-              <Text style={styles.summaryIcon}>📍</Text>
+          {venue ? (
+            <View style={styles.summaryCard}>
+              <View style={styles.summaryIconContainer}>
+                <Text style={styles.summaryIcon}>📍</Text>
+              </View>
+              <View style={styles.summaryContent}>
+                <Text style={styles.summaryLabel}>Venue</Text>
+                <Text style={styles.summaryValue}>{venue.name}</Text>
+                <Text style={styles.summarySubtext}>{venue.address}, {venue.city}</Text>
+              </View>
             </View>
-            <View style={styles.summaryContent}>
-              <Text style={styles.summaryLabel}>Venue</Text>
-              <Text style={styles.summaryValue}>{mockVenue.name}</Text>
-              <Text style={styles.summarySubtext}>{mockVenue.address}, {mockVenue.city}</Text>
-            </View>
-          </View>
+          ) : null}
 
           {/* Service Card */}
           <View style={styles.summaryCard}>
@@ -143,8 +169,8 @@ export default function ConfirmBookingScreen() {
             </View>
             <View style={styles.summaryContent}>
               <Text style={styles.summaryLabel}>Service</Text>
-              <Text style={styles.summaryValue}>{mockService.name}</Text>
-              <Text style={styles.summarySubtext}>{mockService.duration} minutes</Text>
+              <Text style={styles.summaryValue}>{service?.name || 'Service'}</Text>
+              <Text style={styles.summarySubtext}>{service?.duration || 0} minutes</Text>
             </View>
           </View>
 
@@ -163,7 +189,7 @@ export default function ConfirmBookingScreen() {
           </View>
 
           {/* Staff Card */}
-          {mockStaff && (
+          {staff && (
             <View style={styles.summaryCard}>
               <View style={styles.summaryIconContainer}>
                 <Text style={styles.summaryIcon}>👤</Text>
@@ -171,7 +197,7 @@ export default function ConfirmBookingScreen() {
               <View style={styles.summaryContent}>
                 <Text style={styles.summaryLabel}>Staff</Text>
                 <Text style={styles.summaryValue}>
-                  {mockStaff.user.firstName} {mockStaff.user.lastName}
+                  {staff.user.firstName} {staff.user.lastName}
                 </Text>
                 <Text style={styles.summarySubtext}>Professional Barber</Text>
               </View>
@@ -184,8 +210,8 @@ export default function ConfirmBookingScreen() {
           <Text style={styles.sectionTitle}>Price Breakdown</Text>
           <View style={styles.priceCard}>
             <View style={styles.priceRow}>
-              <Text style={styles.priceLabel}>{mockService.name}</Text>
-              <Text style={styles.priceValue}>K {mockService.price.toFixed(0)}</Text>
+              <Text style={styles.priceLabel}>{service?.name || 'Service'}</Text>
+              <Text style={styles.priceValue}>K {Number(service?.price || 0).toFixed(0)}</Text>
             </View>
             <View style={styles.priceRow}>
               <Text style={styles.priceLabel}>Service Fee</Text>
@@ -194,7 +220,7 @@ export default function ConfirmBookingScreen() {
             <View style={styles.priceDivider} />
             <View style={styles.priceRow}>
               <Text style={styles.priceTotalLabel}>Total</Text>
-              <Text style={styles.priceTotalValue}>K {mockService.price.toFixed(0)}</Text>
+              <Text style={styles.priceTotalValue}>K {Number(service?.price || 0).toFixed(0)}</Text>
             </View>
           </View>
         </View>
@@ -228,9 +254,9 @@ export default function ConfirmBookingScreen() {
         <TouchableOpacity
           style={styles.confirmButton}
           onPress={handleConfirmBooking}
-          disabled={loading}
+          disabled={submitting || loading}
         >
-          {loading ? (
+          {submitting ? (
             <ActivityIndicator size="small" color="#FFFFFF" />
           ) : (
             <Text style={styles.confirmButtonText}>Confirm Booking</Text>
@@ -244,20 +270,20 @@ export default function ConfirmBookingScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: colors.bg.secondary,
   },
   progressContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 24,
-    backgroundColor: '#FFFFFF',
+    padding: spacing.lg,
+    backgroundColor: colors.bg.primary,
   },
   progressStep: {
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#E5E7EB',
+    backgroundColor: colors.bg.tertiary,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -265,7 +291,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#1A56DB',
+    backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -273,14 +299,14 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#10B981',
+    backgroundColor: colors.success,
     alignItems: 'center',
     justifyContent: 'center',
   },
   progressStepText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#9CA3AF',
+    color: colors.text.tertiary,
   },
   progressStepTextActive: {
     fontSize: 14,
@@ -290,35 +316,31 @@ const styles = StyleSheet.create({
   progressLine: {
     flex: 1,
     height: 2,
-    backgroundColor: '#E5E7EB',
+    backgroundColor: colors.border,
     marginHorizontal: 8,
   },
   section: {
-    padding: 16,
+    padding: spacing.md,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#111827',
-    marginBottom: 16,
+    ...typography.h4,
+    fontWeight: '800',
+    color: colors.text.primary,
+    marginBottom: spacing.md,
   },
   summaryCard: {
     flexDirection: 'row',
-    backgroundColor: '#FFFFFF',
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
+    backgroundColor: colors.bg.primary,
+    padding: spacing.md,
+    borderRadius: radius.lg,
+    marginBottom: spacing.sm,
+    ...shadows.sm,
   },
   summaryIconContainer: {
     width: 48,
     height: 48,
-    borderRadius: 12,
-    backgroundColor: '#EFF6FF',
+    borderRadius: radius.lg,
+    backgroundColor: 'rgba(26, 86, 219, 0.08)',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
@@ -330,31 +352,27 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   summaryLabel: {
-    fontSize: 12,
-    color: '#9CA3AF',
+    ...typography.caption,
+    color: colors.text.tertiary,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   summaryValue: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#111827',
-    marginTop: 4,
+    ...typography.bodyMedium,
+    fontWeight: '800',
+    color: colors.text.primary,
+    marginTop: spacing.xs,
   },
   summarySubtext: {
-    fontSize: 14,
-    color: '#6B7280',
-    marginTop: 2,
+    ...typography.small,
+    color: colors.text.secondary,
+    marginTop: spacing.xs,
   },
   priceCard: {
-    backgroundColor: '#FFFFFF',
-    padding: 16,
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
+    backgroundColor: colors.bg.primary,
+    padding: spacing.md,
+    borderRadius: radius.lg,
+    ...shadows.sm,
   },
   priceRow: {
     flexDirection: 'row',
@@ -362,68 +380,69 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   priceLabel: {
-    fontSize: 14,
-    color: '#6B7280',
+    ...typography.small,
+    color: colors.text.secondary,
   },
   priceValue: {
-    fontSize: 14,
-    color: '#111827',
-    fontWeight: '500',
+    ...typography.smallMedium,
+    color: colors.text.primary,
+    fontWeight: '700',
   },
   priceDivider: {
     height: 1,
-    backgroundColor: '#E5E7EB',
-    marginVertical: 8,
+    backgroundColor: colors.border,
+    marginVertical: spacing.sm,
   },
   priceTotalLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#111827',
+    ...typography.bodyMedium,
+    fontWeight: '800',
+    color: colors.text.primary,
   },
   priceTotalValue: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#1A56DB',
+    color: colors.primary,
   },
   notesInput: {
-    backgroundColor: '#FFFFFF',
-    padding: 16,
-    borderRadius: 12,
+    backgroundColor: colors.bg.primary,
+    padding: spacing.md,
+    borderRadius: radius.lg,
     fontSize: 14,
-    color: '#111827',
+    color: colors.text.primary,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: colors.border,
     minHeight: 80,
     textAlignVertical: 'top',
   },
   termsContainer: {
-    padding: 16,
+    padding: spacing.md,
     paddingTop: 0,
   },
   termsText: {
-    fontSize: 12,
-    color: '#6B7280',
+    ...typography.caption,
+    color: colors.text.secondary,
     lineHeight: 18,
   },
   termsLink: {
-    color: '#1A56DB',
+    color: colors.primary,
     fontWeight: '500',
   },
   footer: {
-    padding: 16,
-    backgroundColor: '#FFFFFF',
+    padding: spacing.md,
+    backgroundColor: colors.bg.primary,
     borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
+    borderTopColor: colors.border,
   },
   confirmButton: {
-    backgroundColor: '#1A56DB',
+    backgroundColor: colors.primary,
     paddingVertical: 16,
-    borderRadius: 12,
+    borderRadius: radius.lg,
     alignItems: 'center',
+    ...shadows.md,
   },
   confirmButtonText: {
     color: '#FFFFFF',
-    fontSize: 18,
-    fontWeight: '600',
+    fontSize: 16,
+    fontWeight: '800',
   },
 });

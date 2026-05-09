@@ -1,2 +1,27 @@
-node_modules/
-.env
+### Dependencies
+**/node_modules/
+
+### Environment / secrets
+**/.env
+**/.env.*
+!**/.env.example
+
+### Expo / React Native generated
+**/.expo/
+**/.expo-shared/
+**/.react-native/
+**/.metro-health-check*
+**/web-build/
+**/dist/
+**/build/
+**/out/
+**/coverage/
+
+### Tooling caches
+**/.cache/
+**/.turbo/
+**/.parcel-cache/
+**/.vite/
+
+### OS / Editor
+**/.DS_Store

@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { api } from '../../services/api';
+import { colors, typography, spacing, radius, shadows } from '../../constants/theme';
 
 interface Staff {
   id: string;
@@ -66,13 +67,16 @@ export default function SelectStaffScreen() {
 
         // Fetch service details if serviceId provided
         if (params.serviceId) {
-          // We might need to get service details, but for now assume we have basic info
-          serviceData = {
-            id: params.serviceId as string,
-            name: 'Selected Service',
-            price: 0,
-            duration: 0,
-          };
+          const serviceRes = await api.getService(params.serviceId as string);
+          if (serviceRes.error) throw new Error(serviceRes.error);
+          if (serviceRes.data) {
+            serviceData = {
+              id: serviceRes.data.id,
+              name: serviceRes.data.name,
+              price: serviceRes.data.price,
+              duration: serviceRes.data.duration,
+            };
+          }
         }
 
         setStaff(staffData);
@@ -91,7 +95,12 @@ export default function SelectStaffScreen() {
 
   const handleContinue = () => {
     const staffId = selectedStaff === 'any' ? null : (selectedStaff as Staff)?.id || null;
-    router.push(`/booking/datetime?venueId=${params.venueId}&serviceId=${params.serviceId}${staffId ? `&staffId=${staffId}` : ''}`);
+    const base = params.venueId
+      ? `venueId=${params.venueId}`
+      : `providerId=${params.providerId}`;
+    router.push(
+      `/booking/datetime?${base}&serviceId=${params.serviceId}${staffId ? `&staffId=${staffId}` : ''}`
+    );
   };
 
   if (loading) {
@@ -217,7 +226,7 @@ export default function SelectStaffScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: colors.bg.secondary,
   },
   loadingContainer: {
     flex: 1,
@@ -228,14 +237,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 24,
-    backgroundColor: '#FFFFFF',
+    padding: spacing.lg,
+    backgroundColor: colors.bg.primary,
   },
   progressStep: {
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#E5E7EB',
+    backgroundColor: colors.bg.tertiary,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -243,7 +252,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#1A56DB',
+    backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -251,14 +260,14 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#10B981',
+    backgroundColor: colors.success,
     alignItems: 'center',
     justifyContent: 'center',
   },
   progressStepText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#9CA3AF',
+    color: colors.text.tertiary,
   },
   progressStepTextActive: {
     fontSize: 14,
@@ -268,62 +277,63 @@ const styles = StyleSheet.create({
   progressLine: {
     flex: 1,
     height: 2,
-    backgroundColor: '#E5E7EB',
+    backgroundColor: colors.border,
     marginHorizontal: 8,
   },
   infoCard: {
-    backgroundColor: '#FFFFFF',
-    padding: 16,
-    marginHorizontal: 16,
-    borderRadius: 12,
-    marginBottom: 16,
+    backgroundColor: colors.bg.primary,
+    padding: spacing.md,
+    marginHorizontal: spacing.md,
+    borderRadius: radius.lg,
+    marginBottom: spacing.md,
+    ...shadows.sm,
   },
   infoLabel: {
-    fontSize: 12,
-    color: '#9CA3AF',
+    ...typography.caption,
+    color: colors.text.tertiary,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   infoTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#111827',
-    marginTop: 4,
+    ...typography.h4,
+    fontWeight: '800',
+    color: colors.text.primary,
+    marginTop: spacing.xs,
   },
   infoPrice: {
-    fontSize: 14,
-    color: '#6B7280',
-    marginTop: 4,
+    ...typography.small,
+    color: colors.text.secondary,
+    marginTop: spacing.xs,
   },
   section: {
     flex: 1,
-    paddingHorizontal: 16,
+    paddingHorizontal: spacing.md,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#111827',
-    marginBottom: 16,
+    ...typography.h4,
+    fontWeight: '800',
+    color: colors.text.primary,
+    marginBottom: spacing.md,
   },
   staffCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 12,
+    backgroundColor: colors.bg.primary,
+    padding: spacing.md,
+    borderRadius: radius.lg,
+    marginBottom: spacing.sm,
     borderWidth: 2,
-    borderColor: '#E5E7EB',
+    borderColor: colors.border,
   },
   staffCardSelected: {
-    borderColor: '#1A56DB',
-    backgroundColor: '#EFF6FF',
+    borderColor: colors.primary,
+    backgroundColor: 'rgba(26, 86, 219, 0.08)',
   },
   staffAvatar: {
     width: 50,
     height: 50,
     borderRadius: 25,
-    backgroundColor: '#1A56DB',
+    backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
@@ -337,23 +347,23 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   staffName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#111827',
-    marginBottom: 4,
+    ...typography.bodyMedium,
+    fontWeight: '700',
+    color: colors.text.primary,
+    marginBottom: spacing.xs,
   },
   staffNameSelected: {
-    color: '#1A56DB',
+    color: colors.primary,
   },
   staffTitle: {
-    fontSize: 14,
-    color: '#6B7280',
+    ...typography.small,
+    color: colors.text.secondary,
   },
   checkmark: {
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: '#1A56DB',
+    backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -363,20 +373,21 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   footer: {
-    padding: 16,
-    backgroundColor: '#FFFFFF',
+    padding: spacing.md,
+    backgroundColor: colors.bg.primary,
     borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
+    borderTopColor: colors.border,
   },
   continueButton: {
-    backgroundColor: '#1A56DB',
+    backgroundColor: colors.primary,
     paddingVertical: 16,
-    borderRadius: 12,
+    borderRadius: radius.lg,
     alignItems: 'center',
+    ...shadows.md,
   },
   continueButtonText: {
+    ...typography.bodyMedium,
     color: '#FFFFFF',
-    fontSize: 18,
-    fontWeight: '600',
+    fontWeight: '800',
   },
 });

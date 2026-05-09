@@ -7,14 +7,75 @@ import {
   TouchableOpacity,
   Image,
   Alert,
+  Linking,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../../stores/authStore';
+import { colors, typography, spacing, radius, shadows } from '../../constants/theme';
+import { ThemedCard } from '../../components/ThemedCard';
 
 export default function AccountScreen() {
   const router = useRouter();
   const user = useAuthStore((state) => state.user);
   const logout = useAuthStore((state) => state.logout);
+  if (!user) {
+    return (
+      <ScrollView style={[styles.container, { paddingHorizontal: spacing.lg }]} contentContainerStyle={{ flexGrow: 1, justifyContent: 'center' }}>
+        <View style={styles.authCard}>
+          <Text style={styles.authTitle}>Welcome to ZANA</Text>
+          <Text style={styles.authSubtitle}>Log in or sign up to book appointments and manage your activity</Text>
+
+          <TouchableOpacity style={[styles.authButton, styles.appleButton]} activeOpacity={0.85} onPress={() => router.push('/(auth)/login')}>
+            <Ionicons name="logo-apple" size={18} color="#fff" />
+            <Text style={styles.authButtonText}>Continue with Apple</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={[styles.authButton, styles.facebookButton]} activeOpacity={0.85} onPress={() => router.push('/(auth)/login')}>
+            <Ionicons name="logo-facebook" size={18} color="#fff" />
+            <Text style={styles.authButtonText}>Continue with Facebook</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={[styles.authButton, styles.googleButton]} activeOpacity={0.85} onPress={() => router.push('/(auth)/login')}>
+            <Ionicons name="logo-google" size={18} color="#fff" />
+            <Text style={styles.authButtonText}>Continue with Google</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={[styles.authButton, styles.emailButton]} activeOpacity={0.85} onPress={() => router.push('/(auth)/login')}>
+            <Ionicons name="mail-outline" size={18} color={colors.primary} />
+            <Text style={[styles.authButtonText, { color: colors.primary }]}>Continue with Email</Text>
+          </TouchableOpacity>
+
+          <View style={styles.authFooter}>
+            <Text style={styles.footerText}>Have a business account?</Text>
+            <TouchableOpacity onPress={handleProfessionalSignIn} activeOpacity={0.8}>
+              <Text style={styles.footerLink}> Sign in as a professional</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </ScrollView>
+    );
+  }
+
+  async function handleProfessionalSignIn() {
+    const url = 'https://zana.zm/provider';
+    try {
+      const supported = await Linking.canOpenURL(url);
+      if (supported) {
+        await Linking.openURL(url);
+      } else {
+        Alert.alert(
+          'Professional sign in',
+          'Open the ZANA Provider portal or visit zana.zm/provider to create a professional account.'
+        );
+      }
+    } catch (error) {
+      Alert.alert(
+        'Unable to open link',
+        'Please visit zana.zm/provider or install the ZANA Provider app.'
+      );
+    }
+  }
 
   const handleLogout = () => {
     Alert.alert(
@@ -34,59 +95,55 @@ export default function AccountScreen() {
     );
   };
 
+  
+
   const menuItems = [
+    {
+      id: 'professional',
+      title: 'Join as a Professional',
+      icon: 'briefcase-outline',
+      onPress: handleProfessionalSignIn,
+    },
     {
       id: 'profile',
       title: 'Edit Profile',
-      icon: '👤',
-      onPress: () => Alert.alert('Coming Soon', 'Profile editing will be available soon.'),
+      icon: 'person-outline',
+      onPress: () => router.push('/account/edit'),
     },
     {
       id: 'notifications',
       title: 'Notifications',
-      icon: '🔔',
-      onPress: () => Alert.alert('Coming Soon', 'Notification settings will be available soon.'),
+      icon: 'notifications-outline',
+      onPress: () => router.push('/account/notifications'),
     },
     {
       id: 'payment',
       title: 'Payment Methods',
-      icon: '💳',
+      icon: 'card-outline',
       onPress: () => Alert.alert('Coming Soon', 'Payment method management will be available soon.'),
     },
     {
       id: 'addresses',
       title: 'Saved Addresses',
-      icon: '📍',
+      icon: 'location-outline',
       onPress: () => Alert.alert('Coming Soon', 'Address management will be available soon.'),
-    },
-    {
-      id: 'favorites',
-      title: 'Favorites',
-      icon: '❤️',
-      onPress: () => Alert.alert('Coming Soon', 'Favorites will be available soon.'),
     },
     {
       id: 'help',
       title: 'Help & Support',
-      icon: '❓',
-      onPress: () => Alert.alert('Help', 'Contact support@zana.zm for assistance.'),
-    },
-    {
-      id: 'about',
-      title: 'About ZANA',
-      icon: 'ℹ️',
-      onPress: () => Alert.alert('About ZANA', 'ZANA is Zambia\'s premier beauty booking platform.'),
+      icon: 'help-circle-outline',
+      onPress: () => router.push('/account/help'),
     },
     {
       id: 'privacy',
       title: 'Privacy Policy',
-      icon: '🔒',
+      icon: 'shield-outline',
       onPress: () => Alert.alert('Privacy Policy', 'Your privacy is important to us. Full policy available at zana.zm/privacy'),
     },
     {
       id: 'terms',
       title: 'Terms of Service',
-      icon: '📄',
+      icon: 'document-text-outline',
       onPress: () => Alert.alert('Terms of Service', 'Full terms available at zana.zm/terms'),
     },
   ];
@@ -109,13 +166,17 @@ export default function AccountScreen() {
         <Text style={styles.userName}>
           {user.firstName} {user.lastName}
         </Text>
-        <Text style={styles.userEmail}>{user.email}</Text>
-        <Text style={styles.userPhone}>{user.phone}</Text>
+        <Text style={styles.userEmail}>{user.email || '—'}</Text>
+        <Text style={styles.userPhone}>{user.phone || '—'}</Text>
         {user.isVerified && (
           <View style={styles.verifiedBadge}>
             <Text style={styles.verifiedText}>✓ Verified</Text>
           </View>
         )}
+        {/* Business account link */}
+        <TouchableOpacity onPress={handleProfessionalSignIn} style={styles.businessLink} activeOpacity={0.8}>
+          <Text style={styles.businessLinkText}>Have a business account? Sign in as a professional</Text>
+        </TouchableOpacity>
       </View>
 
       {/* Quick Stats */}
@@ -143,19 +204,27 @@ export default function AccountScreen() {
             key={item.id}
             style={styles.menuItem}
             onPress={item.onPress}
+            activeOpacity={0.7}
           >
             <View style={styles.menuItemLeft}>
-              <Text style={styles.menuItemIcon}>{item.icon}</Text>
+              <View style={styles.menuIconContainer}>
+                <Ionicons name={item.icon as any} size={20} color={colors.primary} />
+              </View>
               <Text style={styles.menuItemTitle}>{item.title}</Text>
             </View>
-            <Text style={styles.menuItemArrow}>›</Text>
+            <Ionicons name="chevron-forward" size={20} color={colors.text.tertiary} />
           </TouchableOpacity>
         ))}
       </View>
 
       {/* Logout Button */}
       <View style={styles.logoutContainer}>
-        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+        <TouchableOpacity 
+          style={styles.logoutButton}
+          onPress={handleLogout}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="log-out-outline" size={20} color={colors.error} />
           <Text style={styles.logoutButtonText}>Logout</Text>
         </TouchableOpacity>
       </View>
@@ -172,28 +241,29 @@ export default function AccountScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: colors.bg.secondary,
   },
   profileHeader: {
-    backgroundColor: '#1A56DB',
-    padding: 24,
+    backgroundColor: colors.primary,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.xl,
+    paddingBottom: spacing.lg,
     alignItems: 'center',
-    paddingTop: 32,
   },
   avatarContainer: {
-    marginBottom: 16,
+    marginBottom: spacing.lg,
   },
   avatar: {
     width: 80,
     height: 80,
-    borderRadius: 40,
+    borderRadius: radius.full,
     borderWidth: 3,
     borderColor: '#FFFFFF',
   },
   avatarPlaceholder: {
     width: 80,
     height: 80,
-    borderRadius: 40,
+    borderRadius: radius.full,
     backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
@@ -201,131 +271,204 @@ const styles = StyleSheet.create({
     borderColor: '#FFFFFF',
   },
   avatarText: {
-    fontSize: 28,
+    ...typography.h2,
+    color: colors.primary,
     fontWeight: 'bold',
-    color: '#1A56DB',
   },
   userName: {
-    fontSize: 22,
-    fontWeight: 'bold',
+    ...typography.h2,
     color: '#FFFFFF',
-    marginBottom: 4,
+    marginBottom: spacing.xs,
+    fontWeight: 'bold',
   },
   userEmail: {
-    fontSize: 14,
-    color: '#FFFFFF',
-    opacity: 0.9,
-    marginBottom: 2,
+    ...typography.smallMedium,
+    color: 'rgba(255, 255, 255, 0.9)',
+    marginBottom: spacing.xs,
   },
   userPhone: {
-    fontSize: 14,
-    color: '#FFFFFF',
-    opacity: 0.9,
+    ...typography.smallMedium,
+    color: 'rgba(255, 255, 255, 0.9)',
   },
   verifiedBadge: {
-    backgroundColor: '#10B981',
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 12,
-    marginTop: 12,
+    backgroundColor: colors.success,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: radius.full,
+    marginTop: spacing.md,
   },
   verifiedText: {
     color: '#FFFFFF',
-    fontSize: 12,
+    ...typography.small,
     fontWeight: '600',
   },
   statsContainer: {
     flexDirection: 'row',
-    backgroundColor: '#FFFFFF',
-    marginHorizontal: 16,
-    marginTop: -20,
-    borderRadius: 12,
-    padding: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    backgroundColor: colors.bg.primary,
+    marginHorizontal: spacing.lg,
+    marginTop: -spacing.lg,
+    marginBottom: spacing.lg,
+    borderRadius: radius.lg,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+    ...shadows.md,
   },
   statItem: {
     flex: 1,
     alignItems: 'center',
   },
   statNumber: {
-    fontSize: 24,
+    ...typography.h3,
+    color: colors.primary,
+    marginBottom: spacing.xs,
     fontWeight: 'bold',
-    color: '#1A56DB',
-    marginBottom: 4,
   },
   statLabel: {
-    fontSize: 12,
-    color: '#6B7280',
+    ...typography.caption,
+    color: colors.text.tertiary,
   },
   statDivider: {
     width: 1,
-    backgroundColor: '#E5E7EB',
-    marginHorizontal: 8,
+    backgroundColor: colors.border,
+    marginHorizontal: spacing.md,
   },
   menuContainer: {
-    marginTop: 24,
-    backgroundColor: '#FFFFFF',
-    marginHorizontal: 16,
-    borderRadius: 12,
+    marginHorizontal: spacing.lg,
+    marginBottom: spacing.lg,
+    backgroundColor: colors.bg.primary,
+    borderRadius: radius.lg,
     overflow: 'hidden',
+    ...shadows.sm,
   },
   menuItem: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 16,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
     borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+    borderBottomColor: colors.border,
   },
   menuItemLeft: {
     flexDirection: 'row',
     alignItems: 'center',
+    flex: 1,
   },
-  menuItemIcon: {
-    fontSize: 20,
-    marginRight: 12,
+  menuIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: radius.md,
+    backgroundColor: 'rgba(26, 86, 219, 0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: spacing.md,
   },
   menuItemTitle: {
-    fontSize: 16,
-    color: '#111827',
+    ...typography.bodyMedium,
+    color: colors.text.primary,
     fontWeight: '500',
   },
-  menuItemArrow: {
-    fontSize: 24,
-    color: '#9CA3AF',
-  },
   logoutContainer: {
-    marginTop: 24,
-    paddingHorizontal: 16,
+    marginHorizontal: spacing.lg,
+    marginBottom: spacing.lg,
   },
   logoutButton: {
-    backgroundColor: '#FFFFFF',
-    padding: 16,
-    borderRadius: 12,
+    backgroundColor: colors.bg.primary,
+    paddingVertical: spacing.lg,
+    borderRadius: radius.lg,
     alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    ...shadows.sm,
+    gap: spacing.sm,
   },
   logoutButtonText: {
-    fontSize: 16,
-    color: '#EF4444',
+    ...typography.bodyMedium,
+    color: colors.error,
     fontWeight: '600',
   },
   versionContainer: {
-    marginTop: 32,
-    marginBottom: 24,
+    marginTop: spacing.xl,
+    marginBottom: spacing.xl,
     alignItems: 'center',
+    paddingHorizontal: spacing.lg,
   },
   versionText: {
-    fontSize: 14,
-    color: '#9CA3AF',
+    ...typography.small,
+    color: colors.text.tertiary,
     fontWeight: '500',
   },
   versionSubtext: {
-    fontSize: 12,
-    color: '#9CA3AF',
-    marginTop: 4,
+    ...typography.caption,
+    color: colors.text.tertiary,
+    marginTop: spacing.xs,
+  },
+  businessLink: {
+    marginTop: spacing.md,
+    paddingHorizontal: spacing.md,
+  },
+  businessLinkText: {
+    color: '#FFFFFF',
+    textDecorationLine: 'underline',
+    fontWeight: '600',
+  },
+  authCard: {
+    backgroundColor: colors.bg.primary,
+    padding: spacing.lg,
+    borderRadius: radius.lg,
+    ...shadows.md,
+  },
+  authTitle: {
+    ...typography.h2,
+    fontWeight: '800',
+    color: colors.text.primary,
+    marginBottom: spacing.xs,
+  },
+  authSubtitle: {
+    ...typography.body,
+    color: colors.text.secondary,
+    marginBottom: spacing.md,
+  },
+  authButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing.md,
+    borderRadius: radius.md,
+    marginBottom: spacing.sm,
+  },
+  appleButton: {
+    backgroundColor: '#000000',
+  },
+  facebookButton: {
+    backgroundColor: '#1877F2',
+  },
+  googleButton: {
+    backgroundColor: '#DB4437',
+  },
+  emailButton: {
+    backgroundColor: colors.bg.secondary,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  authButtonText: {
+    color: '#FFFFFF',
+    marginLeft: spacing.sm,
+    fontWeight: '700',
+  },
+  authFooter: {
+    marginTop: spacing.md,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  footerText: {
+    ...typography.caption,
+    color: colors.text.secondary,
+  },
+  footerLink: {
+    ...typography.caption,
+    color: colors.primary,
+    fontWeight: '700',
   },
 });

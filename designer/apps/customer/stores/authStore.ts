@@ -1,10 +1,11 @@
 import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { AUTH_STORAGE_KEYS } from '../services/api';
 
 export interface User {
   id: string;
-  email: string;
-  phone: string;
+  email: string | null;
+  phone: string | null;
   firstName: string;
   lastName: string;
   role: string;
@@ -21,15 +22,16 @@ interface AuthState {
   
   // Actions
   setAuth: (user: User, accessToken: string, refreshToken: string) => Promise<void>;
+  setUser: (user: User) => Promise<void>;
   logout: () => Promise<void>;
   setLoading: (loading: boolean) => void;
   restoreAuth: () => Promise<boolean>;
 }
 
 const STORAGE_KEYS = {
-  USER: '@auth_user',
-  ACCESS_TOKEN: '@auth_accessToken',
-  REFRESH_TOKEN: '@auth_refreshToken',
+  USER: AUTH_STORAGE_KEYS.USER,
+  ACCESS_TOKEN: AUTH_STORAGE_KEYS.ACCESS_TOKEN,
+  REFRESH_TOKEN: AUTH_STORAGE_KEYS.REFRESH_TOKEN,
 };
 
 const storage = {
@@ -73,6 +75,15 @@ export const useAuthStore = create<AuthState>((set) => ({
       });
     } catch (error) {
       console.error('Error saving auth state:', error);
+    }
+  },
+
+  setUser: async (user: User) => {
+    try {
+      await storage.setItem(STORAGE_KEYS.USER, JSON.stringify(user));
+      set({ user });
+    } catch (e) {
+      console.error('Error updating user in storage:', e);
     }
   },
 

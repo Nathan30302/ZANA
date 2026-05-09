@@ -138,6 +138,33 @@ class EmailService {
       return { success: false, error: error.message };
     }
   }
+
+  async sendApprovalNotification(email, firstName, entityType, status, details = {}) {
+    const name = details.name || '';
+    const friendlyStatus = status === 'APPROVED' ? 'approved' : status === 'REJECTED' ? 'rejected' : 'updated';
+    const htmlContent = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2>${entityType} ${friendlyStatus}</h2>
+        <p>Hello ${firstName || 'there'},</p>
+        <p>Your ${entityType.toLowerCase()} ${name ? `"${name}" ` : ''}has been <strong>${friendlyStatus}</strong> by the ZANA team.</p>
+        <p>If you have questions or need more information, please contact support.</p>
+        <p>Best regards,<br/>ZANA Team</p>
+      </div>
+    `;
+
+    try {
+      await this.transporter.sendMail({
+        from: process.env.EMAIL_USER,
+        to: email,
+        subject: `${entityType} ${friendlyStatus} - ZANA`,
+        html: htmlContent,
+      });
+      return { success: true };
+    } catch (error) {
+      console.error('Failed to send approval notification:', error);
+      return { success: false, error: error.message };
+    }
+  }
 }
 
 module.exports = new EmailService();

@@ -29,9 +29,20 @@ export interface Venue {
   active: boolean;
 }
 
+export interface MobileProvider {
+  id: string;
+  bio: string;
+  portfolioPhotos: string[];
+  baseLat: number;
+  baseLng: number;
+  serviceRadius: number;
+  status: string;
+}
+
 interface AuthState {
   user: User | null;
   venue: Venue | null;
+  mobileProvider: MobileProvider | null;
   accessToken: string | null;
   refreshToken: string | null;
   isLoading: boolean;
@@ -43,11 +54,13 @@ interface AuthState {
   setLoading: (loading: boolean) => void;
   restoreAuth: () => Promise<boolean>;
   updateVenue: (venue: Venue) => Promise<void>;
+  setMobileProvider: (mobileProvider: MobileProvider | null) => Promise<void>;
 }
 
 const STORAGE_KEYS = {
   USER: '@provider_auth_user',
   VENUE: '@provider_venue',
+  MOBILE_PROVIDER: '@provider_mobile_provider',
   ACCESS_TOKEN: '@provider_auth_accessToken',
   REFRESH_TOKEN: '@provider_auth_refreshToken',
 };
@@ -74,6 +87,7 @@ const storage = {
 export const useProviderAuthStore = create<AuthState>((set) => ({
   user: null,
   venue: null,
+  mobileProvider: null,
   accessToken: null,
   refreshToken: null,
   isLoading: true,
@@ -107,6 +121,7 @@ export const useProviderAuthStore = create<AuthState>((set) => ({
       await storage.multiRemove([
         STORAGE_KEYS.USER,
         STORAGE_KEYS.VENUE,
+        STORAGE_KEYS.MOBILE_PROVIDER,
         STORAGE_KEYS.ACCESS_TOKEN,
         STORAGE_KEYS.REFRESH_TOKEN,
       ]);
@@ -114,6 +129,7 @@ export const useProviderAuthStore = create<AuthState>((set) => ({
       set({
         user: null,
         venue: null,
+        mobileProvider: null,
         accessToken: null,
         refreshToken: null,
         isAuthenticated: false,
@@ -133,22 +149,26 @@ export const useProviderAuthStore = create<AuthState>((set) => ({
       const stored = await storage.multiGet([
         STORAGE_KEYS.USER,
         STORAGE_KEYS.VENUE,
+        STORAGE_KEYS.MOBILE_PROVIDER,
         STORAGE_KEYS.ACCESS_TOKEN,
         STORAGE_KEYS.REFRESH_TOKEN,
       ]);
 
       const userEntry = stored.find(([key]) => key === STORAGE_KEYS.USER);
       const venueEntry = stored.find(([key]) => key === STORAGE_KEYS.VENUE);
+      const mobileEntry = stored.find(([key]) => key === STORAGE_KEYS.MOBILE_PROVIDER);
       const tokenEntry = stored.find(([key]) => key === STORAGE_KEYS.ACCESS_TOKEN);
       const refreshEntry = stored.find(([key]) => key === STORAGE_KEYS.REFRESH_TOKEN);
 
       if (userEntry && tokenEntry && refreshEntry) {
         const user = JSON.parse(userEntry[1]) as User;
         const venue = venueEntry ? JSON.parse(venueEntry[1]) as Venue : null;
+        const mobileProvider = mobileEntry ? JSON.parse(mobileEntry[1]) as MobileProvider : null;
         
         set({
           user,
           venue,
+          mobileProvider,
           accessToken: tokenEntry[1],
           refreshToken: refreshEntry[1],
           isAuthenticated: true,
@@ -172,6 +192,19 @@ export const useProviderAuthStore = create<AuthState>((set) => ({
       set({ venue });
     } catch (error) {
       console.error('Error updating venue:', error);
+    }
+  },
+
+  setMobileProvider: async (mobileProvider: MobileProvider | null) => {
+    try {
+      if (mobileProvider) {
+        await storage.setItem(STORAGE_KEYS.MOBILE_PROVIDER, JSON.stringify(mobileProvider));
+      } else {
+        await AsyncStorage.removeItem(STORAGE_KEYS.MOBILE_PROVIDER);
+      }
+      set({ mobileProvider });
+    } catch (error) {
+      console.error('Error updating mobile provider:', error);
     }
   },
 }));
