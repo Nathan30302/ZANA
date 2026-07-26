@@ -1,0 +1,45 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Env / secrets
+.env
+.env.*
+!.env.example
+
+# Build
+dist/
+build/
+.next/
+out/
+coverage/
+*.tsbuildinfo
+
+# Flutter
+apps/customer/.dart_tool/
+apps/customer/.flutter-plugins
+apps/customer/.flutter-plugins-dependencies
+apps/customer/.packages
+apps/customer/build/
+apps/pro/.dart_tool/
+apps/pro/.flutter-plugins
+apps/pro/.flutter-plugins-dependencies
+apps/pro/.packages
+apps/pro/build/
+**/ios/Pods/
+**/ios/.symlinks/
+**/android/.gradle/
+**/android/local.properties
+**/*.iml
+.idea/
+.vscode/
+
+# OS / misc
+.DS_Store
+*.log
+.turbo/
+.vercel/
+
+# Prisma
+apps/api/prisma/*.db
+apps/api/prisma/*.db-journal

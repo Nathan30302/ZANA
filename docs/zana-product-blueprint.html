@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ZANA Product Blueprint</title>
+  <style>
+    @page {
+      size: A4;
+      margin: 18mm 16mm 20mm 16mm;
+    }
+
+    :root {
+      --ink: #1c1917;
+      --muted: #57534e;
+      --line: #e7e5e4;
+      --cream: #faf7f2;
+      --paper: #ffffff;
+      --gold: #b45309;
+      --gold-soft: #fef3c7;
+      --charcoal: #292524;
+      --accent: #92400e;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      background: var(--paper);
+      font-family: "Avenir Next", "Segoe UI", "Helvetica Neue", Helvetica, Arial, sans-serif;
+      font-size: 10.5pt;
+      line-height: 1.45;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    .cover {
+      page-break-after: always;
+      min-height: 240mm;
+      padding: 28mm 10mm 20mm;
+      background:
+        radial-gradient(ellipse 80% 50% at 100% 0%, rgba(180, 83, 9, 0.12), transparent 55%),
+        radial-gradient(ellipse 60% 40% at 0% 100%, rgba(41, 37, 36, 0.08), transparent 50%),
+        linear-gradient(180deg, #faf7f2 0%, #ffffff 55%, #faf7f2 100%);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .brand-mark {
+      font-size: 42pt;
+      font-weight: 800;
+      letter-spacing: 0.18em;
+      color: var(--charcoal);
+      margin: 0;
+      line-height: 1;
+    }
+
+    .brand-mark span {
+      color: var(--gold);
+    }
+
+    .cover-tag {
+      display: inline-block;
+      margin-top: 14px;
+      padding: 6px 12px;
+      background: var(--gold-soft);
+      color: var(--accent);
+      font-size: 8.5pt;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      border-radius: 999px;
+    }
+
+    .cover h1 {
+      margin: 36px 0 12px;
+      font-size: 28pt;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      line-height: 1.15;
+      max-width: 14ch;
+      color: var(--charcoal);
+    }
+
+    .cover-lead {
+      max-width: 42ch;
+      font-size: 12pt;
+      color: var(--muted);
+      margin: 0 0 28px;
+    }
+
+    .cover-meta {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      margin-top: 8px;
+    }
+
+    .meta-card {
+      background: rgba(255,255,255,0.85);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 14px 16px;
+    }
+
+    .meta-card .label {
+      font-size: 8pt;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--gold);
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .meta-card .value {
+      font-size: 10.5pt;
+      color: var(--ink);
+      font-weight: 600;
+    }
+
+    .cover-foot {
+      display: flex;
+      justify-content: space-between;
+      align-items: end;
+      border-top: 1px solid var(--line);
+      padding-top: 16px;
+      margin-top: 40px;
+      font-size: 9pt;
+      color: var(--muted);
+    }
+
+    h2 {
+      font-size: 14pt;
+      margin: 0 0 10px;
+      color: var(--charcoal);
+      letter-spacing: -0.01em;
+      page-break-after: avoid;
+    }
+
+    h2 .num {
+      color: var(--gold);
+      margin-right: 8px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    h3 {
+      font-size: 11pt;
+      margin: 16px 0 8px;
+      color: var(--charcoal);
+      page-break-after: avoid;
+    }
+
+    p { margin: 0 0 10px; }
+
+    .section {
+      margin-bottom: 18px;
+      page-break-inside: avoid;
+    }
+
+    .section.breakable {
+      page-break-inside: auto;
+    }
+
+    .rule {
+      height: 2px;
+      width: 42px;
+      background: var(--gold);
+      margin: 0 0 14px;
+      border: 0;
+    }
+
+    ul, ol {
+      margin: 0 0 10px;
+      padding-left: 18px;
+    }
+
+    li { margin-bottom: 4px; }
+
+    .callout {
+      background: var(--cream);
+      border-left: 3px solid var(--gold);
+      padding: 12px 14px;
+      border-radius: 0 10px 10px 0;
+      margin: 10px 0 14px;
+    }
+
+    .callout strong { color: var(--accent); }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 8px 0 14px;
+      font-size: 9.5pt;
+    }
+
+    th, td {
+      border: 1px solid var(--line);
+      padding: 8px 10px;
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th {
+      background: var(--charcoal);
+      color: #fff;
+      font-weight: 600;
+      font-size: 8.5pt;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    tr:nth-child(even) td { background: #fafaf9; }
+
+    .flow {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      align-items: center;
+      margin: 12px 0 14px;
+      padding: 12px;
+      background: var(--cream);
+      border-radius: 12px;
+    }
+
+    .flow .step {
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 7px 10px;
+      font-size: 8.5pt;
+      font-weight: 600;
+      color: var(--charcoal);
+    }
+
+    .flow .arrow {
+      color: var(--gold);
+      font-weight: 700;
+      font-size: 11pt;
+    }
+
+    .two-col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin: 8px 0 12px;
+    }
+
+    .card {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 12px 14px;
+      background: #fff;
+    }
+
+    .card h4 {
+      margin: 0 0 6px;
+      font-size: 10pt;
+      color: var(--gold);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .card ul { margin-bottom: 0; }
+
+    .footer-note {
+      margin-top: 24px;
+      padding-top: 12px;
+      border-top: 1px solid var(--line);
+      font-size: 8.5pt;
+      color: var(--muted);
+    }
+
+    .checklist li { list-style: none; margin-left: -18px; }
+    .checklist li::before {
+      content: "□ ";
+      color: var(--gold);
+      font-weight: 700;
+    }
+
+    strong { font-weight: 700; }
+  </style>
+</head>
+<body>
+
+  <!-- COVER -->
+  <section class="cover">
+    <div>
+      <p class="brand-mark">Z<span>A</span>NA</p>
+      <div class="cover-tag">Product Blueprint · Confidential Working Doc</div>
+      <h1>Beauty marketplace for Zambia</h1>
+      <p class="cover-lead">
+        A Yango-style dual-app platform for salons, barbershops, and mobile stylists —
+        with float-based provider monetization and a premium booking experience.
+      </p>
+      <div class="cover-meta">
+        <div class="meta-card">
+          <div class="label">Launch market</div>
+          <div class="value">Lusaka first → Copperbelt / Livingstone</div>
+        </div>
+        <div class="meta-card">
+          <div class="label">Model</div>
+          <div class="value">ZANA + ZANA Pro + pro.zana.zm</div>
+        </div>
+        <div class="meta-card">
+          <div class="label">Revenue</div>
+          <div class="value">Provider float packs (job credits)</div>
+        </div>
+        <div class="meta-card">
+          <div class="label">Stack</div>
+          <div class="value">Flutter · API · Postgres · MoMo</div>
+        </div>
+      </div>
+    </div>
+    <div class="cover-foot">
+      <div>Follow this document as the source of truth for MVP build decisions.</div>
+      <div>July 2026</div>
+    </div>
+  </section>
+
+  <!-- 01 -->
+  <section class="section">
+    <h2><span class="num">01</span>Product positioning</h2>
+    <hr class="rule" />
+    <div class="callout">
+      <strong>ZANA</strong> = Zambia’s beauty booking marketplace for <strong>salons, barbershops, and mobile hair/beauty pros</strong>.
+    </div>
+    <ul>
+      <li>Not a full salon ERP like Fresha (inventory, POS, marketing blasts). Borrow Fresha’s polish and dual apps; keep ZANA simpler and marketplace-first.</li>
+      <li>Mentally: <strong>Yango for hair</strong> — customer orders a service; pro/salon accepts; maps + ratings + trust.</li>
+      <li><strong>Launch focus:</strong> Lusaka first, then Copperbelt / Livingstone.</li>
+    </ul>
+  </section>
+
+  <!-- 02 -->
+  <section class="section breakable">
+    <h2><span class="num">02</span>How accounts work</h2>
+    <hr class="rule" />
+    <p>Do <strong>not</strong> make “customer” and “provider” the same messy mode inside one screen.</p>
+    <table>
+      <thead>
+        <tr>
+          <th>Piece</th>
+          <th>Role</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>ZANA</strong> (customer app)</td>
+          <td>Book, track, rate, pay tip, save favorites</td>
+        </tr>
+        <tr>
+          <td><strong>ZANA Pro</strong> (provider app)</td>
+          <td>Go online, accept jobs, manage calendar, buy floats</td>
+        </tr>
+        <tr>
+          <td><strong>pro.zana.zm</strong> (web)</td>
+          <td>Apply / verify to become a professional</td>
+        </tr>
+      </tbody>
+    </table>
+    <p><strong>Same phone number can be both</strong> — like Yango passenger vs Yango Pro. Customer signup is always free and instant. Becoming a pro is a separate verified path.</p>
+
+    <div class="flow">
+      <span class="step">ZANA Customer App</span>
+      <span class="arrow">→</span>
+      <span class="step">Become a Professional</span>
+      <span class="arrow">→</span>
+      <span class="step">pro.zana.zm Apply</span>
+      <span class="arrow">→</span>
+      <span class="step">ZANA Team Review</span>
+      <span class="arrow">→</span>
+      <span class="step">ZANA Pro App</span>
+      <span class="arrow">→</span>
+      <span class="step">Buy Float</span>
+      <span class="arrow">→</span>
+      <span class="step">Accept Jobs</span>
+    </div>
+
+    <h3>In-app path</h3>
+    <ol>
+      <li>Customer opens ZANA → Profile → <strong>Become a Professional</strong></li>
+      <li>Opens web application (or in-app WebView) with requirements</li>
+      <li>ZANA team reviews (docs, photos of work, salon/location proof)</li>
+      <li>Approved → SMS/WhatsApp: download <strong>ZANA Pro</strong> → buy first float → go online</li>
+    </ol>
+  </section>
+
+  <!-- 03 -->
+  <section class="section">
+    <h2><span class="num">03</span>Monetization: Floats</h2>
+    <hr class="rule" />
+    <p>Providers do <strong>not</strong> pay per-booking commission at first. They buy <strong>floats</strong> from ZANA.</p>
+    <ul>
+      <li>Float = pack of <strong>job credits</strong> (e.g. Starter 10 · Pro 30 · Elite 100)</li>
+      <li>1 completed / accepted order consumes <strong>1 credit</strong></li>
+      <li>When credits hit 0 → cannot accept new jobs until top-up</li>
+      <li>Buy floats via <strong>MTN MoMo / Airtel Money</strong> (must-have); cash agent top-up later</li>
+      <li>Salon/shop accounts can buy <strong>team floats</strong> shared across staff seats</li>
+    </ul>
+    <div class="callout">
+      Always show: <strong>Credits left · Expires (optional) · Buy more</strong> — never bury this.
+    </div>
+    <h3>Float revenue loop</h3>
+    <div class="flow">
+      <span class="step">Float packages</span>
+      <span class="arrow">→</span>
+      <span class="step">MoMo / Airtel</span>
+      <span class="arrow">→</span>
+      <span class="step">Credits on account</span>
+      <span class="arrow">→</span>
+      <span class="step">Accept job (−1)</span>
+      <span class="arrow">→</span>
+      <span class="step">Credits = 0 → top up</span>
+    </div>
+  </section>
+
+  <!-- 04 -->
+  <section class="section">
+    <h2><span class="num">04</span>User types</h2>
+    <hr class="rule" />
+    <ol>
+      <li><strong>Customer</strong> — book home visit or salon appointment</li>
+      <li><strong>Independent pro</strong> — mobile barber/stylist (comes to client)</li>
+      <li><strong>Salon / barbershop owner</strong> — venue profile, staff, photos, hours</li>
+      <li><strong>Staff under a shop</strong> — receives assigned bookings</li>
+      <li><strong>ZANA admin</strong> — approve pros, manage floats, support, disputes</li>
+    </ol>
+  </section>
+
+  <!-- 05 -->
+  <section class="section breakable">
+    <h2><span class="num">05</span>MVP features</h2>
+    <hr class="rule" />
+
+    <h3>Booking status chart</h3>
+    <div class="flow">
+      <span class="step">Requested</span>
+      <span class="arrow">→</span>
+      <span class="step">Accepted</span>
+      <span class="arrow">→</span>
+      <span class="step">On the way / Confirmed</span>
+      <span class="arrow">→</span>
+      <span class="step">In service</span>
+      <span class="arrow">→</span>
+      <span class="step">Done</span>
+      <span class="arrow">→</span>
+      <span class="step">Rate + review</span>
+    </div>
+
+    <h3>Customer app (ZANA) — ship first</h3>
+    <ul>
+      <li>Phone OTP signup (Zambian +260)</li>
+      <li>Home: map + list of nearby salons / barbers / mobile pros</li>
+      <li>Categories: <strong>Barber · Salon · Nails · Bridal/Events · Mobile</strong></li>
+      <li>Provider profile: photos, services + prices (ZMW), ratings, staff, distance, “At shop” vs “Comes to you”</li>
+      <li>Booking: service → stylist (optional) → time → location (home pin or salon)</li>
+      <li>Live status: Requested → Accepted → On the way / Confirmed → In service → Done</li>
+      <li>Chat/call button (masked number optional later)</li>
+      <li>Rate + photo review after job</li>
+      <li>Favorites + rebook</li>
+      <li>Light offline-friendly screens (spotty data)</li>
+      <li><strong>Become a Professional</strong> entry point</li>
+    </ul>
+
+    <h3>Professional signup (web)</h3>
+    <ul>
+      <li>Type: Independent / Salon / Barbershop</li>
+      <li>NRC or passport, selfie, phone</li>
+      <li>Portfolio photos (before/after)</li>
+      <li>For shops: business name, location pin, shop photos, hours, services menu</li>
+      <li>Optional later: PACRA / business permit (not required for MVP independents)</li>
+      <li>Status: Pending → Needs info → Approved / Rejected</li>
+    </ul>
+
+    <h3>Provider app (ZANA Pro) — ship second</h3>
+    <ul>
+      <li>Go Online / Offline</li>
+      <li>Incoming job card (service, price, distance, client area — full address after accept)</li>
+      <li>Accept / Decline · Navigate to client</li>
+      <li>Mark Arrived / Start / Complete</li>
+      <li>Calendar for salon appointments</li>
+      <li><strong>Buy float</strong> + credit balance</li>
+      <li>Earnings summary</li>
+      <li>Shop owner: staff list, assign jobs</li>
+    </ul>
+
+    <h3>Admin (simple web)</h3>
+    <ul>
+      <li>Approve / reject pros</li>
+      <li>Float packages + prices</li>
+      <li>View bookings / disputes</li>
+      <li>Seed Lusaka launch providers manually at first</li>
+    </ul>
+  </section>
+
+  <!-- 06 -->
+  <section class="section">
+    <h2><span class="num">06</span>Premium UI direction</h2>
+    <hr class="rule" />
+    <div class="callout">
+      Brand feel: warm, clean, confident — African beauty premium. Not generic purple SaaS. Not dark cyber neon.
+    </div>
+    <ul>
+      <li>Strong <strong>ZANA</strong> wordmark as hero identity</li>
+      <li>Deep charcoal + warm gold / copper accent + soft cream surfaces</li>
+      <li>Expressive brand type + clean UI sans</li>
+      <li>Soft map atmosphere, large photography of real Zambian styles/cuts</li>
+      <li>Big tap targets, short copy, Zambian English tone</li>
+      <li>Motion: map pin settle, booking progress pulse, success moments sparingly</li>
+      <li>One job per screen: Discover → Profile → Book → Track</li>
+    </ul>
+    <div class="two-col">
+      <div class="card">
+        <h4>Customer home</h4>
+        <ol>
+          <li>Greeting + location</li>
+          <li>Search</li>
+          <li>Category row (few icons)</li>
+          <li>Map-first nearby results</li>
+        </ol>
+      </div>
+      <div class="card">
+        <h4>Pro home</h4>
+        <ul>
+          <li>Online toggle</li>
+          <li>Credit float meter</li>
+          <li>Next job</li>
+          <li>Nothing else fighting for attention</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- 07 -->
+  <section class="section">
+    <h2><span class="num">07</span>Fresha / Yango lessons</h2>
+    <hr class="rule" />
+    <div class="two-col">
+      <div class="card">
+        <h4>Take</h4>
+        <ul>
+          <li>Dual apps (customer + business)</li>
+          <li>Rich profiles, photos, instant booking feel</li>
+          <li>Ratings trust loop</li>
+          <li>Simple phone signup for customers</li>
+          <li>Separate verified pro onboarding</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h4>Skip for MVP</h4>
+        <ul>
+          <li>Full POS, inventory, payroll, marketing blasts</li>
+          <li>Complex multi-branch enterprise tools</li>
+          <li>Card-only payments (Zambia needs MoMo first)</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- 08 -->
+  <section class="section">
+    <h2><span class="num">08</span>Tech stack (locked defaults)</h2>
+    <hr class="rule" />
+    <h3>System map</h3>
+    <div class="flow">
+      <span class="step">ZANA app</span>
+      <span class="arrow">→</span>
+      <span class="step">API + Postgres</span>
+      <span class="arrow">←</span>
+      <span class="step">ZANA Pro</span>
+    </div>
+    <div class="flow" style="margin-top: 8px;">
+      <span class="step">pro.zana.zm</span>
+      <span class="arrow">→</span>
+      <span class="step">API</span>
+      <span class="arrow">←</span>
+      <span class="step">admin.zana.zm</span>
+      <span class="arrow">+</span>
+      <span class="step">Maps · OTP · MoMo</span>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>Layer</th>
+          <th>Choice</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>Mobile apps</td><td><strong>Flutter</strong> (one codebase → App Store + Play Store)</td></tr>
+        <tr><td>Backend</td><td>Node.js (NestJS) or Django + PostgreSQL</td></tr>
+        <tr><td>Maps</td><td>Google Maps Platform (Zambia coverage)</td></tr>
+        <tr><td>Auth</td><td>Phone OTP (Firebase Auth or Africa’s Talking SMS)</td></tr>
+        <tr><td>Payments</td><td>MTN MoMo + Airtel Money APIs</td></tr>
+        <tr><td>Media</td><td>Cloudinary / S3 for shop &amp; portfolio photos</td></tr>
+        <tr><td>Admin + pro apply</td><td>Next.js web (pro.zana.zm, admin.zana.zm)</td></tr>
+        <tr><td>Push</td><td>FCM</td></tr>
+      </tbody>
+    </table>
+    <p>New project (not inside TradeVerse). Suggested monorepo: <strong>zana/</strong> with <code>apps/customer</code>, <code>apps/pro</code>, <code>apps/web</code>, <code>apps/api</code>.</p>
+  </section>
+
+  <!-- 09 -->
+  <section class="section">
+    <h2><span class="num">09</span>Launch sequence</h2>
+    <hr class="rule" />
+    <ol>
+      <li><strong>Week 0–2:</strong> Brand, wireframes, float packages, service taxonomy</li>
+      <li><strong>Seed supply offline:</strong> Onboard 30–50 Lusaka salons/barbers manually (WhatsApp + visits) before public launch</li>
+      <li><strong>Ship ZANA customer app</strong> with seeded providers (even if Pro app is thin)</li>
+      <li><strong>Ship pro apply web + ZANA Pro</strong> with float purchase</li>
+      <li>Soft launch Lusaka → App Store / Play Store</li>
+      <li>Expand categories (nails, bridal) once core booking loop is solid</li>
+    </ol>
+    <p>Customers can always sign up freely. Pros grow via in-app link + field team.</p>
+  </section>
+
+  <!-- 10 -->
+  <section class="section">
+    <h2><span class="num">10</span>Trust &amp; safety</h2>
+    <hr class="rule" />
+    <ul>
+      <li>Verified badge after review</li>
+      <li>Photo of pro/shop on job card</li>
+      <li>Ratings visible; auto-pause low performers</li>
+      <li>Report / block</li>
+      <li>Clear cancellation rules</li>
+      <li>For home visits: share trip/status with a trusted contact (phase 2)</li>
+    </ul>
+  </section>
+
+  <!-- 11 -->
+  <section class="section">
+    <h2><span class="num">11</span>Success metrics</h2>
+    <hr class="rule" />
+    <ul>
+      <li>Time-to-book &lt; 60 seconds for returning users</li>
+      <li>Provider accept rate &gt; 70%</li>
+      <li>Float repurchase within 7 days of credits depleting</li>
+      <li>4.5+ store rating</li>
+      <li>Repeat booking rate (the real moat)</li>
+    </ul>
+  </section>
+
+  <!-- 12 -->
+  <section class="section">
+    <h2><span class="num">12</span>Immediate next deliverables</h2>
+    <hr class="rule" />
+    <ol class="checklist">
+      <li>Product wiki: roles, float rules, booking states</li>
+      <li>UI design system + key screens (customer home, provider profile, book, Pro online, buy float, become-pro web)</li>
+      <li>Scaffold Flutter apps + API + Postgres schema</li>
+      <li>Lusaka seed data model (Roma, Kabulonga, CBD, Woodlands, etc.)</li>
+    </ol>
+    <div class="footer-note">
+      ZANA Product Blueprint · Working document for product &amp; engineering · July 2026<br />
+      Use this PDF as the shared guide while building. Update when major decisions change.
+    </div>
+  </section>
+
+</body>
+</html>
