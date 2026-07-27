@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:zana_customer/api.dart';
+import 'package:zana_customer/screens/bookings_screen.dart';
 import 'package:zana_customer/screens/provider_screen.dart';
 import 'package:zana_customer/theme.dart';
 
@@ -44,20 +45,39 @@ class _HomeScreenState extends State<HomeScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'ZANA',
-                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 2,
-                      color: ZanaColors.copper,
+              Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'ZANA',
+                          style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 2,
+                                color: ZanaColors.copper,
+                              ),
+                        ),
+                        Text(
+                          'Lusaka · find your next cut',
+                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                color: ZanaColors.muted,
+                              ),
+                        ),
+                      ],
                     ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                'Lusaka · find your next cut',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: ZanaColors.muted,
-                    ),
+                  ),
+                  IconButton(
+                    tooltip: 'My bookings',
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const BookingsScreen()),
+                      );
+                    },
+                    icon: const Icon(Icons.calendar_month_outlined),
+                  ),
+                ],
               ),
               const SizedBox(height: 16),
               TextField(

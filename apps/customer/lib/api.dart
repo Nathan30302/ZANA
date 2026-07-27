@@ -69,6 +69,24 @@ class ZanaApi {
     if (res.statusCode >= 400) throw Exception(res.body);
     return jsonDecode(res.body) as Map<String, dynamic>;
   }
+
+  Future<List<dynamic>> listBookings() async {
+    final res = await http.get(
+      Uri.parse('$baseUrl/bookings?as=customer'),
+      headers: _headers,
+    );
+    if (res.statusCode >= 400) throw Exception(res.body);
+    return jsonDecode(res.body) as List<dynamic>;
+  }
+
+  Future<List<dynamic>> providerReviews(String providerId) async {
+    final res = await http.get(
+      Uri.parse('$baseUrl/providers/$providerId/reviews'),
+      headers: _headers,
+    );
+    if (res.statusCode >= 400) throw Exception(res.body);
+    return jsonDecode(res.body) as List<dynamic>;
+  }
 }
 
 final api = ZanaApi();

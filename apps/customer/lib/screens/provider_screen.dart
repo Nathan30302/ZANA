@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:zana_customer/api.dart';
+import 'package:zana_customer/screens/auth_sheet.dart';
 import 'package:zana_customer/theme.dart';
 
 class ProviderScreen extends StatefulWidget {
@@ -21,19 +22,25 @@ class _ProviderScreenState extends State<ProviderScreen> {
   }
 
   Future<void> _book(String serviceId) async {
-    // Dev convenience: auto OTP if no token yet
     if (api.token == null) {
-      await api.requestOtp('+260970000010');
-      await api.verifyOtp('+260970000010', '123456');
+      final ok = await showAuthSheet(context);
+      if (!ok) return;
     }
-    final booking = await api.createBooking(
-      providerId: widget.providerId,
-      serviceId: serviceId,
-    );
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Booked · status ${booking['status']}')),
-    );
+    try {
+      final booking = await api.createBooking(
+        providerId: widget.providerId,
+        serviceId: serviceId,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Booked · status ${booking['status']}')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Booking failed: $e')),
+      );
+    }
   }
 
   @override
