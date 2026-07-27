@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:zana_pro/api.dart';
+import 'package:zana_pro/screens/buy_float_sheet.dart';
 import 'package:zana_pro/theme.dart';
+
 
 class ProHomeScreen extends StatefulWidget {
   const ProHomeScreen({super.key});
@@ -52,14 +54,21 @@ class _ProHomeScreenState extends State<ProHomeScreen> {
     setState(() => online = profile['isOnline'] as bool? ?? value);
   }
 
-  Future<void> _buy(String packageId) async {
-    await api.purchase(packageId);
-    final bal = await api.balance();
-    setState(() => credits = bal['creditBalance'] as int? ?? credits);
+  Future<void> _openBuyFloat() async {
+    await showBuyFloatSheet(
+      context,
+      packages: packages,
+      onDone: _bootstrap,
+    );
   }
 
   Future<void> _accept(String id) async {
     await api.updateStatus(id, 'ACCEPTED');
+    await _bootstrap();
+  }
+
+  Future<void> _advance(String id, String status) async {
+    await api.updateStatus(id, status);
     await _bootstrap();
   }
 
@@ -143,9 +152,9 @@ class _ProHomeScreenState extends State<ProHomeScreen> {
                               ),
                               if (packages.isNotEmpty)
                                 TextButton(
-                                  onPressed: () => _buy(packages.first['id'] as String),
+                                  onPressed: _openBuyFloat,
                                   style: TextButton.styleFrom(foregroundColor: ZanaColors.copper),
-                                  child: Text('Buy ${packages.first['name']}'),
+                                  child: const Text('Buy float'),
                                 ),
                             ],
                           ),
@@ -158,18 +167,36 @@ class _ProHomeScreenState extends State<ProHomeScreen> {
                         ...jobs.map((raw) {
                           final job = raw as Map<String, dynamic>;
                           final service = job['service'] as Map<String, dynamic>?;
+                          final status = job['status'] as String;
+                          Widget? action;
+                          if (status == 'REQUESTED') {
+                            action = TextButton(
+                              onPressed: () => _accept(job['id'] as String),
+                              child: const Text('Accept'),
+                            );
+                          } else if (status == 'ACCEPTED' || status == 'CONFIRMED') {
+                            action = TextButton(
+                              onPressed: () => _advance(job['id'] as String, 'ON_THE_WAY'),
+                              child: const Text('On the way'),
+                            );
+                          } else if (status == 'ON_THE_WAY') {
+                            action = TextButton(
+                              onPressed: () => _advance(job['id'] as String, 'IN_SERVICE'),
+                              child: const Text('Start'),
+                            );
+                          } else if (status == 'IN_SERVICE') {
+                            action = TextButton(
+                              onPressed: () => _advance(job['id'] as String, 'COMPLETED'),
+                              child: const Text('Complete'),
+                            );
+                          }
                           return Card(
                             color: ZanaColors.paper,
                             elevation: 0,
                             child: ListTile(
                               title: Text(service?['name'] as String? ?? 'Service'),
-                              subtitle: Text('Status: ${job['status']} · K${job['priceZmw']}'),
-                              trailing: job['status'] == 'REQUESTED'
-                                  ? TextButton(
-                                      onPressed: () => _accept(job['id'] as String),
-                                      child: const Text('Accept'),
-                                    )
-                                  : null,
+                              subtitle: Text('Status: $status · K${job['priceZmw']}'),
+                              trailing: action,
                             ),
                           );
                         }),

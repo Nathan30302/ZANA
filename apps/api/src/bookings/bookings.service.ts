@@ -7,9 +7,18 @@ import {
 import { BookingStatus, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
-const PROVIDER_TRANSITIONS: Record<BookingStatus, BookingStatus[]> = {
-  REQUESTED: [BookingStatus.ACCEPTED, BookingStatus.DECLINED, BookingStatus.EXPIRED],
-  ACCEPTED: [BookingStatus.ON_THE_WAY, BookingStatus.CONFIRMED, BookingStatus.CANCELLED],
+const TRANSITIONS: Record<BookingStatus, BookingStatus[]> = {
+  REQUESTED: [
+    BookingStatus.ACCEPTED,
+    BookingStatus.DECLINED,
+    BookingStatus.CANCELLED,
+    BookingStatus.EXPIRED,
+  ],
+  ACCEPTED: [
+    BookingStatus.ON_THE_WAY,
+    BookingStatus.CONFIRMED,
+    BookingStatus.CANCELLED,
+  ],
   ON_THE_WAY: [BookingStatus.IN_SERVICE, BookingStatus.CANCELLED],
   CONFIRMED: [BookingStatus.IN_SERVICE, BookingStatus.CANCELLED],
   IN_SERVICE: [BookingStatus.COMPLETED, BookingStatus.CANCELLED],
@@ -72,6 +81,26 @@ export class BookingsService {
     });
   }
 
+  async getForUser(bookingId: string, userId: string) {
+    const booking = await this.prisma.booking.findUnique({
+      where: { id: bookingId },
+      include: {
+        service: true,
+        provider: true,
+        customer: true,
+        review: true,
+      },
+    });
+    if (!booking) throw new NotFoundException('Booking not found');
+    if (
+      booking.customerId !== userId &&
+      booking.provider.userId !== userId
+    ) {
+      throw new ForbiddenException();
+    }
+    return booking;
+  }
+
   async transition(
     bookingId: string,
     actor: { id: string; isProvider: boolean },
@@ -89,11 +118,29 @@ export class BookingsService {
       throw new ForbiddenException();
     }
 
-    const allowed = PROVIDER_TRANSITIONS[booking.status] || [];
+    const allowed = TRANSITIONS[booking.status] || [];
     if (!allowed.includes(next)) {
       throw new BadRequestException(
         `Cannot move from ${booking.status} to ${next}`,
       );
+    }
+
+    // Only providers accept/decline/progress; customers cancel or rate
+    if (
+      next === BookingStatus.ACCEPTED ||
+      next === BookingStatus.DECLINED ||
+      next === BookingStatus.ON_THE_WAY ||
+      next === BookingStatus.CONFIRMED ||
+      next === BookingStatus.IN_SERVICE ||
+      next === BookingStatus.COMPLETED
+    ) {
+      if (!isOwnerProvider) throw new ForbiddenException('Provider action only');
+    }
+    if (next === BookingStatus.CANCELLED && !isOwnerCustomer && !isOwnerProvider) {
+      throw new ForbiddenException();
+    }
+    if (next === BookingStatus.RATED && !isOwnerCustomer) {
+      throw new ForbiddenException('Customer rates after completion');
     }
 
     // Burn one float credit on accept

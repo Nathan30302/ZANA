@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:zana_customer/api.dart';
 import 'package:zana_customer/screens/auth_sheet.dart';
+import 'package:zana_customer/screens/booking_detail_screen.dart';
 import 'package:zana_customer/theme.dart';
+
 
 class BookingsScreen extends StatefulWidget {
   const BookingsScreen({super.key});
@@ -80,6 +82,16 @@ class _BookingsScreenState extends State<BookingsScreen> {
                             color: ZanaColors.copper,
                           ),
                         ),
+                        onTap: () async {
+                          await Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => BookingDetailScreen(
+                                bookingId: b['id'] as String,
+                              ),
+                            ),
+                          );
+                          _load();
+                        },
                       ),
                     );
                   },

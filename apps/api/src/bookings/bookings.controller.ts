@@ -49,6 +49,16 @@ export class BookingsController {
     return this.bookings.listForUser(user.id, asRole);
   }
 
+  @Get(':id')
+  async get(
+    @Headers('authorization') authorization: string | undefined,
+    @Param('id') id: string,
+  ) {
+    const user = await this.auth.userFromToken(authorization);
+    if (!user) throw new UnauthorizedException();
+    return this.bookings.getForUser(id, user.id);
+  }
+
   @Patch(':id/status')
   async status(
     @Headers('authorization') authorization: string | undefined,

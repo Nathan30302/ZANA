@@ -58,7 +58,8 @@ cd apps/pro && flutter create --platforms=ios,android . && flutter pub get && fl
 | POST | `/v1/bookings` | Request job |
 | PATCH | `/v1/bookings/:id/status` | Accept / progress |
 | POST | `/v1/bookings/:id/review` | Rate completed job |
-| GET/POST | `/v1/floats/*` | Packages, balance, purchase |
+| GET/POST | `/v1/floats/*` | Packages, MoMo/Airtel purchase, webhook confirm |
+| GET | `/v1/providers?lat=&lng=` | Discover sorted by distance |
 | POST | `/v1/applications` | Pro apply |
 | GET/PATCH | `/v1/admin/*` | Admin queue |
 

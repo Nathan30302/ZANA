@@ -42,13 +42,24 @@ class ProApi {
     return jsonDecode(res.body) as List<dynamic>;
   }
 
-  Future<void> purchase(String packageId) async {
+  Future<Map<String, dynamic>> purchase({
+    required String packageId,
+    String method = 'MTN_MOMO',
+    String? phone,
+    bool simulate = true,
+  }) async {
     final res = await http.post(
       Uri.parse('$baseUrl/floats/purchase'),
       headers: _headers,
-      body: jsonEncode({'packageId': packageId}),
+      body: jsonEncode({
+        'packageId': packageId,
+        'method': method,
+        if (phone != null) 'phone': phone,
+        'simulate': simulate,
+      }),
     );
     if (res.statusCode >= 400) throw Exception(res.body);
+    return jsonDecode(res.body) as Map<String, dynamic>;
   }
 
   Future<Map<String, dynamic>> setOnline(bool isOnline) async {

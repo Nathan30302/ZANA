@@ -7,7 +7,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { AuthService } from '../auth/auth.service';
-import { FloatsService } from './floats.service';
+import { FloatsService, PaymentMethod } from './floats.service';
 
 @Controller('floats')
 export class FloatsController {
@@ -31,10 +31,26 @@ export class FloatsController {
   @Post('purchase')
   async purchase(
     @Headers('authorization') authorization: string | undefined,
-    @Body() body: { packageId: string },
+    @Body()
+    body: {
+      packageId: string;
+      method?: PaymentMethod;
+      phone?: string;
+      simulate?: boolean;
+    },
   ) {
     const user = await this.auth.userFromToken(authorization);
     if (!user) throw new UnauthorizedException();
-    return this.floats.purchase(user.id, body.packageId);
+    return this.floats.purchase(user.id, body.packageId, {
+      method: body.method,
+      phone: body.phone,
+      simulate: body.simulate,
+    });
+  }
+
+  /** MoMo/Airtel callback stub — call after payer approves (or in tests). */
+  @Post('webhook/confirm')
+  confirm(@Body() body: { purchaseId: string }) {
+    return this.floats.confirmPurchase(body.purchaseId);
   }
 }

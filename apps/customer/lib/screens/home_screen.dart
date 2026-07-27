@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:zana_customer/api.dart';
 import 'package:zana_customer/screens/bookings_screen.dart';
+import 'package:zana_customer/screens/nearby_map_screen.dart';
 import 'package:zana_customer/screens/provider_screen.dart';
 import 'package:zana_customer/theme.dart';
 
@@ -16,6 +17,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   String category = 'ALL';
   late Future<List<dynamic>> future;
+  List<dynamic> lastProviders = [];
 
   @override
   void initState() {
@@ -23,10 +25,14 @@ class _HomeScreenState extends State<HomeScreen> {
     future = _load();
   }
 
-  Future<List<dynamic>> _load() {
-    return api.listProviders(
+  Future<List<dynamic>> _load() async {
+    final items = await api.listProviders(
       category: category == 'ALL' ? null : category,
+      lat: ZanaApi.lusakaLat,
+      lng: ZanaApi.lusakaLng,
     );
+    lastProviders = items;
+    return items;
   }
 
   void _reload(String next) {
@@ -67,6 +73,17 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                       ],
                     ),
+                  ),
+                  IconButton(
+                    tooltip: 'Map',
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => NearbyMapScreen(providers: lastProviders),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.map_outlined),
                   ),
                   IconButton(
                     tooltip: 'My bookings',
@@ -141,6 +158,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       separatorBuilder: (_, __) => const SizedBox(height: 10),
                       itemBuilder: (context, i) {
                         final p = items[i] as Map<String, dynamic>;
+                        final km = (p['distanceKm'] as num?)?.toDouble();
                         return Material(
                           color: ZanaColors.paper,
                           borderRadius: BorderRadius.circular(16),
@@ -149,7 +167,8 @@ class _HomeScreenState extends State<HomeScreen> {
                             onTap: () {
                               Navigator.of(context).push(
                                 MaterialPageRoute(
-                                  builder: (_) => ProviderScreen(providerId: p['id'] as String),
+                                  builder: (_) =>
+                                      ProviderScreen(providerId: p['id'] as String),
                                 ),
                               );
                             },
@@ -181,7 +200,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                           ),
                                         ),
                                         Text(
-                                          '${p['area']} · ${p['type']}',
+                                          '${p['area']} · ${p['type']}'
+                                          '${km != null ? ' · ${km.toStringAsFixed(1)} km' : ''}',
                                           style: const TextStyle(color: ZanaColors.muted),
                                         ),
                                         Text(

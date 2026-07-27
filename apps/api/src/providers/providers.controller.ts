@@ -24,8 +24,16 @@ export class ProvidersController {
     @Query('area') area?: string,
     @Query('category') category?: ServiceCategory,
     @Query('q') q?: string,
+    @Query('lat') lat?: string,
+    @Query('lng') lng?: string,
   ) {
-    return this.providers.list({ area, category, q });
+    return this.providers.list({
+      area,
+      category,
+      q,
+      lat: lat != null ? Number(lat) : undefined,
+      lng: lng != null ? Number(lng) : undefined,
+    });
   }
 
   @Patch('me/online')
