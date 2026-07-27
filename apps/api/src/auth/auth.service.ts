@@ -1,33 +1,24 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { Injectable, UnauthorizedException, Inject } from '@nestjs/common';
 import { UserRole } from '@prisma/client';
+import { PrismaService } from '../prisma/prisma.service';
+import { OTP_PROVIDER, type OtpProvider } from './otp.provider';
 
-/** Dev OTP auth. Swap for Firebase / Africa's Talking in production. */
 @Injectable()
 export class AuthService {
-  private readonly codes = new Map<string, string>();
+  constructor(
+    private readonly prisma: PrismaService,
+    @Inject(OTP_PROVIDER) private readonly otp: OtpProvider,
+  ) {}
 
-  constructor(private readonly prisma: PrismaService) {}
-
-  requestOtp(phone: string) {
+  async requestOtp(phone: string) {
     const normalized = this.normalizePhone(phone);
-    const code = process.env.OTP_DEV_CODE || '123456';
-    this.codes.set(normalized, code);
-    return {
-      phone: normalized,
-      message: 'OTP sent',
-      // Exposed only when OTP_DEV_CODE is set (local/dev)
-      ...(process.env.OTP_DEV_CODE ? { devCode: code } : {}),
-    };
+    return this.otp.send(normalized);
   }
 
   async verifyOtp(phone: string, code: string, name?: string) {
     const normalized = this.normalizePhone(phone);
-    const expected = this.codes.get(normalized) || process.env.OTP_DEV_CODE;
-    if (!expected || code !== expected) {
-      throw new UnauthorizedException('Invalid OTP');
-    }
-    this.codes.delete(normalized);
+    const ok = await this.otp.consume(normalized, code);
+    if (!ok) throw new UnauthorizedException('Invalid OTP');
 
     const user = await this.prisma.user.upsert({
       where: { phone: normalized },
@@ -40,9 +31,16 @@ export class AuthService {
       include: { providerProfile: true },
     });
 
-    // Simple opaque token for MVP scaffolding (replace with JWT)
     const token = Buffer.from(`${user.id}:${user.phone}`).toString('base64url');
     return { token, user };
+  }
+
+  async registerFcmToken(userId: string, fcmToken: string) {
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: { fcmToken },
+      select: { id: true, fcmToken: true },
+    });
   }
 
   async userFromToken(token?: string) {
@@ -60,7 +58,7 @@ export class AuthService {
     }
   }
 
-  private normalizePhone(phone: string) {
+  normalizePhone(phone: string) {
     const digits = phone.replace(/\s+/g, '');
     if (digits.startsWith('+')) return digits;
     if (digits.startsWith('260')) return `+${digits}`;

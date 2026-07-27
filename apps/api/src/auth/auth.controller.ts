@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Headers, Post } from '@nestjs/common';
+import { Body, Controller, Get, Headers, Patch, Post, UnauthorizedException } from '@nestjs/common';
 import { AuthService } from './auth.service';
 
 @Controller('auth')
@@ -19,5 +19,15 @@ export class AuthController {
   async me(@Headers('authorization') authorization?: string) {
     const user = await this.auth.userFromToken(authorization);
     return { user };
+  }
+
+  @Patch('me/fcm')
+  async fcm(
+    @Headers('authorization') authorization: string | undefined,
+    @Body() body: { fcmToken: string },
+  ) {
+    const user = await this.auth.userFromToken(authorization);
+    if (!user) throw new UnauthorizedException();
+    return this.auth.registerFcmToken(user.id, body.fcmToken);
   }
 }

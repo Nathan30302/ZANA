@@ -12,7 +12,6 @@ class ZanaApi {
   final String baseUrl;
   String? token;
 
-  /// Default map center: Lusaka CBD
   static const lusakaLat = -15.4167;
   static const lusakaLng = 28.2833;
 
@@ -68,9 +67,23 @@ class ZanaApi {
     return data;
   }
 
+  Future<void> registerFcmToken(String fcmToken) async {
+    final res = await http.patch(
+      Uri.parse('$baseUrl/auth/me/fcm'),
+      headers: _headers,
+      body: jsonEncode({'fcmToken': fcmToken}),
+    );
+    if (res.statusCode >= 400) throw Exception(res.body);
+  }
+
   Future<Map<String, dynamic>> createBooking({
     required String providerId,
     required String serviceId,
+    DateTime? scheduledAt,
+    double? customerLat,
+    double? customerLng,
+    String? customerAddress,
+    String? notes,
   }) async {
     final res = await http.post(
       Uri.parse('$baseUrl/bookings'),
@@ -78,6 +91,11 @@ class ZanaApi {
       body: jsonEncode({
         'providerId': providerId,
         'serviceId': serviceId,
+        if (scheduledAt != null) 'scheduledAt': scheduledAt.toUtc().toIso8601String(),
+        if (customerLat != null) 'customerLat': customerLat,
+        if (customerLng != null) 'customerLng': customerLng,
+        if (customerAddress != null) 'customerAddress': customerAddress,
+        if (notes != null) 'notes': notes,
       }),
     );
     if (res.statusCode >= 400) throw Exception(res.body);

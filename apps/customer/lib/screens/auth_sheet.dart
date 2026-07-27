@@ -92,6 +92,11 @@ Future<bool> showAuthSheet(BuildContext context) async {
                             phoneCtrl.text.trim(),
                             codeCtrl.text.trim(),
                           );
+                          try {
+                            await api.registerFcmToken(
+                              'customer-dev-fcm-${DateTime.now().millisecondsSinceEpoch}',
+                            );
+                          } catch (_) {}
                           if (ctx.mounted) Navigator.of(ctx).pop(true);
                         } catch (e) {
                           setModal(() => error = e.toString());

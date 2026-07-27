@@ -6,9 +6,16 @@ import 'package:zana_customer/screens/provider_screen.dart';
 import 'package:zana_customer/theme.dart';
 
 class NearbyMapScreen extends StatefulWidget {
-  const NearbyMapScreen({super.key, required this.providers});
+  const NearbyMapScreen({
+    super.key,
+    required this.providers,
+    this.userLat = ZanaApi.lusakaLat,
+    this.userLng = ZanaApi.lusakaLng,
+  });
 
   final List<dynamic> providers;
+  final double userLat;
+  final double userLng;
 
   @override
   State<NearbyMapScreen> createState() => _NearbyMapScreenState();
@@ -19,7 +26,14 @@ class _NearbyMapScreenState extends State<NearbyMapScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final markers = <Marker>[];
+    final markers = <Marker>[
+      Marker(
+        point: LatLng(widget.userLat, widget.userLng),
+        width: 40,
+        height: 40,
+        child: const Icon(Icons.person_pin_circle, color: ZanaColors.charcoal, size: 36),
+      ),
+    ];
     for (final raw in widget.providers) {
       final p = raw as Map<String, dynamic>;
       final lat = (p['lat'] as num?)?.toDouble();
@@ -52,8 +66,8 @@ class _NearbyMapScreenState extends State<NearbyMapScreen> {
       appBar: AppBar(title: const Text('Nearby on map')),
       body: FlutterMap(
         mapController: mapController,
-        options: const MapOptions(
-          initialCenter: LatLng(ZanaApi.lusakaLat, ZanaApi.lusakaLng),
+        options: MapOptions(
+          initialCenter: LatLng(widget.userLat, widget.userLng),
           initialZoom: 12.2,
         ),
         children: [

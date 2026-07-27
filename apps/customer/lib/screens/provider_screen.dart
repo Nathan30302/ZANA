@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:zana_customer/api.dart';
 import 'package:zana_customer/screens/auth_sheet.dart';
+import 'package:zana_customer/screens/booking_detail_screen.dart';
+import 'package:zana_customer/screens/booking_sheet.dart';
 import 'package:zana_customer/theme.dart';
 
 class ProviderScreen extends StatefulWidget {
@@ -21,19 +23,34 @@ class _ProviderScreenState extends State<ProviderScreen> {
     future = api.getProvider(widget.providerId);
   }
 
-  Future<void> _book(String serviceId) async {
+  Future<void> _book(Map<String, dynamic> svc) async {
     if (api.token == null) {
       final ok = await showAuthSheet(context);
       if (!ok) return;
     }
+    if (!mounted) return;
+    final draft = await showBookingSheet(
+      context,
+      serviceName: svc['name'] as String,
+      serviceMode: svc['mode'] as String? ?? 'AT_SHOP',
+    );
+    if (draft == null) return;
+
     try {
       final booking = await api.createBooking(
         providerId: widget.providerId,
-        serviceId: serviceId,
+        serviceId: svc['id'] as String,
+        scheduledAt: draft.scheduledAt,
+        customerAddress: draft.address,
+        customerLat: draft.lat,
+        customerLng: draft.lng,
+        notes: draft.notes,
       );
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Booked · status ${booking['status']}')),
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => BookingDetailScreen(bookingId: booking['id'] as String),
+        ),
       );
     } catch (e) {
       if (!mounted) return;
@@ -86,15 +103,10 @@ class _ProviderScreenState extends State<ProviderScreen> {
                         color: ZanaColors.copper,
                       ),
                     ),
-                    onTap: () => _book(svc['id'] as String),
+                    onTap: () => _book(svc),
                   ),
                 );
               }),
-              const SizedBox(height: 12),
-              const Text(
-                'Tap a service to request a booking (dev OTP auto-login).',
-                style: TextStyle(color: ZanaColors.muted, fontSize: 12),
-              ),
             ],
           );
         },

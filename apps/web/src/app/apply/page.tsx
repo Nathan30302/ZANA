@@ -1,9 +1,14 @@
 'use client';
 
-import { FormEvent, useState, type CSSProperties } from 'react';
+import { FormEvent, useState, type CSSProperties, type ChangeEvent } from 'react';
 import { api } from '@/lib/api';
 
 type Step = 'otp' | 'form' | 'done';
+
+const API_BASE = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/v1').replace(
+  /\/v1\/?$/,
+  '',
+);
 
 export default function ApplyPage() {
   const [step, setStep] = useState<Step>('otp');
@@ -11,6 +16,8 @@ export default function ApplyPage() {
   const [code, setCode] = useState('');
   const [token, setToken] = useState('');
   const [error, setError] = useState('');
+  const [uploading, setUploading] = useState(false);
+  const [documentUrls, setDocumentUrls] = useState<string[]>([]);
   const [form, setForm] = useState({
     type: 'INDEPENDENT',
     displayName: '',
@@ -46,6 +53,30 @@ export default function ApplyPage() {
     }
   }
 
+  async function onFiles(e: ChangeEvent<HTMLInputElement>) {
+    const files = e.target.files;
+    if (!files?.length || !token) return;
+    setUploading(true);
+    setError('');
+    try {
+      const body = new FormData();
+      Array.from(files).forEach((f) => body.append('files', f));
+      const res = await fetch(`${API_BASE}/v1/uploads`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body,
+      });
+      if (!res.ok) throw new Error(await res.text());
+      const data = (await res.json()) as { urls: string[] };
+      setDocumentUrls((prev) => [...prev, ...data.urls]);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Upload failed');
+    } finally {
+      setUploading(false);
+      e.target.value = '';
+    }
+  }
+
   async function submitApplication(e: FormEvent) {
     e.preventDefault();
     setError('');
@@ -53,7 +84,7 @@ export default function ApplyPage() {
       await api('/applications', {
         method: 'POST',
         token,
-        body: JSON.stringify(form),
+        body: JSON.stringify({ ...form, documentUrls }),
       });
       setStep('done');
     } catch (err) {
@@ -165,7 +196,31 @@ export default function ApplyPage() {
               style={{ ...inputStyle, minHeight: 100 }}
             />
           </label>
-          <button type="submit" style={primaryBtn}>
+          <label>
+            ID / NRC / portfolio photos
+            <input
+              type="file"
+              accept="image/*"
+              multiple
+              onChange={onFiles}
+              style={{ ...inputStyle, padding: 8 }}
+            />
+          </label>
+          {uploading ? (
+            <p style={{ color: 'var(--muted)', margin: 0 }}>Uploading…</p>
+          ) : null}
+          {documentUrls.length > 0 ? (
+            <ul style={{ margin: 0, paddingLeft: 18, color: 'var(--muted)', fontSize: 13 }}>
+              {documentUrls.map((url) => (
+                <li key={url}>
+                  <a href={url} target="_blank" rel="noreferrer">
+                    {url.split('/').pop()}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+          <button type="submit" style={primaryBtn} disabled={uploading}>
             Submit for review
           </button>
         </form>

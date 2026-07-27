@@ -7,7 +7,8 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { AuthService } from '../auth/auth.service';
-import { FloatsService, PaymentMethod } from './floats.service';
+import { PaymentMethod } from '../payments/payment.provider';
+import { FloatsService } from './floats.service';
 
 @Controller('floats')
 export class FloatsController {

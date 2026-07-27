@@ -43,3 +43,6 @@ apps/pro/build/
 # Prisma
 apps/api/prisma/*.db
 apps/api/prisma/*.db-journal
+
+# Local uploads
+apps/api/uploads/

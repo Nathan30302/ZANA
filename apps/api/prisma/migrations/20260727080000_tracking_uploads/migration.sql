@@ -1,0 +1,7 @@
+-- AlterTable
+ALTER TABLE "ProviderApplication" ADD COLUMN IF NOT EXISTS "documentUrls" TEXT[] DEFAULT ARRAY[]::TEXT[];
+
+-- AlterTable
+ALTER TABLE "Booking" ADD COLUMN IF NOT EXISTS "providerLat" DOUBLE PRECISION;
+ALTER TABLE "Booking" ADD COLUMN IF NOT EXISTS "providerLng" DOUBLE PRECISION;
+ALTER TABLE "Booking" ADD COLUMN IF NOT EXISTS "contactPhone" TEXT;

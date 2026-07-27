@@ -30,6 +30,15 @@ class ProApi {
     token = (jsonDecode(res.body) as Map<String, dynamic>)['token'] as String?;
   }
 
+  Future<void> registerFcmToken(String fcmToken) async {
+    final res = await http.patch(
+      Uri.parse('$baseUrl/auth/me/fcm'),
+      headers: _headers,
+      body: jsonEncode({'fcmToken': fcmToken}),
+    );
+    if (res.statusCode >= 400) throw Exception(res.body);
+  }
+
   Future<Map<String, dynamic>> balance() async {
     final res = await http.get(Uri.parse('$baseUrl/floats/balance'), headers: _headers);
     if (res.statusCode >= 400) throw Exception(res.body);
@@ -86,6 +95,15 @@ class ProApi {
       Uri.parse('$baseUrl/bookings/$bookingId/status'),
       headers: _headers,
       body: jsonEncode({'status': status}),
+    );
+    if (res.statusCode >= 400) throw Exception(res.body);
+  }
+
+  Future<void> updateLocation(String bookingId, double lat, double lng) async {
+    final res = await http.patch(
+      Uri.parse('$baseUrl/bookings/$bookingId/location'),
+      headers: _headers,
+      body: jsonEncode({'lat': lat, 'lng': lng}),
     );
     if (res.statusCode >= 400) throw Exception(res.body);
   }

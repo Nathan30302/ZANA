@@ -75,6 +75,7 @@ export class AdminService {
       displayName: string;
       area: string;
       notes?: string;
+      documentUrls?: string[];
     },
   ) {
     return this.prisma.providerApplication.create({
@@ -84,6 +85,7 @@ export class AdminService {
         displayName: input.displayName,
         area: input.area,
         notes: input.notes,
+        documentUrls: input.documentUrls ?? [],
       },
     });
   }

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:zana_customer/api.dart';
 import 'package:zana_customer/theme.dart';
+import 'package:zana_customer/screens/tracking_screen.dart';
 
 const _timeline = [
   'REQUESTED',
@@ -92,6 +94,13 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
           final canCancel =
               status == 'REQUESTED' || status == 'ACCEPTED' || status == 'CONFIRMED';
           final canRate = status == 'COMPLETED';
+          final canTrack = status == 'ON_THE_WAY' ||
+              status == 'IN_SERVICE' ||
+              status == 'ACCEPTED' ||
+              status == 'CONFIRMED';
+          final scheduled = b['scheduledAt'] != null
+              ? DateTime.tryParse(b['scheduledAt'] as String)
+              : null;
 
           return ListView(
             padding: const EdgeInsets.all(20),
@@ -107,6 +116,21 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
                 '${provider?['displayName'] ?? 'Pro'} · K${b['priceZmw']}',
                 style: const TextStyle(color: ZanaColors.muted),
               ),
+              if (scheduled != null)
+                Text(
+                  'When: ${DateFormat('EEE d MMM · HH:mm').format(scheduled.toLocal())}',
+                  style: const TextStyle(color: ZanaColors.muted),
+                ),
+              if (b['customerAddress'] != null)
+                Text(
+                  'Where: ${b['customerAddress']}',
+                  style: const TextStyle(color: ZanaColors.muted),
+                ),
+              if (b['contactPhone'] != null)
+                Text(
+                  'Contact: ${b['contactPhone']}',
+                  style: const TextStyle(color: ZanaColors.muted),
+                ),
               const SizedBox(height: 20),
               const Text('Status', style: TextStyle(fontWeight: FontWeight.w700)),
               const SizedBox(height: 10),
@@ -122,11 +146,29 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
                 ),
               ],
               const SizedBox(height: 24),
-              if (canCancel)
+              if (canTrack)
+                FilledButton.icon(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: ZanaColors.charcoal,
+                  ),
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) =>
+                            TrackingScreen(bookingId: widget.bookingId),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.map),
+                  label: const Text('Live status & map'),
+                ),
+              if (canCancel) ...[
+                const SizedBox(height: 8),
                 OutlinedButton(
                   onPressed: busy ? null : _cancel,
                   child: const Text('Cancel booking'),
                 ),
+              ],
               if (canRate) ...[
                 const Text('Rate your experience',
                     style: TextStyle(fontWeight: FontWeight.w700)),

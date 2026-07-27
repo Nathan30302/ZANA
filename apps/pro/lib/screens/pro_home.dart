@@ -1,8 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:zana_pro/api.dart';
 import 'package:zana_pro/screens/buy_float_sheet.dart';
 import 'package:zana_pro/theme.dart';
-
 
 class ProHomeScreen extends StatefulWidget {
   const ProHomeScreen({super.key});
@@ -18,11 +20,19 @@ class _ProHomeScreenState extends State<ProHomeScreen> {
   List<dynamic> jobs = [];
   List<dynamic> packages = [];
   String? error;
+  Timer? _locationTimer;
+  String? _trackingBookingId;
 
   @override
   void initState() {
     super.initState();
     _bootstrap();
+  }
+
+  @override
+  void dispose() {
+    _locationTimer?.cancel();
+    super.dispose();
   }
 
   Future<void> _bootstrap() async {
@@ -32,6 +42,8 @@ class _ProHomeScreenState extends State<ProHomeScreen> {
     });
     try {
       await api.loginAsSeedProvider();
+      // Device FCM token would come from firebase_messaging; stub for now
+      await api.registerFcmToken('pro-dev-fcm-${DateTime.now().millisecondsSinceEpoch}');
       final bal = await api.balance();
       final j = await api.jobs();
       final p = await api.packages();
@@ -41,11 +53,54 @@ class _ProHomeScreenState extends State<ProHomeScreen> {
         packages = p;
         loading = false;
       });
+      _syncLocationTracking(j);
     } catch (e) {
       setState(() {
         error = e.toString();
         loading = false;
       });
+    }
+  }
+
+  void _syncLocationTracking(List<dynamic> jobList) {
+    final active = jobList.cast<Map<String, dynamic>>().where((j) {
+      final s = j['status'] as String?;
+      return s == 'ON_THE_WAY' || s == 'IN_SERVICE';
+    }).toList();
+
+    if (active.isEmpty) {
+      _locationTimer?.cancel();
+      _locationTimer = null;
+      _trackingBookingId = null;
+      return;
+    }
+
+    final id = active.first['id'] as String;
+    if (_trackingBookingId == id && _locationTimer != null) return;
+    _trackingBookingId = id;
+    _locationTimer?.cancel();
+    _pingLocation(id);
+    _locationTimer = Timer.periodic(const Duration(seconds: 12), (_) {
+      _pingLocation(id);
+    });
+  }
+
+  Future<void> _pingLocation(String bookingId) async {
+    try {
+      final enabled = await Geolocator.isLocationServiceEnabled();
+      if (!enabled) return;
+      var perm = await Geolocator.checkPermission();
+      if (perm == LocationPermission.denied) {
+        perm = await Geolocator.requestPermission();
+      }
+      if (perm == LocationPermission.denied ||
+          perm == LocationPermission.deniedForever) {
+        return;
+      }
+      final pos = await Geolocator.getCurrentPosition();
+      await api.updateLocation(bookingId, pos.latitude, pos.longitude);
+    } catch (_) {
+      // Best-effort location share
     }
   }
 
@@ -159,6 +214,13 @@ class _ProHomeScreenState extends State<ProHomeScreen> {
                             ],
                           ),
                         ),
+                        if (_trackingBookingId != null) ...[
+                          const SizedBox(height: 12),
+                          Text(
+                            'Sharing live location for active job',
+                            style: TextStyle(color: Colors.green.shade700, fontSize: 13),
+                          ),
+                        ],
                         const SizedBox(height: 20),
                         const Text('Incoming jobs', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 18)),
                         const SizedBox(height: 8),

@@ -9,6 +9,7 @@ type Application = {
   area: string;
   type: string;
   status: string;
+  documentUrls?: string[];
   user: { phone: string; name: string | null };
 };
 
@@ -142,6 +143,19 @@ export default function AdminPage() {
                     <div style={{ color: 'var(--muted)', fontSize: 13 }}>
                       {app.user.phone} · {app.status}
                     </div>
+                    {app.documentUrls && app.documentUrls.length > 0 ? (
+                      <div style={{ marginTop: 6, fontSize: 13 }}>
+                        Docs:{' '}
+                        {app.documentUrls.map((url, i) => (
+                          <span key={url}>
+                            {i > 0 ? ' · ' : ''}
+                            <a href={url} target="_blank" rel="noreferrer">
+                              file {i + 1}
+                            </a>
+                          </span>
+                        ))}
+                      </div>
+                    ) : null}
                   </div>
                   {app.status === 'PENDING' ? (
                     <div style={{ display: 'flex', gap: 8 }}>

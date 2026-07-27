@@ -1,15 +1,22 @@
 import {
   BadRequestException,
+  Inject,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-
-export type PaymentMethod = 'MTN_MOMO' | 'AIRTEL_MONEY';
+import {
+  PAYMENT_PROVIDER,
+  type PaymentMethod,
+  type PaymentProvider,
+} from '../payments/payment.provider';
 
 @Injectable()
 export class FloatsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    @Inject(PAYMENT_PROVIDER) private readonly payments: PaymentProvider,
+  ) {}
 
   listPackages() {
     return this.prisma.floatPackage.findMany({
@@ -25,6 +32,7 @@ export class FloatsService {
   ) {
     const profile = await this.prisma.providerProfile.findUnique({
       where: { userId },
+      include: { user: true },
     });
     if (!profile) throw new NotFoundException('Provider profile not found');
 
@@ -38,39 +46,40 @@ export class FloatsService {
       throw new BadRequestException('method must be MTN_MOMO or AIRTEL_MONEY');
     }
 
-    const payerPhone = input.phone ?? '+26097XXXXXXX';
-    const providerRef = `${method}-${Date.now()}`;
+    const payerPhone = input.phone ?? profile.user.phone;
 
-    // Create PENDING MoMo/Airtel charge — webhook confirms later
+    const initiated = await this.payments.initiate({
+      amountZmw: pkg.priceZmw,
+      phone: payerPhone,
+      method,
+      reference: `float-${pkg.code}-${Date.now()}`,
+      description: `ZANA ${pkg.name} float (${pkg.credits} credits)`,
+      simulate: input.simulate,
+    });
+
     const purchase = await this.prisma.floatPurchase.create({
       data: {
         providerId: profile.id,
         packageId: pkg.id,
         credits: pkg.credits,
         amountZmw: pkg.priceZmw,
-        status: 'PENDING',
-        providerRef,
+        status: initiated.status === 'COMPLETED' ? 'COMPLETED' : 'PENDING',
+        providerRef: initiated.providerRef,
       },
     });
 
-    const instructions =
-      method === 'MTN_MOMO'
-        ? `Approve MTN MoMo prompt on ${payerPhone} for K${pkg.priceZmw}`
-        : `Approve Airtel Money prompt on ${payerPhone} for K${pkg.priceZmw}`;
-
-    // Dev/sim: auto-confirm when simulate=true (default in OTP_DEV environments)
-    const shouldSimulate =
-      input.simulate === true ||
-      (input.simulate !== false && !!process.env.OTP_DEV_CODE);
-
-    if (shouldSimulate) {
-      const confirmed = await this.confirmPurchase(purchase.id);
+    if (initiated.status === 'COMPLETED') {
+      const updated = await this.prisma.providerProfile.update({
+        where: { id: profile.id },
+        data: { creditBalance: { increment: pkg.credits } },
+      });
       return {
-        ...confirmed,
+        purchase,
+        creditBalance: updated.creditBalance,
         payment: {
           method,
           status: 'COMPLETED',
-          instructions: `${instructions} (simulated success)`,
+          instructions: initiated.instructions,
         },
       };
     }
@@ -81,7 +90,7 @@ export class FloatsService {
       payment: {
         method,
         status: 'PENDING',
-        instructions,
+        instructions: initiated.instructions,
         next: 'POST /v1/floats/webhook/confirm with { purchaseId } after payer approves',
       },
     };
@@ -97,6 +106,10 @@ export class FloatsService {
         where: { id: purchase.providerId },
       });
       return { purchase, creditBalance: profile?.creditBalance ?? 0 };
+    }
+
+    if (purchase.providerRef) {
+      await this.payments.confirm(purchase.providerRef);
     }
 
     return this.prisma.$transaction(async (tx) => {

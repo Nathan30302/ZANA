@@ -29,6 +29,7 @@ export class AdminController {
       displayName: string;
       area: string;
       notes?: string;
+      documentUrls?: string[];
     },
   ) {
     const user = await this.auth.userFromToken(authorization);

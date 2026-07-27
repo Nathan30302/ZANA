@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:zana_customer/api.dart';
 import 'package:zana_customer/screens/bookings_screen.dart';
 import 'package:zana_customer/screens/nearby_map_screen.dart';
@@ -18,18 +19,45 @@ class _HomeScreenState extends State<HomeScreen> {
   String category = 'ALL';
   late Future<List<dynamic>> future;
   List<dynamic> lastProviders = [];
+  double userLat = ZanaApi.lusakaLat;
+  double userLng = ZanaApi.lusakaLng;
 
   @override
   void initState() {
     super.initState();
-    future = _load();
+    future = _bootstrap();
+  }
+
+  Future<List<dynamic>> _bootstrap() async {
+    await _resolveLocation();
+    return _load();
+  }
+
+  Future<void> _resolveLocation() async {
+    try {
+      final enabled = await Geolocator.isLocationServiceEnabled();
+      if (!enabled) return;
+      var perm = await Geolocator.checkPermission();
+      if (perm == LocationPermission.denied) {
+        perm = await Geolocator.requestPermission();
+      }
+      if (perm == LocationPermission.denied ||
+          perm == LocationPermission.deniedForever) {
+        return;
+      }
+      final pos = await Geolocator.getCurrentPosition();
+      userLat = pos.latitude;
+      userLng = pos.longitude;
+    } catch (_) {
+      // Fall back to Lusaka CBD
+    }
   }
 
   Future<List<dynamic>> _load() async {
     final items = await api.listProviders(
       category: category == 'ALL' ? null : category,
-      lat: ZanaApi.lusakaLat,
-      lng: ZanaApi.lusakaLng,
+      lat: userLat,
+      lng: userLng,
     );
     lastProviders = items;
     return items;
@@ -79,7 +107,11 @@ class _HomeScreenState extends State<HomeScreen> {
                     onPressed: () {
                       Navigator.of(context).push(
                         MaterialPageRoute(
-                          builder: (_) => NearbyMapScreen(providers: lastProviders),
+                          builder: (_) => NearbyMapScreen(
+                            providers: lastProviders,
+                            userLat: userLat,
+                            userLng: userLng,
+                          ),
                         ),
                       );
                     },

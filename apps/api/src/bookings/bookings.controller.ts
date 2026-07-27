@@ -73,4 +73,20 @@ export class BookingsController {
       body.status,
     );
   }
+
+  @Patch(':id/location')
+  async location(
+    @Headers('authorization') authorization: string | undefined,
+    @Param('id') id: string,
+    @Body() body: { lat: number; lng: number },
+  ) {
+    const user = await this.auth.userFromToken(authorization);
+    if (!user) throw new UnauthorizedException();
+    return this.bookings.updateProviderLocation(
+      id,
+      user.id,
+      Number(body.lat),
+      Number(body.lng),
+    );
+  }
 }
