@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:zana_pro/api.dart';
 import 'package:zana_pro/theme.dart';
@@ -11,31 +13,87 @@ Future<void> showBuyFloatSheet(
   final phoneCtrl = TextEditingController(text: '+260');
   String? error;
   var busy = false;
-  var simulate = true;
+  // Simulate only in debug/dev builds unless overridden.
+  var simulate = const bool.fromEnvironment('dart.vm.product') == false;
   String? pendingPurchaseId;
   String? pendingInstructions;
+  Timer? pollTimer;
 
   await showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
     backgroundColor: ZanaColors.paper,
     shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
     ),
     builder: (ctx) {
       return StatefulBuilder(
         builder: (ctx, setModal) {
+          Future<void> confirmPending() async {
+            if (pendingPurchaseId == null) return;
+            setModal(() => busy = true);
+            try {
+              final res = await api.confirmPurchase(pendingPurchaseId!);
+              final status =
+                  (res['payment'] as Map?)?['status'] as String? ??
+                      (res['purchase'] as Map?)?['status'] as String?;
+              if (status == 'PENDING') {
+                setModal(() {
+                  busy = false;
+                  pendingInstructions =
+                      'Still waiting for MoMo/Airtel approval…';
+                });
+                return;
+              }
+              if (status == 'FAILED') {
+                setModal(() {
+                  busy = false;
+                  error = 'Payment failed or was cancelled';
+                  pendingPurchaseId = null;
+                });
+                pollTimer?.cancel();
+                return;
+              }
+              pollTimer?.cancel();
+              if (ctx.mounted) Navigator.of(ctx).pop();
+              await onDone();
+            } catch (e) {
+              setModal(() {
+                error = e.toString();
+                busy = false;
+              });
+            }
+          }
+
+          void startPolling() {
+            pollTimer?.cancel();
+            pollTimer = Timer.periodic(const Duration(seconds: 4), (_) {
+              confirmPending();
+            });
+          }
+
           return Padding(
             padding: EdgeInsets.fromLTRB(
-              20,
-              20,
-              20,
-              20 + MediaQuery.of(ctx).viewInsets.bottom,
+              22,
+              14,
+              22,
+              22 + MediaQuery.of(ctx).viewInsets.bottom,
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    margin: const EdgeInsets.only(bottom: 14),
+                    decoration: BoxDecoration(
+                      color: ZanaColors.line,
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                  ),
+                ),
                 Text(
                   'Buy float',
                   style: Theme.of(ctx).textTheme.titleLarge?.copyWith(
@@ -44,7 +102,7 @@ Future<void> showBuyFloatSheet(
                 ),
                 const SizedBox(height: 6),
                 const Text(
-                  'Pay with MTN MoMo or Airtel Money',
+                  'Credits let you accept jobs. Pay with MTN MoMo or Airtel Money.',
                   style: TextStyle(color: ZanaColors.muted),
                 ),
                 const SizedBox(height: 14),
@@ -62,103 +120,121 @@ Future<void> showBuyFloatSheet(
                   keyboardType: TextInputType.phone,
                   decoration: const InputDecoration(
                     labelText: 'Payer phone',
-                    border: OutlineInputBorder(),
                   ),
                 ),
                 SwitchListTile(
                   contentPadding: EdgeInsets.zero,
-                  title: const Text('Simulate instant success'),
-                  subtitle: const Text('Off = PENDING until you confirm'),
+                  title: const Text('Simulate payment (dev)'),
+                  subtitle: const Text('Turn off for live MoMo/Airtel prompts'),
                   value: simulate,
                   onChanged: (v) => setModal(() => simulate = v),
                 ),
                 if (pendingPurchaseId != null) ...[
-                  Text(
-                    pendingInstructions ?? 'Waiting for payment approval',
-                    style: const TextStyle(color: ZanaColors.muted),
-                  ),
-                  const SizedBox(height: 8),
-                  FilledButton(
-                    style: FilledButton.styleFrom(
-                      backgroundColor: ZanaColors.copper,
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: ZanaColors.sand,
+                      borderRadius: BorderRadius.circular(14),
                     ),
-                    onPressed: busy
-                        ? null
-                        : () async {
-                            setModal(() => busy = true);
-                            try {
-                              await api.confirmPurchase(pendingPurchaseId!);
-                              if (ctx.mounted) Navigator.of(ctx).pop();
-                              await onDone();
-                            } catch (e) {
-                              setModal(() {
-                                error = e.toString();
-                                busy = false;
-                              });
-                            }
-                          },
-                    child: const Text('Confirm payment (webhook stub)'),
+                    child: Text(
+                      pendingInstructions ??
+                          'Waiting for payment approval on your phone…',
+                      style: const TextStyle(color: ZanaColors.ink),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  FilledButton(
+                    onPressed: busy ? null : confirmPending,
+                    child: Text(busy ? 'Checking…' : 'I’ve approved — check now'),
                   ),
                   const SizedBox(height: 12),
                 ],
                 ...packages.map((raw) {
                   final pkg = raw as Map<String, dynamic>;
-                  return ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: Text('${pkg['name']} · ${pkg['credits']} credits'),
-                    subtitle: Text('K${pkg['priceZmw']}'),
-                    trailing: FilledButton(
-                      style: FilledButton.styleFrom(
-                        backgroundColor: ZanaColors.charcoal,
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 10),
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: ZanaColors.paper,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: ZanaColors.ink.withValues(alpha: 0.06),
                       ),
-                      onPressed: busy
-                          ? null
-                          : () async {
-                              setModal(() {
-                                busy = true;
-                                error = null;
-                              });
-                              try {
-                                final res = await api.purchase(
-                                  packageId: pkg['id'] as String,
-                                  method: method,
-                                  phone: phoneCtrl.text.trim(),
-                                  simulate: simulate,
-                                );
-                                final pay = res['payment'] as Map?;
-                                final status = pay?['status'] as String?;
-                                if (status == 'PENDING') {
-                                  final purchase =
-                                      res['purchase'] as Map<String, dynamic>?;
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                '${pkg['name']}',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 16,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                '${pkg['credits']} credits · K${pkg['priceZmw']}',
+                                style: const TextStyle(color: ZanaColors.muted),
+                              ),
+                            ],
+                          ),
+                        ),
+                        FilledButton(
+                          onPressed: busy
+                              ? null
+                              : () async {
                                   setModal(() {
-                                    pendingPurchaseId =
-                                        purchase?['id'] as String?;
-                                    pendingInstructions =
-                                        pay?['instructions'] as String?;
-                                    busy = false;
+                                    busy = true;
+                                    error = null;
                                   });
-                                  return;
-                                }
-                                if (ctx.mounted) {
-                                  Navigator.of(ctx).pop();
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text(
-                                        pay?['instructions'] as String? ??
-                                            'Float purchased. Credits: ${res['creditBalance']}',
-                                      ),
-                                    ),
-                                  );
-                                }
-                                await onDone();
-                              } catch (e) {
-                                setModal(() {
-                                  error = e.toString();
-                                  busy = false;
-                                });
-                              }
-                            },
-                      child: const Text('Pay'),
+                                  try {
+                                    final res = await api.purchase(
+                                      packageId: pkg['id'] as String,
+                                      method: method,
+                                      phone: phoneCtrl.text.trim(),
+                                      simulate: simulate,
+                                    );
+                                    final pay = res['payment'] as Map?;
+                                    final status = pay?['status'] as String?;
+                                    if (status == 'PENDING') {
+                                      final purchase =
+                                          res['purchase'] as Map<String, dynamic>?;
+                                      setModal(() {
+                                        pendingPurchaseId =
+                                            purchase?['id'] as String?;
+                                        pendingInstructions =
+                                            pay?['instructions'] as String?;
+                                        busy = false;
+                                      });
+                                      startPolling();
+                                      return;
+                                    }
+                                    if (ctx.mounted) {
+                                      Navigator.of(ctx).pop();
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                            pay?['instructions'] as String? ??
+                                                'Float purchased. Credits: ${res['creditBalance']}',
+                                          ),
+                                        ),
+                                      );
+                                    }
+                                    await onDone();
+                                  } catch (e) {
+                                    setModal(() {
+                                      error = e.toString();
+                                      busy = false;
+                                    });
+                                  }
+                                },
+                          child: const Text('Pay'),
+                        ),
+                      ],
                     ),
                   );
                 }),
@@ -170,5 +246,5 @@ Future<void> showBuyFloatSheet(
         },
       );
     },
-  );
+  ).whenComplete(() => pollTimer?.cancel());
 }

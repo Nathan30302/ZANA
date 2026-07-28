@@ -42,9 +42,21 @@ type SeedProvider = {
 };
 
 const PLACEHOLDER =
-  'https://images.unsplash.com/photo-1560066984-138dadb4c035?w=800&q=80';
+  'https://images.unsplash.com/photo-1503951914875-452162b0f3f1?w=1200&q=80'; // barbershop chair
 const PLACEHOLDER_2 =
-  'https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?w=800&q=80';
+  'https://images.unsplash.com/photo-1560066984-138dadb4c035?w=1200&q=80'; // salon interior
+const PHOTO_BARBER =
+  'https://images.unsplash.com/photo-1621605815971-fbc912256bca?w=1200&q=80';
+const PHOTO_FADE =
+  'https://images.unsplash.com/photo-1599351431202-1e0f0137899a?w=1200&q=80';
+const PHOTO_SALON =
+  'https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?w=1200&q=80';
+const PHOTO_BRAIDS =
+  'https://images.unsplash.com/photo-1605497788044-5a32c7078486?w=1200&q=80';
+const PHOTO_NAILS =
+  'https://images.unsplash.com/photo-1604654894610-df63bc536371?w=1200&q=80';
+const PHOTO_MOBILE =
+  'https://images.unsplash.com/photo-1516975080664-ed2fc6a32937?w=1200&q=80';
 
 const seeds: SeedProvider[] = [
   {
@@ -55,8 +67,8 @@ const seeds: SeedProvider[] = [
     lat: -15.4167,
     lng: 28.2833,
     bio: 'Classic fades and beard work in the heart of Lusaka.',
-    coverPhotoUrl: PLACEHOLDER,
-    photoUrls: [PLACEHOLDER, PLACEHOLDER_2],
+    coverPhotoUrl: PHOTO_BARBER,
+    photoUrls: [PHOTO_BARBER, PHOTO_FADE],
     services: [
       { name: 'Fade', category: ServiceCategory.BARBER, priceZmw: 80, durationMin: 30 },
       { name: 'Beard trim', category: ServiceCategory.BARBER, priceZmw: 40, durationMin: 15 },
@@ -71,8 +83,8 @@ const seeds: SeedProvider[] = [
     lat: -15.3875,
     lng: 28.3228,
     bio: 'Braids, washes, and event glam.',
-    coverPhotoUrl: PLACEHOLDER_2,
-    photoUrls: [PLACEHOLDER_2],
+    coverPhotoUrl: PHOTO_SALON,
+    photoUrls: [PHOTO_SALON, PHOTO_BRAIDS],
     services: [
       { name: 'Wash & set', category: ServiceCategory.SALON, priceZmw: 150, durationMin: 60 },
       { name: 'Box braids', category: ServiceCategory.SALON, priceZmw: 350, durationMin: 180 },
@@ -87,7 +99,7 @@ const seeds: SeedProvider[] = [
     lat: -15.408,
     lng: 28.34,
     bio: 'I come to you — home and office cuts.',
-    coverPhotoUrl: PLACEHOLDER,
+    coverPhotoUrl: PHOTO_MOBILE,
     services: [
       {
         name: 'Home visit cut',
@@ -113,7 +125,7 @@ const seeds: SeedProvider[] = [
     lat: -15.405,
     lng: 28.31,
     bio: 'Gel, acrylics, and clean nail care.',
-    coverPhotoUrl: PLACEHOLDER_2,
+    coverPhotoUrl: PHOTO_SALON,
     services: [
       { name: 'Gel manicure', category: ServiceCategory.NAILS, priceZmw: 180, durationMin: 60 },
       { name: 'Acrylic set', category: ServiceCategory.NAILS, priceZmw: 250, durationMin: 90 },
@@ -127,7 +139,7 @@ const seeds: SeedProvider[] = [
     lat: -15.38,
     lng: 28.25,
     bio: 'Neighborhood shop — walk-ins welcome.',
-    coverPhotoUrl: PLACEHOLDER,
+    coverPhotoUrl: PHOTO_MOBILE,
     services: [
       { name: 'Standard cut', category: ServiceCategory.BARBER, priceZmw: 60, durationMin: 25 },
       { name: 'Shape up', category: ServiceCategory.BARBER, priceZmw: 30, durationMin: 15 },
@@ -141,7 +153,7 @@ const seeds: SeedProvider[] = [
     lat: -15.45,
     lng: 28.35,
     bio: 'Natural hair specialist — at shop or home.',
-    coverPhotoUrl: PLACEHOLDER_2,
+    coverPhotoUrl: PHOTO_SALON,
     services: [
       { name: 'Twist out', category: ServiceCategory.SALON, priceZmw: 200, durationMin: 90 },
       {
@@ -161,7 +173,7 @@ const seeds: SeedProvider[] = [
     lat: -15.4,
     lng: 28.3,
     bio: 'Sharp lines, soft fades.',
-    coverPhotoUrl: PLACEHOLDER,
+    coverPhotoUrl: PHOTO_MOBILE,
     services: [
       { name: 'Skin fade', category: ServiceCategory.BARBER, priceZmw: 90, durationMin: 35 },
       { name: 'Hot towel shave', category: ServiceCategory.BARBER, priceZmw: 70, durationMin: 25 },
@@ -175,7 +187,7 @@ const seeds: SeedProvider[] = [
     lat: -15.415,
     lng: 28.295,
     bio: 'Bridal and evening looks.',
-    coverPhotoUrl: PLACEHOLDER_2,
+    coverPhotoUrl: PHOTO_SALON,
     services: [
       { name: 'Makeup', category: ServiceCategory.BRIDAL, priceZmw: 400, durationMin: 90 },
       { name: 'Silk press', category: ServiceCategory.SALON, priceZmw: 220, durationMin: 75 },
@@ -189,7 +201,7 @@ const seeds: SeedProvider[] = [
     lat: -15.36,
     lng: 28.36,
     bio: 'Nails at your doorstep.',
-    coverPhotoUrl: PLACEHOLDER,
+    coverPhotoUrl: PHOTO_MOBILE,
     services: [
       {
         name: 'Home gel set',
@@ -208,7 +220,7 @@ const seeds: SeedProvider[] = [
     lat: -15.48,
     lng: 28.27,
     bio: 'Family barbershop south of town.',
-    coverPhotoUrl: PLACEHOLDER,
+    coverPhotoUrl: PHOTO_MOBILE,
     services: [
       { name: 'Dad & son cut', category: ServiceCategory.BARBER, priceZmw: 110, durationMin: 50 },
     ],

@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:zana_pro/api.dart';
+import 'package:zana_pro/push.dart';
 import 'package:zana_pro/screens/pro_home.dart';
 import 'package:zana_pro/theme.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await api.restoreSession();
+  await registerPushTokenIfPossible();
   runApp(const ZanaProApp());
 }
 

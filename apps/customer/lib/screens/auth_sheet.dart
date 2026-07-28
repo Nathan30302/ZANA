@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:zana_customer/api.dart';
+import 'package:zana_customer/push.dart';
 import 'package:zana_customer/theme.dart';
 
 Future<bool> showAuthSheet(BuildContext context) async {
@@ -115,6 +116,7 @@ Future<bool> showAuthSheet(BuildContext context) async {
                             codeCtrl.text.trim(),
                             name: name,
                           );
+                          await registerPushTokenIfPossible();
                           if (ctx.mounted) Navigator.of(ctx).pop(true);
                         } catch (e) {
                           setModal(() => error = e.toString());

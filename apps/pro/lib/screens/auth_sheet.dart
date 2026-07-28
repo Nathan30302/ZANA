@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:zana_pro/api.dart';
+import 'package:zana_pro/push.dart';
 import 'package:zana_pro/theme.dart';
 
 Future<bool> showProAuthSheet(BuildContext context) async {
-  final nameCtrl = TextEditingController(text: 'Lusaka Cuts');
-  final phoneCtrl = TextEditingController(text: '+260970000001');
+  final nameCtrl = TextEditingController();
+  final phoneCtrl = TextEditingController(text: '+260');
   final codeCtrl = TextEditingController();
   var codeSent = false;
   String? error;
@@ -115,6 +116,7 @@ Future<bool> showProAuthSheet(BuildContext context) async {
                             codeCtrl.text.trim(),
                             name: name,
                           );
+                          await registerPushTokenIfPossible();
                           if (ctx.mounted) Navigator.of(ctx).pop(true);
                         } catch (e) {
                           setModal(() => error = e.toString());
