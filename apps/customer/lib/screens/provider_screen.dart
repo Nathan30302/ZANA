@@ -17,12 +17,39 @@ class ProviderScreen extends StatefulWidget {
 class _ProviderScreenState extends State<ProviderScreen> {
   late Future<Map<String, dynamic>> future;
   late Future<List<dynamic>> reviewsFuture;
+  bool favorited = false;
 
   @override
   void initState() {
     super.initState();
     future = api.getProvider(widget.providerId);
     reviewsFuture = api.providerReviews(widget.providerId);
+    _loadFavorite();
+  }
+
+  Future<void> _loadFavorite() async {
+    if (api.token == null) return;
+    final ok = await api.isFavorite(widget.providerId);
+    if (mounted) setState(() => favorited = ok);
+  }
+
+  Future<void> _toggleFavorite() async {
+    if (api.token == null) {
+      final ok = await showAuthSheet(context);
+      if (!ok) return;
+    }
+    try {
+      if (favorited) {
+        await api.removeFavorite(widget.providerId);
+        setState(() => favorited = false);
+      } else {
+        await api.addFavorite(widget.providerId);
+        setState(() => favorited = true);
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+    }
   }
 
   Future<void> _book(Map<String, dynamic> svc) async {
@@ -65,7 +92,19 @@ class _ProviderScreenState extends State<ProviderScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Provider')),
+      appBar: AppBar(
+        title: const Text('Provider'),
+        actions: [
+          IconButton(
+            tooltip: favorited ? 'Unfavorite' : 'Favorite',
+            onPressed: _toggleFavorite,
+            icon: Icon(
+              favorited ? Icons.favorite : Icons.favorite_border,
+              color: favorited ? ZanaColors.copper : null,
+            ),
+          ),
+        ],
+      ),
       body: FutureBuilder<Map<String, dynamic>>(
         future: future,
         builder: (context, snap) {

@@ -93,15 +93,39 @@ export class ProvidersService {
   }
 
   async getMe(userId: string) {
-    const profile = await this.prisma.providerProfile.findUnique({
+    const owned = await this.prisma.providerProfile.findUnique({
       where: { userId },
       include: {
         services: { orderBy: { name: 'asc' } },
         photos: { orderBy: { sortOrder: 'asc' } },
+        staff: {
+          include: {
+            user: { select: { id: true, phone: true, name: true } },
+          },
+        },
       },
     });
-    if (!profile) throw new NotFoundException('Provider profile not found');
-    return profile;
+    if (owned) return { ...owned, roleOnShop: 'OWNER' as const };
+
+    const membership = await this.prisma.staffMembership.findFirst({
+      where: { userId },
+      include: {
+        provider: {
+          include: {
+            services: { where: { isActive: true }, orderBy: { name: 'asc' } },
+            photos: { orderBy: { sortOrder: 'asc' } },
+          },
+        },
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+    if (!membership) throw new NotFoundException('Provider profile not found');
+    return {
+      ...membership.provider,
+      roleOnShop: 'STAFF' as const,
+      staffTitle: membership.title,
+      membershipId: membership.id,
+    };
   }
 
   async updateMe(
@@ -342,5 +366,85 @@ export class ProvidersService {
         photos: { orderBy: { sortOrder: 'asc' } },
       },
     });
+  }
+
+  async listStaff(ownerUserId: string) {
+    const profile = await this.requireOwnedProfile(ownerUserId);
+    return this.prisma.staffMembership.findMany({
+      where: { providerId: profile.id },
+      include: {
+        user: { select: { id: true, phone: true, name: true, role: true } },
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+  }
+
+  async inviteStaff(
+    ownerUserId: string,
+    input: { phone: string; title?: string; name?: string },
+  ) {
+    const profile = await this.requireOwnedProfile(ownerUserId);
+    const phone = this.normalizePhone(input.phone);
+    if (!phone) throw new BadRequestException('phone required');
+
+    const existing = await this.prisma.user.findUnique({ where: { phone } });
+    const user = existing
+      ? await this.prisma.user.update({
+          where: { id: existing.id },
+          data: {
+            ...(input.name ? { name: input.name } : {}),
+            ...(existing.role === 'CUSTOMER' ? { role: 'STAFF' as const } : {}),
+          },
+        })
+      : await this.prisma.user.create({
+          data: {
+            phone,
+            name: input.name ?? null,
+            role: 'STAFF',
+          },
+        });
+
+    try {
+      return await this.prisma.staffMembership.create({
+        data: {
+          providerId: profile.id,
+          userId: user.id,
+          title: input.title?.trim() || 'Stylist',
+        },
+        include: {
+          user: { select: { id: true, phone: true, name: true, role: true } },
+        },
+      });
+    } catch {
+      throw new BadRequestException('Staff already on this shop');
+    }
+  }
+
+  async removeStaff(ownerUserId: string, membershipId: string) {
+    const profile = await this.requireOwnedProfile(ownerUserId);
+    const row = await this.prisma.staffMembership.findUnique({
+      where: { id: membershipId },
+    });
+    if (!row || row.providerId !== profile.id) {
+      throw new NotFoundException('Staff member not found');
+    }
+    await this.prisma.staffMembership.delete({ where: { id: membershipId } });
+    return { ok: true };
+  }
+
+  private async requireOwnedProfile(userId: string) {
+    const profile = await this.prisma.providerProfile.findUnique({
+      where: { userId },
+    });
+    if (!profile) throw new NotFoundException('Provider profile not found');
+    return profile;
+  }
+
+  private normalizePhone(phone: string) {
+    const digits = phone.replace(/\s+/g, '');
+    if (digits.startsWith('+')) return digits;
+    if (digits.startsWith('260')) return `+${digits}`;
+    if (digits.startsWith('0')) return `+260${digits.slice(1)}`;
+    return `+260${digits}`;
   }
 }

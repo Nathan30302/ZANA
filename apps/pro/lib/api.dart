@@ -218,6 +218,50 @@ class ProApi {
     return jsonDecode(res.body) as Map<String, dynamic>;
   }
 
+  Future<Map<String, dynamic>> schedule({String? date}) async {
+    final uri = Uri.parse('$baseUrl/bookings/schedule').replace(
+      queryParameters: {if (date != null) 'date': date},
+    );
+    final res = await http.get(uri, headers: _headers);
+    if (res.statusCode >= 400) throw Exception(res.body);
+    return jsonDecode(res.body) as Map<String, dynamic>;
+  }
+
+  Future<List<dynamic>> listStaff() async {
+    final res = await http.get(
+      Uri.parse('$baseUrl/providers/me/staff'),
+      headers: _headers,
+    );
+    if (res.statusCode >= 400) throw Exception(res.body);
+    return jsonDecode(res.body) as List<dynamic>;
+  }
+
+  Future<Map<String, dynamic>> inviteStaff({
+    required String phone,
+    String? title,
+    String? name,
+  }) async {
+    final res = await http.post(
+      Uri.parse('$baseUrl/providers/me/staff'),
+      headers: _headers,
+      body: jsonEncode({
+        'phone': phone,
+        if (title != null) 'title': title,
+        if (name != null) 'name': name,
+      }),
+    );
+    if (res.statusCode >= 400) throw Exception(res.body);
+    return jsonDecode(res.body) as Map<String, dynamic>;
+  }
+
+  Future<void> removeStaff(String membershipId) async {
+    final res = await http.delete(
+      Uri.parse('$baseUrl/providers/me/staff/$membershipId'),
+      headers: _headers,
+    );
+    if (res.statusCode >= 400) throw Exception(res.body);
+  }
+
   Future<void> updateLocation(String bookingId, double lat, double lng) async {
     final res = await http.patch(
       Uri.parse('$baseUrl/bookings/$bookingId/location'),

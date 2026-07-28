@@ -7,6 +7,8 @@ import 'package:zana_pro/screens/auth_sheet.dart';
 import 'package:zana_pro/screens/buy_float_sheet.dart';
 import 'package:zana_pro/screens/job_detail_screen.dart';
 import 'package:zana_pro/screens/onboarding_screen.dart';
+import 'package:zana_pro/screens/schedule_screen.dart';
+import 'package:zana_pro/screens/staff_screen.dart';
 import 'package:zana_pro/theme.dart';
 
 class ProHomeScreen extends StatefulWidget {
@@ -24,6 +26,7 @@ class _ProHomeScreenState extends State<ProHomeScreen> {
   List<dynamic> packages = [];
   Map<String, dynamic>? profile;
   Map<String, dynamic>? readiness;
+  bool sharedFloat = false;
   String? error;
   Timer? _locationTimer;
   String? _trackingBookingId;
@@ -79,36 +82,42 @@ class _ProHomeScreenState extends State<ProHomeScreen> {
       final j = await api.jobs();
       final p = await api.packages();
       Map<String, dynamic>? ready;
-      try {
-        ready = await api.readiness();
-      } catch (_) {}
+      final isOwner = me['roleOnShop'] != 'STAFF';
+      if (isOwner) {
+        try {
+          ready = await api.readiness();
+        } catch (_) {}
+      }
       setState(() {
         profile = me;
         readiness = ready;
         online = me['isOnline'] as bool? ?? false;
         credits = bal['creditBalance'] as int? ?? 0;
+        sharedFloat = bal['shared'] == true;
         jobs = j;
         packages = p;
         loading = false;
       });
       _syncLocationTracking(j);
 
-      final blockers = (ready?['blockers'] as List?) ?? [];
-      final needsSetup = blockers.any((b) =>
-          b == 'Shop pin on map' ||
-          b == 'At least one service' ||
-          b == 'Opening hours' ||
-          b == 'Bio');
-      if (needsSetup) {
-        if (!mounted) return;
-        await Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (_) => OnboardingScreen(
-              profile: me,
-              onDone: _bootstrap,
+      if (isOwner) {
+        final blockers = (ready?['blockers'] as List?) ?? [];
+        final needsSetup = blockers.any((b) =>
+            b == 'Shop pin on map' ||
+            b == 'At least one service' ||
+            b == 'Opening hours' ||
+            b == 'Bio');
+        if (needsSetup) {
+          if (!mounted) return;
+          await Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => OnboardingScreen(
+                profile: me,
+                onDone: _bootstrap,
+              ),
             ),
-          ),
-        );
+          );
+        }
       }
     } catch (e) {
       setState(() {
@@ -275,10 +284,34 @@ class _ProHomeScreenState extends State<ProHomeScreen> {
                               ),
                             ),
                             IconButton(
-                              tooltip: 'Shop setup',
-                              onPressed: _openSetup,
-                              icon: const Icon(Icons.storefront_outlined),
+                              tooltip: 'Schedule',
+                              onPressed: () {
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) => const ScheduleScreen(),
+                                  ),
+                                );
+                              },
+                              icon: const Icon(Icons.calendar_today_outlined),
                             ),
+                            if (profile?['roleOnShop'] != 'STAFF')
+                              IconButton(
+                                tooltip: 'Team',
+                                onPressed: () {
+                                  Navigator.of(context).push(
+                                    MaterialPageRoute(
+                                      builder: (_) => const StaffScreen(),
+                                    ),
+                                  );
+                                },
+                                icon: const Icon(Icons.groups_outlined),
+                              ),
+                            if (profile?['roleOnShop'] != 'STAFF')
+                              IconButton(
+                                tooltip: 'Shop setup',
+                                onPressed: _openSetup,
+                                icon: const Icon(Icons.storefront_outlined),
+                              ),
                             IconButton(
                               tooltip: 'Sign out',
                               onPressed: () async {
@@ -291,64 +324,68 @@ class _ProHomeScreenState extends State<ProHomeScreen> {
                         ),
                         if (profile != null)
                           Text(
-                            profile!['displayName'] as String? ?? '',
+                            '${profile!['displayName'] ?? ''}'
+                            '${profile!['roleOnShop'] == 'STAFF' ? ' · Staff' : ''}'
+                            '${sharedFloat ? ' · shared float' : ''}',
                             style: const TextStyle(color: ZanaColors.muted),
                           ),
                         const SizedBox(height: 16),
-                        if (readiness != null &&
-                            (readiness!['ready'] as bool? ?? false) == false) ...[
+                        if (profile?['roleOnShop'] != 'STAFF') ...[
+                          if (readiness != null &&
+                              (readiness!['ready'] as bool? ?? false) == false) ...[
+                            Container(
+                              padding: const EdgeInsets.all(14),
+                              decoration: BoxDecoration(
+                                color: ZanaColors.paper,
+                                borderRadius: BorderRadius.circular(14),
+                                border: Border.all(color: ZanaColors.copper.withValues(alpha: 0.4)),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text('Finish setup to go online',
+                                      style: TextStyle(fontWeight: FontWeight.w700)),
+                                  const SizedBox(height: 6),
+                                  ...((readiness!['blockers'] as List?) ?? []).map(
+                                    (b) => Text('• $b',
+                                        style: const TextStyle(color: ZanaColors.muted, fontSize: 13)),
+                                  ),
+                                  TextButton(
+                                    onPressed: _openSetup,
+                                    child: const Text('Open shop setup'),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                          ],
                           Container(
-                            padding: const EdgeInsets.all(14),
+                            padding: const EdgeInsets.all(16),
                             decoration: BoxDecoration(
                               color: ZanaColors.paper,
-                              borderRadius: BorderRadius.circular(14),
-                              border: Border.all(color: ZanaColors.copper.withValues(alpha: 0.4)),
+                              borderRadius: BorderRadius.circular(16),
                             ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                            child: Row(
                               children: [
-                                const Text('Finish setup to go online',
-                                    style: TextStyle(fontWeight: FontWeight.w700)),
-                                const SizedBox(height: 6),
-                                ...((readiness!['blockers'] as List?) ?? []).map(
-                                  (b) => Text('• $b',
-                                      style: const TextStyle(color: ZanaColors.muted, fontSize: 13)),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      const Text('Go Online',
+                                          style: TextStyle(fontWeight: FontWeight.w700)),
+                                      Text(
+                                        online ? 'Accepting jobs' : 'Offline',
+                                        style: const TextStyle(color: ZanaColors.muted),
+                                      ),
+                                    ],
+                                  ),
                                 ),
-                                TextButton(
-                                  onPressed: _openSetup,
-                                  child: const Text('Open shop setup'),
-                                ),
+                                Switch(value: online, onChanged: _toggle),
                               ],
                             ),
                           ),
                           const SizedBox(height: 12),
                         ],
-                        Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: ZanaColors.paper,
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    const Text('Go Online',
-                                        style: TextStyle(fontWeight: FontWeight.w700)),
-                                    Text(
-                                      online ? 'Accepting jobs' : 'Offline',
-                                      style: const TextStyle(color: ZanaColors.muted),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              Switch(value: online, onChanged: _toggle),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 12),
                         Container(
                           padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
@@ -380,6 +417,11 @@ class _ProHomeScreenState extends State<ProHomeScreen> {
                                   style: TextButton.styleFrom(
                                       foregroundColor: ZanaColors.copper),
                                   child: const Text('Buy float'),
+                                )
+                              else
+                                const Text(
+                                  'No packages',
+                                  style: TextStyle(color: Colors.white54, fontSize: 12),
                                 ),
                             ],
                           ),

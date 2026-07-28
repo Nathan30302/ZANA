@@ -140,6 +140,33 @@ export class ProvidersController {
     return this.providers.addPhotos(user.id, body.urls ?? []);
   }
 
+  @Get('me/staff')
+  async listStaff(@Headers('authorization') authorization?: string) {
+    const user = await this.auth.userFromToken(authorization);
+    if (!user) throw new UnauthorizedException();
+    return this.providers.listStaff(user.id);
+  }
+
+  @Post('me/staff')
+  async inviteStaff(
+    @Headers('authorization') authorization: string | undefined,
+    @Body() body: { phone: string; title?: string; name?: string },
+  ) {
+    const user = await this.auth.userFromToken(authorization);
+    if (!user) throw new UnauthorizedException();
+    return this.providers.inviteStaff(user.id, body);
+  }
+
+  @Delete('me/staff/:membershipId')
+  async removeStaff(
+    @Headers('authorization') authorization: string | undefined,
+    @Param('membershipId') membershipId: string,
+  ) {
+    const user = await this.auth.userFromToken(authorization);
+    if (!user) throw new UnauthorizedException();
+    return this.providers.removeStaff(user.id, membershipId);
+  }
+
   @Get(':id')
   get(@Param('id') id: string) {
     return this.providers.get(id);

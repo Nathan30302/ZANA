@@ -11,6 +11,7 @@ import { PrismaModule } from './prisma/prisma.module';
 import { ProvidersModule } from './providers/providers.module';
 import { ReviewsModule } from './reviews/reviews.module';
 import { UploadsModule } from './uploads/uploads.module';
+import { FavoritesModule } from './favorites/favorites.module';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { UploadsModule } from './uploads/uploads.module';
     FloatsModule,
     ReviewsModule,
     UploadsModule,
+    FavoritesModule,
     AdminModule,
   ],
 })

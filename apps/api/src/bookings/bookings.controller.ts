@@ -49,6 +49,16 @@ export class BookingsController {
     return this.bookings.listForUser(user.id, asRole);
   }
 
+  @Get('schedule')
+  async schedule(
+    @Headers('authorization') authorization: string | undefined,
+    @Query('date') date?: string,
+  ) {
+    const user = await this.auth.userFromToken(authorization);
+    if (!user) throw new UnauthorizedException();
+    return this.bookings.scheduleForProvider(user.id, date);
+  }
+
   @Get(':id')
   async get(
     @Headers('authorization') authorization: string | undefined,

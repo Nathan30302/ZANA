@@ -67,6 +67,7 @@ model User {
   bookingsAsCustomer Booking[] @relation("CustomerBookings")
   reviews         Review[]
   applications    ProviderApplication[]
+  favorites       Favorite[]
 }
 
 model ProviderProfile {
@@ -96,17 +97,30 @@ model ProviderProfile {
   bookings   Booking[] @relation("ProviderBookings")
   photos     ProviderPhoto[]
   floatPurchases FloatPurchase[]
+  favorites  Favorite[]
 }
 
 model StaffMembership {
-  id         String @id @default(cuid())
+  id         String   @id @default(cuid())
   providerId String
   userId     String
   title      String?
+  createdAt  DateTime @default(now())
   provider   ProviderProfile @relation(fields: [providerId], references: [id], onDelete: Cascade)
   user       User            @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([providerId, userId])
+}
+
+model Favorite {
+  id         String   @id @default(cuid())
+  userId     String
+  providerId String
+  createdAt  DateTime @default(now())
+  user       User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  provider   ProviderProfile @relation(fields: [providerId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, providerId])
 }
 
 model ProviderPhoto {

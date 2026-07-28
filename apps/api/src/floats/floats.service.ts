@@ -30,10 +30,7 @@ export class FloatsService {
     packageId: string,
     input: { method?: PaymentMethod; phone?: string; simulate?: boolean } = {},
   ) {
-    const profile = await this.prisma.providerProfile.findUnique({
-      where: { userId },
-      include: { user: true },
-    });
+    const profile = await this.resolveShopProfile(userId);
     if (!profile) throw new NotFoundException('Provider profile not found');
 
     const pkg = await this.prisma.floatPackage.findFirst({
@@ -144,11 +141,28 @@ export class FloatsService {
   }
 
   async balance(userId: string) {
-    const profile = await this.prisma.providerProfile.findUnique({
-      where: { userId },
-      select: { creditBalance: true, displayName: true },
-    });
+    const profile = await this.resolveShopProfile(userId);
     if (!profile) throw new NotFoundException('Provider profile not found');
-    return profile;
+    return {
+      creditBalance: profile.creditBalance,
+      displayName: profile.displayName,
+      shared: profile.userId !== userId,
+    };
+  }
+
+  /** Owner shop, or first staff membership shop (shared team float). */
+  private async resolveShopProfile(userId: string) {
+    const owned = await this.prisma.providerProfile.findUnique({
+      where: { userId },
+      include: { user: true },
+    });
+    if (owned) return owned;
+
+    const staff = await this.prisma.staffMembership.findFirst({
+      where: { userId },
+      include: { provider: { include: { user: true } } },
+      orderBy: { createdAt: 'asc' },
+    });
+    return staff?.provider ?? null;
   }
 }

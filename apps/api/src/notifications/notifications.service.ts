@@ -8,8 +8,8 @@ export type PushPayload = {
 };
 
 /**
- * FCM push stub. When FIREBASE_SERVER_KEY / GOOGLE_APPLICATION_CREDENTIALS
- * are set, swap send() to firebase-admin messaging. Until then we log.
+ * FCM push. Uses legacy HTTP API when FIREBASE_SERVER_KEY is set.
+ * Without keys, logs only (safe for local/dev).
  */
 @Injectable()
 export class NotificationsService {
@@ -27,16 +27,38 @@ export class NotificationsService {
       return { sent: false, reason: 'no_token' };
     }
 
-    if (!process.env.FIREBASE_SERVER_KEY && !process.env.GOOGLE_APPLICATION_CREDENTIALS) {
+    const serverKey = process.env.FIREBASE_SERVER_KEY;
+    if (!serverKey) {
       this.logger.log(
         `[FCM stub] → ${user.phone}: ${payload.title} — ${payload.body}`,
       );
       return { sent: false, reason: 'firebase_not_configured', token: user.fcmToken };
     }
 
-    // Production hook: use firebase-admin here
-    this.logger.log(`[FCM] would send to ${user.fcmToken.slice(0, 12)}… ${payload.title}`);
-    return { sent: true };
+    try {
+      const res = await fetch('https://fcm.googleapis.com/fcm/send', {
+        method: 'POST',
+        headers: {
+          Authorization: `key=${serverKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          to: user.fcmToken,
+          notification: { title: payload.title, body: payload.body },
+          data: payload.data ?? {},
+          priority: 'high',
+        }),
+      });
+      if (!res.ok) {
+        const text = await res.text();
+        this.logger.error(`FCM send failed: ${text}`);
+        return { sent: false, reason: 'fcm_error' };
+      }
+      return { sent: true };
+    } catch (e) {
+      this.logger.error(`FCM error: ${e}`);
+      return { sent: false, reason: 'fcm_exception' };
+    }
   }
 
   async notifyBookingParties(input: {

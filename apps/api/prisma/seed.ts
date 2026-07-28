@@ -391,8 +391,38 @@ async function main() {
 
   await seedSampleReviews();
 
+  // Demo staff on Lusaka Cuts (shared float)
+  const lusakaCuts = await prisma.providerProfile.findFirst({
+    where: { displayName: 'Lusaka Cuts' },
+  });
+  if (lusakaCuts) {
+    const staffUser = await prisma.user.upsert({
+      where: { phone: '+260970000021' },
+      update: { name: 'Junior Barber', role: 'STAFF' },
+      create: {
+        phone: '+260970000021',
+        name: 'Junior Barber',
+        role: 'STAFF',
+      },
+    });
+    await prisma.staffMembership.upsert({
+      where: {
+        providerId_userId: {
+          providerId: lusakaCuts.id,
+          userId: staffUser.id,
+        },
+      },
+      update: { title: 'Junior' },
+      create: {
+        providerId: lusakaCuts.id,
+        userId: staffUser.id,
+        title: 'Junior',
+      },
+    });
+  }
+
   console.log(
-    `Seeded ${seeds.length} Lusaka providers across ${AREAS.length} areas + reviews + float packages + admin`,
+    `Seeded ${seeds.length} Lusaka providers across ${AREAS.length} areas + reviews + float packages + admin + staff`,
   );
 }
 

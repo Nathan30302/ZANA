@@ -166,10 +166,13 @@ export class BookingsService {
 
   async listForUser(userId: string, role: 'customer' | 'provider') {
     await this.expireStaleRequested();
-    const where: Prisma.BookingWhereInput =
-      role === 'customer'
-        ? { customerId: userId }
-        : { provider: { userId } };
+    let where: Prisma.BookingWhereInput;
+    if (role === 'customer') {
+      where = { customerId: userId };
+    } else {
+      const providerIds = await this.providerIdsForUser(userId);
+      where = { providerId: { in: providerIds } };
+    }
     const rows = await this.prisma.booking.findMany({
       where,
       include: {
@@ -181,6 +184,66 @@ export class BookingsService {
       orderBy: { createdAt: 'desc' },
     });
     return rows.map((b) => this.serialize(b, userId));
+  }
+
+  private async providerIdsForUser(userId: string): Promise<string[]> {
+    const owned = await this.prisma.providerProfile.findUnique({
+      where: { userId },
+      select: { id: true },
+    });
+    const staff = await this.prisma.staffMembership.findMany({
+      where: { userId },
+      select: { providerId: true },
+    });
+    const ids = [
+      ...(owned ? [owned.id] : []),
+      ...staff.map((s) => s.providerId),
+    ];
+    return [...new Set(ids)];
+  }
+
+  async scheduleForProvider(userId: string, dateIso?: string) {
+    await this.expireStaleRequested();
+    const providerIds = await this.providerIdsForUser(userId);
+    if (providerIds.length === 0) {
+      throw new ForbiddenException('Not a provider or staff member');
+    }
+
+    const day = dateIso ? new Date(`${dateIso}T00:00:00.000Z`) : new Date();
+    if (Number.isNaN(day.getTime())) {
+      throw new BadRequestException('date must be YYYY-MM-DD');
+    }
+    const start = new Date(
+      Date.UTC(day.getUTCFullYear(), day.getUTCMonth(), day.getUTCDate()),
+    );
+    const end = new Date(start);
+    end.setUTCDate(end.getUTCDate() + 1);
+
+    const rows = await this.prisma.booking.findMany({
+      where: {
+        providerId: { in: providerIds },
+        scheduledAt: { gte: start, lt: end },
+        status: {
+          notIn: [
+            BookingStatus.CANCELLED,
+            BookingStatus.DECLINED,
+            BookingStatus.EXPIRED,
+          ],
+        },
+      },
+      include: {
+        service: true,
+        provider: { include: { user: true } },
+        customer: true,
+        review: true,
+      },
+      orderBy: { scheduledAt: 'asc' },
+    });
+
+    return {
+      date: start.toISOString().slice(0, 10),
+      jobs: rows.map((b) => this.serialize(b, userId)),
+    };
   }
 
   async getForUser(bookingId: string, userId: string) {
@@ -195,9 +258,10 @@ export class BookingsService {
       },
     });
     if (!booking) throw new NotFoundException('Booking not found');
+    const providerIds = await this.providerIdsForUser(userId);
     if (
       booking.customerId !== userId &&
-      booking.provider.userId !== userId
+      !providerIds.includes(booking.providerId)
     ) {
       throw new ForbiddenException();
     }
@@ -215,7 +279,8 @@ export class BookingsService {
       include: { provider: true },
     });
     if (!booking) throw new NotFoundException('Booking not found');
-    if (booking.provider.userId !== providerUserId) {
+    const providerIds = await this.providerIdsForUser(providerUserId);
+    if (!providerIds.includes(booking.providerId)) {
       throw new ForbiddenException();
     }
     const updated = await this.prisma.booking.update({
@@ -249,7 +314,8 @@ export class BookingsService {
     if (!booking) throw new NotFoundException('Booking not found');
 
     const isOwnerCustomer = booking.customerId === actor.id;
-    const isOwnerProvider = booking.provider.userId === actor.id;
+    const providerIds = await this.providerIdsForUser(actor.id);
+    const isOwnerProvider = providerIds.includes(booking.providerId);
     if (!isOwnerCustomer && !isOwnerProvider) {
       throw new ForbiddenException();
     }

@@ -199,6 +199,38 @@ class ZanaApi {
     if (res.statusCode >= 400) throw Exception(res.body);
     return jsonDecode(res.body) as List<dynamic>;
   }
+
+  Future<List<dynamic>> listFavorites() async {
+    final res = await http.get(Uri.parse('$baseUrl/favorites'), headers: _headers);
+    if (res.statusCode >= 400) throw Exception(res.body);
+    return jsonDecode(res.body) as List<dynamic>;
+  }
+
+  Future<void> addFavorite(String providerId) async {
+    final res = await http.post(
+      Uri.parse('$baseUrl/favorites'),
+      headers: _headers,
+      body: jsonEncode({'providerId': providerId}),
+    );
+    if (res.statusCode >= 400) throw Exception(res.body);
+  }
+
+  Future<void> removeFavorite(String providerId) async {
+    final res = await http.delete(
+      Uri.parse('$baseUrl/favorites/$providerId'),
+      headers: _headers,
+    );
+    if (res.statusCode >= 400) throw Exception(res.body);
+  }
+
+  Future<bool> isFavorite(String providerId) async {
+    final res = await http.get(
+      Uri.parse('$baseUrl/favorites/$providerId/status'),
+      headers: _headers,
+    );
+    if (res.statusCode >= 400) return false;
+    return (jsonDecode(res.body) as Map)['favorited'] == true;
+  }
 }
 
 final api = ZanaApi();

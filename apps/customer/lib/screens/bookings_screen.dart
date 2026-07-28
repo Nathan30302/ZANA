@@ -117,6 +117,14 @@ class _BookingsScreenState extends State<BookingsScreen> {
                       if (snap.hasError) {
                         return Center(child: Text('${snap.error}'));
                       }
+                if (api.token == null) {
+                        return const Center(
+                          child: Text(
+                            'Sign in to see your bookings.',
+                            style: TextStyle(color: ZanaColors.muted),
+                          ),
+                        );
+                      }
                       final items = _applyFilter(snap.data ?? []);
                       if (items.isEmpty) {
                         return const Center(

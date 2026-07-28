@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:zana_customer/api.dart';
 import 'package:zana_customer/screens/bookings_screen.dart';
+import 'package:zana_customer/screens/favorites_screen.dart';
 import 'package:zana_customer/screens/nearby_map_screen.dart';
 import 'package:zana_customer/screens/provider_screen.dart';
 import 'package:zana_customer/theme.dart';
@@ -74,7 +75,16 @@ class _HomeScreenState extends State<HomeScreen> {
       final pos = await Geolocator.getCurrentPosition();
       userLat = pos.latitude;
       userLng = pos.longitude;
-    } catch (_) {}
+    } catch (_) {
+      // Fall back to Lusaka CBD — tell the user once.
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Using Lusaka CBD — enable location for nearby pros'),
+          ),
+        );
+      }
+    }
   }
 
   Future<List<dynamic>> _load() async {
@@ -141,6 +151,15 @@ class _HomeScreenState extends State<HomeScreen> {
                       );
                     },
                     icon: const Icon(Icons.map_outlined),
+                  ),
+                  IconButton(
+                    tooltip: 'Favorites',
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const FavoritesScreen()),
+                      );
+                    },
+                    icon: const Icon(Icons.favorite_border),
                   ),
                   IconButton(
                     tooltip: 'My bookings',
