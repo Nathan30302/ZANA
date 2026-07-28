@@ -165,7 +165,12 @@ class _ProHomeScreenState extends State<ProHomeScreen>
   void _syncLocationTracking(List<dynamic> jobList) {
     final active = jobList.cast<Map<String, dynamic>>().where((j) {
       final s = j['status'] as String?;
-      return s == 'ON_THE_WAY' || s == 'IN_SERVICE';
+      // Share GPS as soon as accepted so the customer sees the pro moving
+      // (Yango-style), not only after tapping "On the way".
+      return s == 'ACCEPTED' ||
+          s == 'ON_THE_WAY' ||
+          s == 'IN_SERVICE' ||
+          s == 'CONFIRMED';
     }).toList();
 
     if (active.isEmpty) {
@@ -180,7 +185,7 @@ class _ProHomeScreenState extends State<ProHomeScreen>
     _trackingBookingId = id;
     _locationTimer?.cancel();
     _pingLocation(id);
-    _locationTimer = Timer.periodic(const Duration(seconds: 12), (_) {
+    _locationTimer = Timer.periodic(const Duration(seconds: 6), (_) {
       _pingLocation(id);
     });
   }

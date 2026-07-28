@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:zana_pro/api.dart';
 import 'package:zana_pro/theme.dart';
 
@@ -74,6 +75,18 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
       return;
     }
     await _load();
+  }
+
+  Future<void> _navigateToCustomer(double lat, double lng) async {
+    final uri = Uri.parse(
+      'https://www.google.com/maps/dir/?api=1&destination=$lat,$lng&travelmode=driving',
+    );
+    final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!ok && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not open maps')),
+      );
+    }
   }
 
   Future<void> _advance(
@@ -404,6 +417,24 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
                   title: 'Address',
                   lines: [b['customerAddress'] as String? ?? '—'],
                 ),
+                if ((b['customerLat'] as num?) != null &&
+                    (b['customerLng'] as num?) != null &&
+                    !_isTerminal(status)) ...[
+                  const SizedBox(height: 10),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: busy
+                          ? null
+                          : () => _navigateToCustomer(
+                                (b['customerLat'] as num).toDouble(),
+                                (b['customerLng'] as num).toDouble(),
+                              ),
+                      icon: const Icon(Icons.navigation_rounded),
+                      label: const Text('Navigate to customer'),
+                    ),
+                  ),
+                ],
                 if (b['notes'] != null &&
                     (b['notes'] as String).isNotEmpty) ...[
                   const SizedBox(height: 10),

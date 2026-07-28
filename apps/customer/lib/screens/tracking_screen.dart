@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -26,7 +27,7 @@ class TrackingScreen extends StatefulWidget {
 }
 
 class _TrackingScreenState extends State<TrackingScreen>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   Map<String, dynamic>? booking;
   Timer? timer;
   String? error;
@@ -35,6 +36,21 @@ class _TrackingScreenState extends State<TrackingScreen>
   bool promptedReview = false;
   late final AnimationController pulse;
 
+  /// Smooth live position between GPS samples (Yango-style glide).
+  LatLng? _displayPro;
+  LatLng? _fromPro;
+  LatLng? _toPro;
+  double _moveT = 1;
+  DateTime? _moveStarted;
+  static const _glideMs = 3800;
+
+  DrivingRoute? _route;
+  String? _routeKey;
+  bool _followPro = true;
+  bool _didFit = false;
+  DateTime? _lastRouteFetch;
+  Ticker? _glideTicker;
+
   @override
   void initState() {
     super.initState();
@@ -42,26 +58,116 @@ class _TrackingScreenState extends State<TrackingScreen>
       vsync: this,
       duration: const Duration(milliseconds: 1400),
     )..repeat(reverse: true);
+    _glideTicker = createTicker(_onGlideTick)..start();
     _load();
-    timer = Timer.periodic(const Duration(seconds: 4), (_) => _load());
+    timer = Timer.periodic(const Duration(seconds: 3), (_) => _load());
   }
 
   @override
   void dispose() {
     timer?.cancel();
+    _glideTicker?.dispose();
     pulse.dispose();
     super.dispose();
+  }
+
+  void _onGlideTick(Duration _) {
+    if (_fromPro == null || _toPro == null || _moveT >= 1) return;
+    final started = _moveStarted;
+    if (started == null) return;
+    final t =
+        (DateTime.now().difference(started).inMilliseconds / _glideMs)
+            .clamp(0.0, 1.0);
+    final eased = Curves.easeInOut.transform(t);
+    final next = lerpLatLng(_fromPro!, _toPro!, eased);
+    if (!mounted) return;
+    setState(() {
+      _moveT = t;
+      _displayPro = next;
+    });
+    if (_followPro &&
+        (booking?['status'] == 'ON_THE_WAY' ||
+            booking?['status'] == 'ACCEPTED')) {
+      mapController.move(next, mapController.camera.zoom);
+    }
+  }
+
+  void _setProTarget(LatLng target) {
+    final current = _displayPro ?? _toPro;
+    if (current == null) {
+      _displayPro = target;
+      _fromPro = target;
+      _toPro = target;
+      _moveT = 1;
+      return;
+    }
+    final jumped = haversineKm(
+          current.latitude,
+          current.longitude,
+          target.latitude,
+          target.longitude,
+        ) ??
+        0;
+    // Ignore tiny GPS noise; restart glide for real movement.
+    if (jumped < 0.012) {
+      _toPro = target;
+      return;
+    }
+    _fromPro = current;
+    _toPro = target;
+    _moveT = 0;
+    _moveStarted = DateTime.now();
   }
 
   Future<void> _load() async {
     try {
       final b = await api.getBooking(widget.bookingId);
       if (!mounted) return;
+
+      final provider = b['provider'] as Map<String, dynamic>?;
+      final customerLat = (b['customerLat'] as num?)?.toDouble();
+      final customerLng = (b['customerLng'] as num?)?.toDouble();
+      final providerLat = (b['providerLat'] as num?)?.toDouble() ??
+          (provider?['lat'] as num?)?.toDouble();
+      final providerLng = (b['providerLng'] as num?)?.toDouble() ??
+          (provider?['lng'] as num?)?.toDouble();
+      final status = b['status'] as String?;
+
+      if (providerLat != null && providerLng != null) {
+        _setProTarget(LatLng(providerLat, providerLng));
+      }
+
       setState(() {
         booking = b;
         error = null;
       });
-      final status = b['status'] as String?;
+
+      if (customerLat != null &&
+          customerLng != null &&
+          providerLat != null &&
+          providerLng != null &&
+          (status == 'ACCEPTED' ||
+              status == 'ON_THE_WAY' ||
+              status == 'CONFIRMED')) {
+        await _ensureRoute(
+          fromLat: providerLat,
+          fromLng: providerLng,
+          toLat: customerLat,
+          toLng: customerLng,
+        );
+        if (!_didFit && mounted) {
+          _didFit = true;
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!mounted) return;
+            fitMapToPins(
+              mapController,
+              LatLng(providerLat, providerLng),
+              LatLng(customerLat, customerLng),
+            );
+          });
+        }
+      }
+
       if (widget.openReviewWhenDone &&
           !promptedReview &&
           (status == 'COMPLETED' || status == 'RATED')) {
@@ -75,6 +181,35 @@ class _TrackingScreenState extends State<TrackingScreen>
       if (!mounted) return;
       setState(() => error = e.toString());
     }
+  }
+
+  Future<void> _ensureRoute({
+    required double fromLat,
+    required double fromLng,
+    required double toLat,
+    required double toLng,
+  }) async {
+    final key =
+        '${fromLat.toStringAsFixed(4)},${fromLng.toStringAsFixed(4)}→${toLat.toStringAsFixed(4)},${toLng.toStringAsFixed(4)}';
+    final now = DateTime.now();
+    if (_routeKey == key && _route != null) return;
+    if (_lastRouteFetch != null &&
+        now.difference(_lastRouteFetch!) < const Duration(seconds: 12) &&
+        _route != null) {
+      return;
+    }
+    _lastRouteFetch = now;
+    final route = await fetchDrivingRoute(
+      fromLat: fromLat,
+      fromLng: fromLng,
+      toLat: toLat,
+      toLng: toLng,
+    );
+    if (!mounted || route == null) return;
+    setState(() {
+      _route = route;
+      _routeKey = key;
+    });
   }
 
   void _goToReview() {
@@ -116,9 +251,9 @@ class _TrackingScreenState extends State<TrackingScreen>
       case 'REQUESTED':
         return 'Looking for $name nearby… hang tight while they accept.';
       case 'ACCEPTED':
-        return '$name accepted — get ready, they’re preparing to head your way.';
+        return '$name accepted. They’re getting ready — live location updates as they head out.';
       case 'ON_THE_WAY':
-        return '$name is on the move. Sit tight — we’ll update as they get closer.';
+        return '$name is coming to you. Watch them move on the map in real time.';
       case 'CONFIRMED':
         return 'You’re checked in. Relax — service is about to start.';
       case 'IN_SERVICE':
@@ -142,9 +277,9 @@ class _TrackingScreenState extends State<TrackingScreen>
       case 'REQUESTED':
         return 'Finding your pro';
       case 'ACCEPTED':
-        return 'Accepted';
+        return 'Pro accepted';
       case 'ON_THE_WAY':
-        return 'On the way';
+        return 'On the way to you';
       case 'CONFIRMED':
         return 'Arrived / ready';
       case 'IN_SERVICE':
@@ -158,6 +293,19 @@ class _TrackingScreenState extends State<TrackingScreen>
     }
   }
 
+  String? _freshnessLabel(Map<String, dynamic>? b) {
+    final raw = b?['providerLocationUpdatedAt'] as String?;
+    if (raw == null) return null;
+    final at = DateTime.tryParse(raw)?.toLocal();
+    if (at == null) return null;
+    final secs = DateTime.now().difference(at).inSeconds;
+    if (secs < 20) return 'Live · just now';
+    if (secs < 60) return 'Live · ${secs}s ago';
+    final mins = (secs / 60).floor();
+    if (mins < 5) return 'Updated ${mins}m ago';
+    return 'Location may be stale';
+  }
+
   List<String> get _steps => const [
         'REQUESTED',
         'ACCEPTED',
@@ -165,6 +313,25 @@ class _TrackingScreenState extends State<TrackingScreen>
         'IN_SERVICE',
         'COMPLETED',
       ];
+
+  void _recenter() {
+    final b = booking;
+    final customerLat = (b?['customerLat'] as num?)?.toDouble();
+    final customerLng = (b?['customerLng'] as num?)?.toDouble();
+    final pro = _displayPro;
+    if (pro != null && customerLat != null && customerLng != null) {
+      setState(() => _followPro = true);
+      fitMapToPins(mapController, pro, LatLng(customerLat, customerLng));
+      return;
+    }
+    if (pro != null) {
+      mapController.move(pro, 15);
+      return;
+    }
+    if (customerLat != null && customerLng != null) {
+      mapController.move(LatLng(customerLat, customerLng), 14.5);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -174,6 +341,7 @@ class _TrackingScreenState extends State<TrackingScreen>
     final service = b?['service'] as Map<String, dynamic>?;
     final proName = provider?['displayName'] as String? ?? 'Your stylist';
     final durationMin = service?['durationMin'] as int?;
+    final mode = service?['mode'] as String?;
 
     final customerLat = (b?['customerLat'] as num?)?.toDouble();
     final customerLng = (b?['customerLng'] as num?)?.toDouble();
@@ -182,36 +350,53 @@ class _TrackingScreenState extends State<TrackingScreen>
     final providerLng = (b?['providerLng'] as num?)?.toDouble() ??
         (provider?['lng'] as num?)?.toDouble();
 
+    final proPoint = _displayPro ??
+        (providerLat != null && providerLng != null
+            ? LatLng(providerLat, providerLng)
+            : null);
+    final youPoint = customerLat != null && customerLng != null
+        ? LatLng(customerLat, customerLng)
+        : null;
+
     double? distKm;
-    if (customerLat != null &&
-        customerLng != null &&
-        providerLat != null &&
-        providerLng != null) {
-      distKm = haversineKm(customerLat, customerLng, providerLat, providerLng);
+    if (youPoint != null && proPoint != null) {
+      distKm = _route?.distanceKm ??
+          haversineKm(
+            youPoint.latitude,
+            youPoint.longitude,
+            proPoint.latitude,
+            proPoint.longitude,
+          );
     }
 
-    final center = LatLng(
-      providerLat ?? customerLat ?? ZanaApi.lusakaLat,
-      providerLng ?? customerLng ?? ZanaApi.lusakaLng,
-    );
+    final center = proPoint ??
+        youPoint ??
+        const LatLng(ZanaApi.lusakaLat, ZanaApi.lusakaLng);
+
+    double? heading;
+    if (_fromPro != null && _toPro != null && _moveT < 1) {
+      heading = bearingDegrees(_fromPro!, _toPro!);
+    } else if (proPoint != null && youPoint != null) {
+      heading = bearingDegrees(proPoint, youPoint);
+    }
 
     final markers = <Marker>[];
-    if (customerLat != null && customerLng != null) {
+    if (youPoint != null) {
       markers.add(
         Marker(
-          point: LatLng(customerLat, customerLng),
+          point: youPoint,
           width: 52,
           height: 52,
           child: const _YouMarker(),
         ),
       );
     }
-    if (providerLat != null && providerLng != null) {
+    if (proPoint != null) {
       markers.add(
         Marker(
-          point: LatLng(providerLat, providerLng),
-          width: 56,
-          height: 64,
+          point: proPoint,
+          width: 64,
+          height: 72,
           alignment: Alignment.topCenter,
           child: AnimatedBuilder(
             animation: pulse,
@@ -221,38 +406,43 @@ class _TrackingScreenState extends State<TrackingScreen>
                 child: child,
               );
             },
-            child: _ProMarker(initial: proName.isNotEmpty ? proName[0] : 'Z'),
+            child: _ProMarker(
+              initial: proName.isNotEmpty ? proName[0] : 'Z',
+              heading: heading,
+              moving: status == 'ON_THE_WAY' || status == 'ACCEPTED',
+            ),
           ),
         ),
       );
     }
 
     final polylines = <Polyline>[];
-    if (customerLat != null &&
-        customerLng != null &&
-        providerLat != null &&
-        providerLng != null &&
-        (status == 'ON_THE_WAY' ||
-            status == 'ACCEPTED' ||
-            status == 'CONFIRMED')) {
+    final showRoute = status == 'ON_THE_WAY' ||
+        status == 'ACCEPTED' ||
+        status == 'CONFIRMED';
+    if (showRoute && youPoint != null && proPoint != null) {
+      final points = (_route?.points.isNotEmpty == true)
+          ? _route!.points
+          : [proPoint, youPoint];
       polylines.add(
         Polyline(
-          points: [
-            LatLng(providerLat, providerLng),
-            LatLng(customerLat, customerLng),
-          ],
-          color: ZanaColors.copper.withValues(alpha: 0.85),
-          strokeWidth: 3.5,
-          borderStrokeWidth: 1,
-          borderColor: Colors.white.withValues(alpha: 0.5),
+          points: points,
+          color: ZanaColors.copper.withValues(alpha: 0.9),
+          strokeWidth: 4.2,
+          borderStrokeWidth: 1.4,
+          borderColor: Colors.white.withValues(alpha: 0.55),
         ),
       );
     }
 
     final stepIdx = math.max(0, _steps.indexOf(status));
     final showEta = status == 'ON_THE_WAY' || status == 'ACCEPTED';
-    final phoneReady =
-        b?['contactPhone'] != null && !(b!['contactPhone'] as String).contains('*');
+    final phoneReady = b?['contactPhone'] != null &&
+        !(b!['contactPhone'] as String).contains('*');
+    final freshness = _freshnessLabel(b);
+    final etaText = _route != null
+        ? etaLabelFromSeconds(_route!.durationSeconds)
+        : etaLabelFromKm(distKm);
 
     return Scaffold(
       backgroundColor: ZanaColors.ink,
@@ -268,19 +458,24 @@ class _TrackingScreenState extends State<TrackingScreen>
                     options: MapOptions(
                       initialCenter: center,
                       initialZoom: 14.2,
+                      onPositionChanged: (pos, hasGesture) {
+                        if (hasGesture && _followPro) {
+                          setState(() => _followPro = false);
+                        }
+                      },
                       interactionOptions: const InteractionOptions(
                         flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
                       ),
                     ),
                     children: [
                       ...zanaMapTileLayers(context, mapMode),
-                      if (polylines.isNotEmpty) PolylineLayer(polylines: polylines),
+                      if (polylines.isNotEmpty)
+                        PolylineLayer(polylines: polylines),
                       MarkerLayer(markers: markers),
                       ZanaMapAttribution(mode: mapMode),
                     ],
                   ),
                 ),
-                // Top gradient + controls
                 SafeArea(
                   bottom: false,
                   child: Padding(
@@ -298,21 +493,20 @@ class _TrackingScreenState extends State<TrackingScreen>
                         ),
                         const SizedBox(width: 8),
                         _RoundBtn(
-                          icon: Icons.my_location_rounded,
-                          onTap: () {
-                            mapController.move(center, 14.5);
-                          },
+                          icon: _followPro
+                              ? Icons.near_me_rounded
+                              : Icons.my_location_rounded,
+                          onTap: _recenter,
                         ),
                       ],
                     ),
                   ),
                 ),
-                // Status chip floating on map
                 if (showEta && distKm != null)
                   Positioned(
                     top: MediaQuery.of(context).padding.top + 64,
-                    left: 0,
-                    right: 0,
+                    left: 16,
+                    right: 16,
                     child: Center(
                       child: AnimatedBuilder(
                         animation: pulse,
@@ -320,40 +514,58 @@ class _TrackingScreenState extends State<TrackingScreen>
                           return Container(
                             padding: const EdgeInsets.symmetric(
                               horizontal: 16,
-                              vertical: 10,
+                              vertical: 11,
                             ),
                             decoration: BoxDecoration(
                               color: ZanaColors.paper.withValues(
-                                alpha: 0.92 + 0.06 * pulse.value,
+                                alpha: 0.94 + 0.04 * pulse.value,
                               ),
-                              borderRadius: BorderRadius.circular(999),
+                              borderRadius: BorderRadius.circular(18),
                               boxShadow: [
                                 BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.18),
-                                  blurRadius: 16,
+                                  color: Colors.black.withValues(alpha: 0.2),
+                                  blurRadius: 18,
                                 ),
                               ],
                             ),
-                            child: Text(
-                              '${etaLabelFromKm(distKm)} · ${distKm!.toStringAsFixed(1)} km',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w800,
-                                fontSize: 14,
-                              ),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  '$etaText · ${distKm!.toStringAsFixed(1)} km',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 15,
+                                  ),
+                                ),
+                                if (freshness != null) ...[
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    freshness,
+                                    style: TextStyle(
+                                      color: freshness.contains('stale')
+                                          ? Colors.orange.shade800
+                                          : ZanaColors.muted,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
+                              ],
                             ),
                           );
                         },
                       ),
                     ),
                   ),
-                // Bottom journey sheet
                 Align(
                   alignment: Alignment.bottomCenter,
                   child: Container(
                     width: double.infinity,
                     decoration: const BoxDecoration(
                       color: ZanaColors.paper,
-                      borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+                      borderRadius:
+                          BorderRadius.vertical(top: Radius.circular(28)),
                     ),
                     child: SafeArea(
                       top: false,
@@ -395,6 +607,25 @@ class _TrackingScreenState extends State<TrackingScreen>
                                         fontWeight: FontWeight.w700,
                                       ),
                                     ),
+                                  )
+                                else if (status == 'ON_THE_WAY')
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 10,
+                                      vertical: 5,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFECFDF5),
+                                      borderRadius: BorderRadius.circular(999),
+                                    ),
+                                    child: const Text(
+                                      'Live',
+                                      style: TextStyle(
+                                        color: Color(0xFF047857),
+                                        fontWeight: FontWeight.w800,
+                                        fontSize: 12,
+                                      ),
+                                    ),
                                   ),
                               ],
                             ),
@@ -411,19 +642,38 @@ class _TrackingScreenState extends State<TrackingScreen>
                                 fontSize: 14,
                               ),
                             ),
+                            if (mode == 'COMES_TO_YOU' &&
+                                (status == 'ON_THE_WAY' ||
+                                    status == 'ACCEPTED')) ...[
+                              const SizedBox(height: 8),
+                              Text(
+                                'Your pro is coming to your pin — you don’t need to go anywhere.',
+                                style: TextStyle(
+                                  color: ZanaColors.ink.withValues(alpha: 0.75),
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
                             const SizedBox(height: 14),
-                            _MiniTimeline(steps: _steps, current: stepIdx, status: status),
+                            _MiniTimeline(
+                              steps: _steps,
+                              current: stepIdx,
+                              status: status,
+                            ),
                             const SizedBox(height: 16),
                             Row(
                               children: [
                                 CircleAvatar(
                                   radius: 24,
                                   backgroundColor: ZanaColors.sand,
-                                  backgroundImage: provider?['coverPhotoUrl'] != null
-                                      ? NetworkImage(
-                                          provider!['coverPhotoUrl'] as String,
-                                        )
-                                      : null,
+                                  backgroundImage:
+                                      provider?['coverPhotoUrl'] != null
+                                          ? NetworkImage(
+                                              provider!['coverPhotoUrl']
+                                                  as String,
+                                            )
+                                          : null,
                                   child: provider?['coverPhotoUrl'] == null
                                       ? Text(
                                           proName.isNotEmpty ? proName[0] : 'Z',
@@ -436,7 +686,8 @@ class _TrackingScreenState extends State<TrackingScreen>
                                 const SizedBox(width: 12),
                                 Expanded(
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Text(
                                         proName,
@@ -481,7 +732,8 @@ class _TrackingScreenState extends State<TrackingScreen>
                                 ),
                               ],
                             ),
-                            if (status == 'COMPLETED' || status == 'RATED') ...[
+                            if (status == 'COMPLETED' ||
+                                status == 'RATED') ...[
                               const SizedBox(height: 10),
                               SizedBox(
                                 width: double.infinity,
@@ -590,37 +842,53 @@ class _YouMarker extends StatelessWidget {
 }
 
 class _ProMarker extends StatelessWidget {
-  const _ProMarker({required this.initial});
+  const _ProMarker({
+    required this.initial,
+    this.heading,
+    this.moving = false,
+  });
 
   final String initial;
+  final double? heading;
+  final bool moving;
 
   @override
   Widget build(BuildContext context) {
+    final angle = heading == null ? 0.0 : (heading! * math.pi / 180);
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Container(
-          width: 44,
-          height: 44,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: ZanaColors.copper,
-            shape: BoxShape.circle,
-            border: Border.all(color: Colors.white, width: 3),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.35),
-                blurRadius: 10,
-              ),
-            ],
-          ),
-          child: Text(
-            initial.toUpperCase(),
-            style: const TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.w800,
-              fontSize: 16,
+        Transform.rotate(
+          angle: moving && heading != null ? angle : 0,
+          child: Container(
+            width: 48,
+            height: 48,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: ZanaColors.copper,
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.white, width: 3),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.35),
+                  blurRadius: 10,
+                ),
+              ],
             ),
+            child: moving
+                ? const Icon(
+                    Icons.navigation_rounded,
+                    color: Colors.white,
+                    size: 22,
+                  )
+                : Text(
+                    initial.toUpperCase(),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 16,
+                    ),
+                  ),
           ),
         ),
         CustomPaint(

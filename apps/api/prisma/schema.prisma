@@ -183,6 +183,7 @@ model Booking {
   customerAddress     String?
   providerLat         Float?
   providerLng         Float?
+  providerLocationUpdatedAt DateTime?
   contactPhone        String?
   priceZmw            Int
   creditBurned        Boolean       @default(false)

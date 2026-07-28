@@ -366,7 +366,11 @@ export class BookingsService {
     }
     const updated = await this.prisma.booking.update({
       where: { id: bookingId },
-      data: { providerLat: lat, providerLng: lng },
+      data: {
+        providerLat: lat,
+        providerLng: lng,
+        providerLocationUpdatedAt: new Date(),
+      },
       include: bookingInclude,
     });
     return this.serialize(updated, providerUserId, true);
@@ -530,6 +534,7 @@ export class BookingsService {
             creditBurned: true,
             providerLat: booking.provider.lat,
             providerLng: booking.provider.lng,
+            providerLocationUpdatedAt: new Date(),
             contactPhone: booking.provider.user.phone,
           },
           include: bookingInclude,

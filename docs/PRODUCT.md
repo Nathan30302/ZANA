@@ -25,7 +25,25 @@ REQUESTED → ACCEPTED → ON_THE_WAY | CONFIRMED → IN_SERVICE → COMPLETED �
 - **Schedule later:** pick a slot (overlap guarded). Offline pros cannot take new requests.
 - Full client address only after **ACCEPTED** (home visits).
 - 1 accepted/completed job burns **1 float credit**.
-- Live map: satellite/hybrid imagery, ETA, status coaching, call/WhatsApp after accept, review prompt when done.
+- Live map: satellite/hybrid imagery, road route + ETA, smooth pro motion toward the customer pin, status coaching, call/WhatsApp after accept, review prompt when done.
+
+## Live tracking model (comes-to-you)
+
+Default for mobile beauty: **the pro comes to the customer**, not the other way around.
+
+| Who moves | Why |
+|---|---|
+| Pro → customer pin | Customer stays put; least friction (Yango / Uber pattern) |
+| Customer → shop | Only for `AT_SHOP` bookings; no en-route tracker needed |
+
+Customer experience while en route:
+
+1. Pro accepts → GPS sharing starts (shop pin seeds first, then live phone GPS).
+2. Map shows **you** (home pin) + **pro** (moving marker) + **road route**.
+3. ETA + distance update as the pro gets closer; camera can follow the pro.
+4. Pro taps **Navigate to customer** in ZANA Pro for turn-by-turn in Google Maps.
+
+This matches what customers already understand from ride apps, so the booking feel stays familiar without building a second navigation product.
 
 ## Dispatch model (MVP)
 
