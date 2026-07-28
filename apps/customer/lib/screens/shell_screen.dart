@@ -49,8 +49,8 @@ class _CustomerShellState extends State<CustomerShell> {
     } catch (_) {}
   }
 
-  Future<void> _ensureMapData() async {
-    if (mapProviders.isNotEmpty || mapLoading) return;
+  Future<void> _ensureMapData({bool force = false}) async {
+    if (!force && (mapProviders.isNotEmpty || mapLoading)) return;
     setState(() => mapLoading = true);
     try {
       final items = await api.listProviders(lat: userLat, lng: userLng);
@@ -90,12 +90,15 @@ class _CustomerShellState extends State<CustomerShell> {
             },
           ),
           mapLoading && mapProviders.isEmpty
-              ? const Center(child: CircularProgressIndicator())
+              ? const Center(
+                  child: CircularProgressIndicator(color: ZanaColors.copper),
+                )
               : NearbyMapScreen(
                   providers: mapProviders,
                   userLat: userLat,
                   userLng: userLng,
                   embedded: true,
+                  onRefresh: () => _ensureMapData(force: true),
                 ),
           const FavoritesScreen(embedded: true),
           const BookingsScreen(embedded: true),
