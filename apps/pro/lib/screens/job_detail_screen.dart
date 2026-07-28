@@ -1,6 +1,16 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:zana_pro/api.dart';
 import 'package:zana_pro/theme.dart';
+
+const _terminalStatuses = {
+  'COMPLETED',
+  'RATED',
+  'CANCELLED',
+  'DECLINED',
+  'EXPIRED',
+};
 
 class JobDetailScreen extends StatefulWidget {
   const JobDetailScreen({super.key, required this.bookingId});
@@ -15,12 +25,23 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
   Map<String, dynamic>? booking;
   String? error;
   bool busy = false;
+  Timer? _pollTimer;
 
   @override
   void initState() {
     super.initState();
     _load();
+    _pollTimer = Timer.periodic(const Duration(seconds: 5), (_) => _poll());
   }
+
+  @override
+  void dispose() {
+    _pollTimer?.cancel();
+    super.dispose();
+  }
+
+  bool _isTerminal(String? status) =>
+      status != null && _terminalStatuses.contains(status);
 
   Future<void> _load() async {
     try {
@@ -30,10 +51,23 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
         booking = b;
         error = null;
       });
+      if (_isTerminal(b['status'] as String?)) {
+        _pollTimer?.cancel();
+        _pollTimer = null;
+      }
     } catch (e) {
       if (!mounted) return;
       setState(() => error = e.toString());
     }
+  }
+
+  Future<void> _poll() async {
+    if (_isTerminal(booking?['status'] as String?)) {
+      _pollTimer?.cancel();
+      _pollTimer = null;
+      return;
+    }
+    await _load();
   }
 
   Future<void> _advance(String status, {String? declineReason}) async {

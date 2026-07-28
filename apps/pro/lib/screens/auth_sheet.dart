@@ -3,6 +3,7 @@ import 'package:zana_pro/api.dart';
 import 'package:zana_pro/theme.dart';
 
 Future<bool> showProAuthSheet(BuildContext context) async {
+  final nameCtrl = TextEditingController(text: 'Lusaka Cuts');
   final phoneCtrl = TextEditingController(text: '+260970000001');
   final codeCtrl = TextEditingController();
   var codeSent = false;
@@ -41,6 +42,15 @@ Future<bool> showProAuthSheet(BuildContext context) async {
                   style: TextStyle(color: ZanaColors.muted),
                 ),
                 const SizedBox(height: 16),
+                TextField(
+                  controller: nameCtrl,
+                  textCapitalization: TextCapitalization.words,
+                  decoration: const InputDecoration(
+                    labelText: 'Your name',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 10),
                 TextField(
                   controller: phoneCtrl,
                   keyboardType: TextInputType.phone,
@@ -87,16 +97,17 @@ Future<bool> showProAuthSheet(BuildContext context) async {
                         backgroundColor: ZanaColors.charcoal,
                       ),
                       onPressed: () async {
+                        final name = nameCtrl.text.trim();
+                        if (name.isEmpty) {
+                          setModal(() => error = 'Enter your name');
+                          return;
+                        }
                         try {
                           await api.verifyOtp(
                             phoneCtrl.text.trim(),
                             codeCtrl.text.trim(),
+                            name: name,
                           );
-                          try {
-                            await api.registerFcmToken(
-                              'pro-dev-fcm-${DateTime.now().millisecondsSinceEpoch}',
-                            );
-                          } catch (_) {}
                           if (ctx.mounted) Navigator.of(ctx).pop(true);
                         } catch (e) {
                           setModal(() => error = e.toString());

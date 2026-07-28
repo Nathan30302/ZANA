@@ -46,11 +46,19 @@ class ProApi {
     if (res.statusCode >= 400) throw Exception(res.body);
   }
 
-  Future<Map<String, dynamic>> verifyOtp(String phone, String code) async {
+  Future<Map<String, dynamic>> verifyOtp(
+    String phone,
+    String code, {
+    String? name,
+  }) async {
     final res = await http.post(
       Uri.parse('$baseUrl/auth/otp/verify'),
       headers: _headers,
-      body: jsonEncode({'phone': phone, 'code': code}),
+      body: jsonEncode({
+        'phone': phone,
+        'code': code,
+        if (name != null && name.isNotEmpty) 'name': name,
+      }),
     );
     if (res.statusCode >= 400) throw Exception(res.body);
     final data = jsonDecode(res.body) as Map<String, dynamic>;

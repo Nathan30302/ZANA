@@ -29,7 +29,9 @@ class _ProHomeScreenState extends State<ProHomeScreen> {
   bool sharedFloat = false;
   String? error;
   Timer? _locationTimer;
+  Timer? _pollTimer;
   String? _trackingBookingId;
+  bool _setupChecked = false;
 
   @override
   void initState() {
@@ -40,7 +42,39 @@ class _ProHomeScreenState extends State<ProHomeScreen> {
   @override
   void dispose() {
     _locationTimer?.cancel();
+    _pollTimer?.cancel();
     super.dispose();
+  }
+
+  void _startJobPolling() {
+    _pollTimer?.cancel();
+    if (api.token == null) return;
+    _pollTimer = Timer.periodic(const Duration(seconds: 8), (_) {
+      _refreshJobs(silent: true);
+    });
+  }
+
+  Future<void> _refreshJobs({required bool silent}) async {
+    if (api.token == null) return;
+    try {
+      final bal = await api.balance();
+      final j = await api.jobs();
+      if (!mounted) return;
+      setState(() {
+        credits = bal['creditBalance'] as int? ?? 0;
+        sharedFloat = bal['shared'] == true;
+        jobs = j;
+        if (!silent) loading = false;
+        error = null;
+      });
+      _syncLocationTracking(j);
+    } catch (e) {
+      if (!mounted || silent) return;
+      setState(() {
+        error = e.toString();
+        loading = false;
+      });
+    }
   }
 
   Future<void> _bootstrap() async {
@@ -59,11 +93,6 @@ class _ProHomeScreenState extends State<ProHomeScreen> {
           return;
         }
       }
-      try {
-        await api.registerFcmToken(
-          'pro-dev-fcm-${DateTime.now().millisecondsSinceEpoch}',
-        );
-      } catch (_) {}
 
       Map<String, dynamic> me;
       try {
@@ -99,8 +128,10 @@ class _ProHomeScreenState extends State<ProHomeScreen> {
         loading = false;
       });
       _syncLocationTracking(j);
+      _startJobPolling();
 
-      if (isOwner) {
+      if (isOwner && !_setupChecked) {
+        _setupChecked = true;
         final blockers = (ready?['blockers'] as List?) ?? [];
         final needsSetup = blockers.any((b) =>
             b == 'Shop pin on map' ||

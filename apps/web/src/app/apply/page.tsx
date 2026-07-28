@@ -24,6 +24,7 @@ const TOKEN_KEY = 'zana_apply_token';
 
 export default function ApplyPage() {
   const [step, setStep] = useState<Step>('otp');
+  const [name, setName] = useState('');
   const [phone, setPhone] = useState('+260');
   const [code, setCode] = useState('');
   const [token, setToken] = useState('');
@@ -88,10 +89,17 @@ export default function ApplyPage() {
     try {
       const res = await api<{ token: string }>('/auth/otp/verify', {
         method: 'POST',
-        body: JSON.stringify({ phone, code }),
+        body: JSON.stringify({
+          phone,
+          code,
+          ...(name.trim() ? { name: name.trim() } : {}),
+        }),
       });
       localStorage.setItem(TOKEN_KEY, res.token);
       setToken(res.token);
+      if (name.trim() && !form.displayName) {
+        setForm((f) => ({ ...f, displayName: name.trim() }));
+      }
       await loadMine(res.token);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Invalid OTP');
@@ -164,6 +172,15 @@ export default function ApplyPage() {
 
       {step === 'otp' ? (
         <form onSubmit={verifyOtp} style={{ display: 'grid', gap: 12, marginTop: 24 }}>
+          <label>
+            Your name
+            <input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              style={inputStyle}
+              required
+            />
+          </label>
           <label>
             Phone (+260)
             <input

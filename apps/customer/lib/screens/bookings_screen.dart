@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:zana_customer/api.dart';
@@ -12,9 +14,14 @@ class BookingsScreen extends StatefulWidget {
   State<BookingsScreen> createState() => _BookingsScreenState();
 }
 
-class _BookingsScreenState extends State<BookingsScreen> {
-  Future<List<dynamic>>? future;
+class _BookingsScreenState extends State<BookingsScreen>
+    with WidgetsBindingObserver {
+  List<dynamic>? items;
+  String? error;
+  bool loading = true;
   String filter = 'ALL';
+  Timer? _pollTimer;
+  bool _authPrompted = false;
 
   static const filters = [
     'ALL',
@@ -26,25 +33,82 @@ class _BookingsScreenState extends State<BookingsScreen> {
   @override
   void initState() {
     super.initState();
-    _load();
+    WidgetsBinding.instance.addObserver(this);
+    _bootstrap();
   }
 
-  Future<void> _load() async {
-    if (api.token == null) {
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _pollTimer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _startPolling();
+      _refresh(silent: true);
+    } else if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive) {
+      _pollTimer?.cancel();
+      _pollTimer = null;
+    }
+  }
+
+  Future<void> _bootstrap() async {
+    if (api.token == null && !_authPrompted) {
+      _authPrompted = true;
       final ok = await showAuthSheet(context);
       if (!ok) {
-        setState(() => future = Future.value([]));
+        if (!mounted) return;
+        setState(() {
+          items = [];
+          loading = false;
+        });
         return;
       }
     }
-    setState(() {
-      future = api.listBookings();
+    await _refresh(silent: false);
+    _startPolling();
+  }
+
+  void _startPolling() {
+    _pollTimer?.cancel();
+    if (api.token == null) return;
+    _pollTimer = Timer.periodic(const Duration(seconds: 8), (_) {
+      _refresh(silent: true);
     });
   }
 
-  List<dynamic> _applyFilter(List<dynamic> items) {
-    if (filter == 'ALL') return items;
-    return items.where((raw) {
+  Future<void> _refresh({required bool silent}) async {
+    if (api.token == null) return;
+    if (!silent && mounted) {
+      setState(() {
+        loading = true;
+        error = null;
+      });
+    }
+    try {
+      final list = await api.listBookings();
+      if (!mounted) return;
+      setState(() {
+        items = list;
+        loading = false;
+        error = null;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        error = e.toString();
+        loading = false;
+      });
+    }
+  }
+
+  List<dynamic> _applyFilter(List<dynamic> source) {
+    if (filter == 'ALL') return source;
+    return source.where((raw) {
       final s = (raw as Map)['status'] as String?;
       if (filter == 'ACTIVE') {
         return s == 'REQUESTED' ||
@@ -73,6 +137,7 @@ class _BookingsScreenState extends State<BookingsScreen> {
             IconButton(
               tooltip: 'Sign out',
               onPressed: () async {
+                _pollTimer?.cancel();
                 await api.logout();
                 if (!context.mounted) return;
                 Navigator.of(context).pop();
@@ -81,7 +146,7 @@ class _BookingsScreenState extends State<BookingsScreen> {
             ),
         ],
       ),
-      body: future == null
+      body: loading && items == null
           ? const Center(child: CircularProgressIndicator())
           : Column(
               children: [
@@ -107,79 +172,76 @@ class _BookingsScreenState extends State<BookingsScreen> {
                     },
                   ),
                 ),
-                Expanded(
-                  child: FutureBuilder<List<dynamic>>(
-                    future: future,
-                    builder: (context, snap) {
-                      if (snap.connectionState == ConnectionState.waiting) {
-                        return const Center(child: CircularProgressIndicator());
-                      }
-                      if (snap.hasError) {
-                        return Center(child: Text('${snap.error}'));
-                      }
-                if (api.token == null) {
-                        return const Center(
-                          child: Text(
-                            'Sign in to see your bookings.',
-                            style: TextStyle(color: ZanaColors.muted),
-                          ),
-                        );
-                      }
-                      final items = _applyFilter(snap.data ?? []);
-                      if (items.isEmpty) {
-                        return const Center(
-                          child: Text(
-                            'No bookings in this view.\nFind a pro on Home.',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(color: ZanaColors.muted),
-                          ),
-                        );
-                      }
-                      return ListView.separated(
-                        padding: const EdgeInsets.all(16),
-                        itemCount: items.length,
-                        separatorBuilder: (_, __) => const SizedBox(height: 8),
-                        itemBuilder: (context, i) {
-                          final b = items[i] as Map<String, dynamic>;
-                          final service = b['service'] as Map<String, dynamic>?;
-                          final provider = b['provider'] as Map<String, dynamic>?;
-                          final created = DateTime.tryParse(b['createdAt'] as String? ?? '');
-                          return Card(
-                            color: ZanaColors.paper,
-                            elevation: 0,
-                            child: ListTile(
-                              title: Text(service?['name'] as String? ?? 'Service'),
-                              subtitle: Text(
-                                '${provider?['displayName'] ?? 'Pro'} · ${b['status']}'
-                                '${created != null ? '\n${DateFormat('d MMM · HH:mm').format(created.toLocal())}' : ''}',
-                              ),
-                              isThreeLine: created != null,
-                              trailing: Text(
-                                'K${b['priceZmw']}',
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w700,
-                                  color: ZanaColors.copper,
-                                ),
-                              ),
-                              onTap: () async {
-                                await Navigator.of(context).push(
-                                  MaterialPageRoute(
-                                    builder: (_) => BookingDetailScreen(
-                                      bookingId: b['id'] as String,
-                                    ),
-                                  ),
-                                );
-                                _load();
-                              },
-                            ),
-                          );
-                        },
-                      );
-                    },
-                  ),
-                ),
+                Expanded(child: _buildBody()),
               ],
             ),
+    );
+  }
+
+  Widget _buildBody() {
+    if (api.token == null) {
+      return const Center(
+        child: Text(
+          'Sign in to see your bookings.',
+          style: TextStyle(color: ZanaColors.muted),
+        ),
+      );
+    }
+    if (error != null && items == null) {
+      return Center(child: Text(error!));
+    }
+    final filtered = _applyFilter(items ?? []);
+    if (filtered.isEmpty) {
+      return const Center(
+        child: Text(
+          'No bookings in this view.\nFind a pro on Home.',
+          textAlign: TextAlign.center,
+          style: TextStyle(color: ZanaColors.muted),
+        ),
+      );
+    }
+    return RefreshIndicator(
+      onRefresh: () => _refresh(silent: false),
+      child: ListView.separated(
+        padding: const EdgeInsets.all(16),
+        itemCount: filtered.length,
+        separatorBuilder: (_, __) => const SizedBox(height: 8),
+        itemBuilder: (context, i) {
+          final b = filtered[i] as Map<String, dynamic>;
+          final service = b['service'] as Map<String, dynamic>?;
+          final provider = b['provider'] as Map<String, dynamic>?;
+          final created = DateTime.tryParse(b['createdAt'] as String? ?? '');
+          return Card(
+            color: ZanaColors.paper,
+            elevation: 0,
+            child: ListTile(
+              title: Text(service?['name'] as String? ?? 'Service'),
+              subtitle: Text(
+                '${provider?['displayName'] ?? 'Pro'} · ${b['status']}'
+                '${created != null ? '\n${DateFormat('d MMM · HH:mm').format(created.toLocal())}' : ''}',
+              ),
+              isThreeLine: created != null,
+              trailing: Text(
+                'K${b['priceZmw']}',
+                style: const TextStyle(
+                  fontWeight: FontWeight.w700,
+                  color: ZanaColors.copper,
+                ),
+              ),
+              onTap: () async {
+                await Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => BookingDetailScreen(
+                      bookingId: b['id'] as String,
+                    ),
+                  ),
+                );
+                _refresh(silent: true);
+              },
+            ),
+          );
+        },
+      ),
     );
   }
 }

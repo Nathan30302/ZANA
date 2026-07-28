@@ -1,14 +1,36 @@
-import { Injectable, UnauthorizedException, Inject } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  UnauthorizedException,
+  Inject,
+} from '@nestjs/common';
 import { UserRole } from '@prisma/client';
+import * as jwt from 'jsonwebtoken';
 import { PrismaService } from '../prisma/prisma.service';
 import { OTP_PROVIDER, type OtpProvider } from './otp.provider';
 
+type JwtPayload = {
+  sub: string;
+  phone: string;
+};
+
 @Injectable()
 export class AuthService {
+  private readonly jwtSecret: string;
+
   constructor(
     private readonly prisma: PrismaService,
     @Inject(OTP_PROVIDER) private readonly otp: OtpProvider,
-  ) {}
+  ) {
+    this.jwtSecret =
+      process.env.JWT_SECRET?.trim() || 'change-me-in-production';
+    if (!process.env.JWT_SECRET?.trim()) {
+      // Loud local fallback — set JWT_SECRET for any real deploy.
+      console.warn(
+        '[auth] JWT_SECRET unset; using insecure local default. Set JWT_SECRET before deploying.',
+      );
+    }
+  }
 
   async requestOtp(phone: string) {
     const normalized = this.normalizePhone(phone);
@@ -20,18 +42,30 @@ export class AuthService {
     const ok = await this.otp.consume(normalized, code);
     if (!ok) throw new UnauthorizedException('Invalid OTP');
 
+    const existing = await this.prisma.user.findUnique({
+      where: { phone: normalized },
+    });
+    const trimmedName = name?.trim();
+    if (!existing && !trimmedName) {
+      throw new BadRequestException('Name is required for new accounts');
+    }
+
     const user = await this.prisma.user.upsert({
       where: { phone: normalized },
-      update: name ? { name } : {},
+      update: trimmedName ? { name: trimmedName } : {},
       create: {
         phone: normalized,
-        name: name ?? null,
+        name: trimmedName!,
         role: UserRole.CUSTOMER,
       },
       include: { providerProfile: true },
     });
 
-    const token = Buffer.from(`${user.id}:${user.phone}`).toString('base64url');
+    const token = jwt.sign(
+      { sub: user.id, phone: user.phone } satisfies JwtPayload,
+      this.jwtSecret,
+      { expiresIn: '30d' },
+    );
     return { token, user };
   }
 
@@ -47,10 +81,10 @@ export class AuthService {
     if (!token) return null;
     const raw = token.replace(/^Bearer\s+/i, '');
     try {
-      const decoded = Buffer.from(raw, 'base64url').toString('utf8');
-      const [id] = decoded.split(':');
+      const payload = jwt.verify(raw, this.jwtSecret) as JwtPayload;
+      if (!payload?.sub) return null;
       return this.prisma.user.findUnique({
-        where: { id },
+        where: { id: payload.sub },
         include: { providerProfile: true },
       });
     } catch {
