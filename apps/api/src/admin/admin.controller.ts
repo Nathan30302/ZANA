@@ -114,6 +114,30 @@ export class AdminController {
     return this.admin.setDisputeNote(id, body.disputeNote ?? '');
   }
 
+  @Patch('admin/bookings/:id/status')
+  async forceStatus(
+    @Headers('authorization') authorization: string | undefined,
+    @Param('id') id: string,
+    @Body()
+    body: { status: BookingStatus; refundCredit?: boolean; note?: string },
+  ) {
+    await this.requireAdmin(authorization);
+    return this.admin.forceBookingStatus(id, body.status, {
+      refundCredit: body.refundCredit,
+      note: body.note,
+    });
+  }
+
+  @Patch('admin/providers/:id/credits')
+  async adjustCredits(
+    @Headers('authorization') authorization: string | undefined,
+    @Param('id') id: string,
+    @Body() body: { delta: number; note?: string },
+  ) {
+    await this.requireAdmin(authorization);
+    return this.admin.adjustProviderCredits(id, Number(body.delta), body.note);
+  }
+
   @Get('admin/float-packages')
   async floatPackages(@Headers('authorization') authorization?: string) {
     await this.requireAdmin(authorization);

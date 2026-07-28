@@ -89,9 +89,77 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
   }
 
   Future<void> _cancel() async {
+    final reasonCtrl = TextEditingController();
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Cancel booking'),
+        content: TextField(
+          controller: reasonCtrl,
+          decoration: const InputDecoration(
+            labelText: 'Reason',
+            border: OutlineInputBorder(),
+          ),
+          maxLines: 2,
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Back')),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Cancel booking'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
     setState(() => busy = true);
     try {
-      await api.updateBookingStatus(widget.bookingId, 'CANCELLED');
+      await api.updateBookingStatus(
+        widget.bookingId,
+        'CANCELLED',
+        cancelReason: reasonCtrl.text.trim(),
+      );
+      await _reload();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+      }
+    } finally {
+      if (mounted) setState(() => busy = false);
+    }
+  }
+
+  Future<void> _dispute() async {
+    final noteCtrl = TextEditingController();
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Report an issue'),
+        content: TextField(
+          controller: noteCtrl,
+          decoration: const InputDecoration(
+            labelText: 'What went wrong?',
+            border: OutlineInputBorder(),
+          ),
+          maxLines: 3,
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Back')),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Submit'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true || noteCtrl.text.trim().isEmpty) return;
+    setState(() => busy = true);
+    try {
+      await api.reportDispute(widget.bookingId, noteCtrl.text.trim());
       await _reload();
     } catch (e) {
       if (mounted) {
@@ -155,7 +223,10 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
                 final provider = b['provider'] as Map<String, dynamic>?;
                 final canCancel = status == 'REQUESTED' ||
                     status == 'ACCEPTED' ||
-                    status == 'CONFIRMED';
+                    status == 'CONFIRMED' ||
+                    status == 'ON_THE_WAY' ||
+                    status == 'IN_SERVICE';
+                final canDispute = status != 'REQUESTED';
                 final canRate = status == 'COMPLETED';
                 final canTrack = status == 'ON_THE_WAY' ||
                     status == 'IN_SERVICE' ||
@@ -169,6 +240,7 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
                 final scheduled = b['scheduledAt'] != null
                     ? DateTime.tryParse(b['scheduledAt'] as String)
                     : null;
+                final assigned = b['assignedStaff'] as Map<String, dynamic>?;
 
                 return ListView(
                   padding: const EdgeInsets.all(20),
@@ -184,6 +256,11 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
                       '${provider?['displayName'] ?? 'Pro'} · K${b['priceZmw']}',
                       style: const TextStyle(color: ZanaColors.muted),
                     ),
+                    if (assigned != null)
+                      Text(
+                        'Stylist: ${assigned['name'] ?? assigned['phone']}',
+                        style: const TextStyle(color: ZanaColors.muted),
+                      ),
                     if (scheduled != null)
                       Text(
                         'When: ${DateFormat('EEE d MMM · HH:mm').format(scheduled.toLocal())}',
@@ -203,6 +280,16 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
                       Text(
                         'Declined: ${b['declineReason']}',
                         style: TextStyle(color: Colors.red.shade700),
+                      ),
+                    if (b['cancelReason'] != null)
+                      Text(
+                        'Cancelled: ${b['cancelReason']}',
+                        style: TextStyle(color: Colors.red.shade700),
+                      ),
+                    if (b['disputeNote'] != null)
+                      Text(
+                        'Dispute: ${b['disputeNote']}',
+                        style: const TextStyle(color: ZanaColors.muted),
                       ),
                     const SizedBox(height: 20),
                     const Text('Status',
@@ -243,6 +330,13 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
                       OutlinedButton(
                         onPressed: busy ? null : _cancel,
                         child: const Text('Cancel booking'),
+                      ),
+                    ],
+                    if (canDispute) ...[
+                      const SizedBox(height: 8),
+                      TextButton(
+                        onPressed: busy ? null : _dispute,
+                        child: const Text('Report an issue'),
                       ),
                     ],
                     if (canRebook && provider?['id'] != null) ...[

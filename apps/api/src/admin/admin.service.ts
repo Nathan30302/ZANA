@@ -212,6 +212,68 @@ export class AdminService {
     });
   }
 
+  async forceBookingStatus(
+    bookingId: string,
+    status: BookingStatus,
+    opts: { refundCredit?: boolean; note?: string } = {},
+  ) {
+    const booking = await this.prisma.booking.findUnique({
+      where: { id: bookingId },
+    });
+    if (!booking) throw new NotFoundException('Booking not found');
+
+    let creditBurned = booking.creditBurned;
+    if (
+      opts.refundCredit &&
+      booking.creditBurned &&
+      (status === BookingStatus.CANCELLED ||
+        status === BookingStatus.DECLINED ||
+        status === BookingStatus.EXPIRED)
+    ) {
+      await this.prisma.providerProfile.update({
+        where: { id: booking.providerId },
+        data: { creditBalance: { increment: 1 } },
+      });
+      creditBurned = false;
+    }
+
+    const note = opts.note?.trim();
+    const disputeNote = note
+      ? [booking.disputeNote?.trim(), `[admin] ${note}`].filter(Boolean).join('\n')
+      : booking.disputeNote;
+
+    return this.prisma.booking.update({
+      where: { id: bookingId },
+      data: { status, creditBurned, disputeNote },
+      include: {
+        service: true,
+        provider: { select: { id: true, displayName: true, area: true } },
+        customer: { select: { id: true, phone: true, name: true } },
+      },
+    });
+  }
+
+  async adjustProviderCredits(providerId: string, delta: number, note?: string) {
+    if (!Number.isFinite(delta) || delta === 0) {
+      throw new BadRequestException('delta must be a non-zero number');
+    }
+    const provider = await this.prisma.providerProfile.findUnique({
+      where: { id: providerId },
+    });
+    if (!provider) throw new NotFoundException('Provider not found');
+    const next = Math.max(0, provider.creditBalance + Math.trunc(delta));
+    return this.prisma.providerProfile.update({
+      where: { id: providerId },
+      data: { creditBalance: next },
+      select: {
+        id: true,
+        displayName: true,
+        creditBalance: true,
+        area: true,
+      },
+    });
+  }
+
   listFloatPackages() {
     return this.prisma.floatPackage.findMany({ orderBy: { credits: 'asc' } });
   }

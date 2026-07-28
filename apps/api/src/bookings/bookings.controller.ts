@@ -73,7 +73,12 @@ export class BookingsController {
   async status(
     @Headers('authorization') authorization: string | undefined,
     @Param('id') id: string,
-    @Body() body: { status: BookingStatus; declineReason?: string },
+    @Body()
+    body: {
+      status: BookingStatus;
+      declineReason?: string;
+      cancelReason?: string;
+    },
   ) {
     const user = await this.auth.userFromToken(authorization);
     if (!user) throw new UnauthorizedException();
@@ -81,8 +86,37 @@ export class BookingsController {
       id,
       { id: user.id, isProvider: !!user.providerProfile },
       body.status,
-      { declineReason: body.declineReason },
+      {
+        declineReason: body.declineReason,
+        cancelReason: body.cancelReason,
+      },
     );
+  }
+
+  @Patch(':id/assign')
+  async assign(
+    @Headers('authorization') authorization: string | undefined,
+    @Param('id') id: string,
+    @Body() body: { staffUserId?: string | null },
+  ) {
+    const user = await this.auth.userFromToken(authorization);
+    if (!user) throw new UnauthorizedException();
+    return this.bookings.assignStaff(
+      id,
+      user.id,
+      body.staffUserId ?? null,
+    );
+  }
+
+  @Patch(':id/dispute')
+  async dispute(
+    @Headers('authorization') authorization: string | undefined,
+    @Param('id') id: string,
+    @Body() body: { note: string },
+  ) {
+    const user = await this.auth.userFromToken(authorization);
+    if (!user) throw new UnauthorizedException();
+    return this.bookings.reportDispute(id, user.id, body.note);
   }
 
   @Patch(':id/location')

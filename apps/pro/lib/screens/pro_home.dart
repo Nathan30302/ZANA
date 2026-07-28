@@ -466,72 +466,108 @@ class _ProHomeScreenState extends State<ProHomeScreen> {
                           ),
                         ],
                         const SizedBox(height: 20),
-                        const Text('Incoming jobs',
+                        const Text('Active jobs',
                             style: TextStyle(
                                 fontWeight: FontWeight.w700, fontSize: 18)),
                         const SizedBox(height: 8),
-                        if (jobs.isEmpty)
-                          const Padding(
-                            padding: EdgeInsets.symmetric(vertical: 24),
-                            child: Text(
-                              'No jobs yet.\nGo online and wait for nearby requests.',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(color: ZanaColors.muted),
-                            ),
-                          ),
-                        ...jobs.map((raw) {
-                          final job = raw as Map<String, dynamic>;
-                          final service = job['service'] as Map<String, dynamic>?;
-                          final status = job['status'] as String;
-                          final address = job['customerAddress'] as String?;
-                          Widget? action;
-                          if (status == 'REQUESTED') {
-                            action = Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                TextButton(
-                                  onPressed: () => _decline(job['id'] as String),
-                                  child: const Text('Decline'),
-                                ),
-                                TextButton(
-                                  onPressed: () => _accept(job['id'] as String),
-                                  child: const Text('Accept'),
-                                ),
-                              ],
-                            );
-                          } else if (status == 'ACCEPTED' ||
-                              status == 'CONFIRMED') {
-                            action = TextButton(
-                              onPressed: () =>
-                                  _advance(job['id'] as String, 'ON_THE_WAY'),
-                              child: const Text('On the way'),
-                            );
-                          } else if (status == 'ON_THE_WAY') {
-                            action = TextButton(
-                              onPressed: () =>
-                                  _advance(job['id'] as String, 'IN_SERVICE'),
-                              child: const Text('Start'),
-                            );
-                          } else if (status == 'IN_SERVICE') {
-                            action = TextButton(
-                              onPressed: () =>
-                                  _advance(job['id'] as String, 'COMPLETED'),
-                              child: const Text('Complete'),
+                        Builder(builder: (context) {
+                          const activeStatuses = {
+                            'REQUESTED',
+                            'ACCEPTED',
+                            'CONFIRMED',
+                            'ON_THE_WAY',
+                            'IN_SERVICE',
+                          };
+                          final activeJobs = jobs.where((raw) {
+                            final s = (raw as Map)['status'] as String?;
+                            return activeStatuses.contains(s);
+                          }).toList();
+                          if (activeJobs.isEmpty) {
+                            return const Padding(
+                              padding: EdgeInsets.symmetric(vertical: 24),
+                              child: Text(
+                                'No active jobs.\nGo online and wait for nearby requests.',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(color: ZanaColors.muted),
+                              ),
                             );
                           }
-                          return Card(
-                            color: ZanaColors.paper,
-                            elevation: 0,
-                            child: ListTile(
-                              onTap: () => _openJob(job['id'] as String),
-                              title: Text(service?['name'] as String? ?? 'Service'),
-                              subtitle: Text(
-                                'Status: $status · K${job['priceZmw']}'
-                                '${address != null ? '\n$address' : ''}',
-                              ),
-                              isThreeLine: address != null,
-                              trailing: action,
-                            ),
+                          return Column(
+                            children: activeJobs.map((raw) {
+                              final job = raw as Map<String, dynamic>;
+                              final service =
+                                  job['service'] as Map<String, dynamic>?;
+                              final status = job['status'] as String;
+                              final mode = service?['mode'] as String?;
+                              final address = job['customerAddress'] as String?;
+                              final assigned =
+                                  job['assignedStaff'] as Map<String, dynamic>?;
+                              Widget? action;
+                              if (status == 'REQUESTED') {
+                                action = Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    TextButton(
+                                      onPressed: () =>
+                                          _decline(job['id'] as String),
+                                      child: const Text('Decline'),
+                                    ),
+                                    TextButton(
+                                      onPressed: () =>
+                                          _accept(job['id'] as String),
+                                      child: const Text('Accept'),
+                                    ),
+                                  ],
+                                );
+                              } else if (status == 'ACCEPTED') {
+                                action = TextButton(
+                                  onPressed: () => _advance(
+                                    job['id'] as String,
+                                    mode == 'AT_SHOP'
+                                        ? 'CONFIRMED'
+                                        : 'ON_THE_WAY',
+                                  ),
+                                  child: Text(mode == 'AT_SHOP'
+                                      ? 'Arrived'
+                                      : 'On the way'),
+                                );
+                              } else if (status == 'CONFIRMED') {
+                                action = TextButton(
+                                  onPressed: () => _advance(
+                                      job['id'] as String, 'IN_SERVICE'),
+                                  child: const Text('Start'),
+                                );
+                              } else if (status == 'ON_THE_WAY') {
+                                action = TextButton(
+                                  onPressed: () => _advance(
+                                      job['id'] as String, 'IN_SERVICE'),
+                                  child: const Text('Start'),
+                                );
+                              } else if (status == 'IN_SERVICE') {
+                                action = TextButton(
+                                  onPressed: () => _advance(
+                                      job['id'] as String, 'COMPLETED'),
+                                  child: const Text('Complete'),
+                                );
+                              }
+                              return Card(
+                                color: ZanaColors.paper,
+                                elevation: 0,
+                                child: ListTile(
+                                  onTap: () => _openJob(job['id'] as String),
+                                  title: Text(
+                                      service?['name'] as String? ?? 'Service'),
+                                  subtitle: Text(
+                                    'Status: $status · K${job['priceZmw']}'
+                                    '${assigned != null ? '\nStaff: ${assigned['name'] ?? assigned['phone']}' : ''}'
+                                    '${address != null ? '\n$address' : ''}',
+                                  ),
+                                  isThreeLine:
+                                      address != null || assigned != null,
+                                  trailing: action,
+                                ),
+                              );
+                            }).toList(),
                           );
                         }),
                       ],

@@ -20,8 +20,9 @@ type BookingRow = {
   priceZmw: number;
   createdAt: string;
   disputeNote?: string | null;
+  creditBurned?: boolean;
   service: { name: string };
-  provider: { displayName: string; area: string };
+  provider: { id: string; displayName: string; area: string };
   customer: { phone: string; name: string | null };
 };
 
@@ -176,6 +177,30 @@ export default function AdminPage() {
       method: 'PATCH',
       token,
       body: JSON.stringify({ disputeNote: disputeDraft[id] ?? '' }),
+    });
+    await loadAll(token);
+  }
+
+  async function forceStatus(id: string, status: string, refundCredit = false) {
+    if (!token) return;
+    await api(`/admin/bookings/${id}/status`, {
+      method: 'PATCH',
+      token,
+      body: JSON.stringify({
+        status,
+        refundCredit,
+        note: `Forced to ${status}`,
+      }),
+    });
+    await loadAll(token);
+  }
+
+  async function adjustCredits(providerId: string, delta: number) {
+    if (!token) return;
+    await api(`/admin/providers/${providerId}/credits`, {
+      method: 'PATCH',
+      token,
+      body: JSON.stringify({ delta }),
     });
     await loadAll(token);
   }
@@ -353,6 +378,7 @@ export default function AdminPage() {
               {[
                 'REQUESTED',
                 'ACCEPTED',
+                'CONFIRMED',
                 'ON_THE_WAY',
                 'IN_SERVICE',
                 'COMPLETED',
@@ -415,6 +441,32 @@ export default function AdminPage() {
                     />
                     <button type="button" onClick={() => saveDispute(b.id)}>
                       Save note
+                    </button>
+                  </div>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    <button
+                      type="button"
+                      onClick={() => forceStatus(b.id, 'CANCELLED', true)}
+                    >
+                      Force cancel (+refund)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => forceStatus(b.id, 'COMPLETED')}
+                    >
+                      Force complete
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => adjustCredits(b.provider.id, 1)}
+                    >
+                      +1 float
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => adjustCredits(b.provider.id, -1)}
+                    >
+                      −1 float
                     </button>
                   </div>
                 </div>

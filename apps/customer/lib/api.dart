@@ -156,12 +156,30 @@ class ZanaApi {
 
   Future<Map<String, dynamic>> updateBookingStatus(
     String id,
-    String status,
-  ) async {
+    String status, {
+    String? cancelReason,
+  }) async {
     final res = await http.patch(
       Uri.parse('$baseUrl/bookings/$id/status'),
       headers: _headers,
-      body: jsonEncode({'status': status}),
+      body: jsonEncode({
+        'status': status,
+        if (cancelReason != null && cancelReason.isNotEmpty)
+          'cancelReason': cancelReason,
+      }),
+    );
+    if (res.statusCode >= 400) throw Exception(res.body);
+    return jsonDecode(res.body) as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> reportDispute(
+    String bookingId,
+    String note,
+  ) async {
+    final res = await http.patch(
+      Uri.parse('$baseUrl/bookings/$bookingId/dispute'),
+      headers: _headers,
+      body: jsonEncode({'note': note}),
     );
     if (res.statusCode >= 400) throw Exception(res.body);
     return jsonDecode(res.body) as Map<String, dynamic>;

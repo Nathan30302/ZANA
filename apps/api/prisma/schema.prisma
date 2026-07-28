@@ -65,6 +65,7 @@ model User {
   providerProfile ProviderProfile?
   staffOf         StaffMembership[]
   bookingsAsCustomer Booking[] @relation("CustomerBookings")
+  assignedBookings   Booking[] @relation("AssignedStaffBookings")
   reviews         Review[]
   applications    ProviderApplication[]
   favorites       Favorite[]
@@ -162,30 +163,36 @@ model Service {
 }
 
 model Booking {
-  id              String        @id @default(cuid())
-  customerId      String
-  providerId      String
-  serviceId       String
-  status          BookingStatus @default(REQUESTED)
-  scheduledAt     DateTime?
-  customerLat     Float?
-  customerLng     Float?
-  customerAddress String?
-  providerLat     Float?
-  providerLng     Float?
-  contactPhone    String?
-  priceZmw        Int
-  creditBurned    Boolean       @default(false)
-  notes           String?
-  declineReason   String?
-  disputeNote     String?
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  id                  String        @id @default(cuid())
+  customerId          String
+  providerId          String
+  serviceId           String
+  status              BookingStatus @default(REQUESTED)
+  scheduledAt         DateTime?
+  customerLat         Float?
+  customerLng         Float?
+  customerAddress     String?
+  providerLat         Float?
+  providerLng         Float?
+  contactPhone        String?
+  priceZmw            Int
+  creditBurned        Boolean       @default(false)
+  notes               String?
+  declineReason       String?
+  cancelReason        String?
+  disputeNote         String?
+  assignedStaffUserId String?
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
 
-  customer User            @relation("CustomerBookings", fields: [customerId], references: [id])
-  provider ProviderProfile @relation("ProviderBookings", fields: [providerId], references: [id])
-  service  Service         @relation(fields: [serviceId], references: [id])
-  review   Review?
+  customer      User            @relation("CustomerBookings", fields: [customerId], references: [id])
+  provider      ProviderProfile @relation("ProviderBookings", fields: [providerId], references: [id])
+  service       Service         @relation(fields: [serviceId], references: [id])
+  assignedStaff User?           @relation("AssignedStaffBookings", fields: [assignedStaffUserId], references: [id])
+  review        Review?
+
+  @@index([providerId, scheduledAt])
+  @@index([assignedStaffUserId])
 }
 
 model Review {

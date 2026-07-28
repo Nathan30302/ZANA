@@ -206,6 +206,7 @@ class ProApi {
     String bookingId,
     String status, {
     String? declineReason,
+    String? cancelReason,
   }) async {
     final res = await http.patch(
       Uri.parse('$baseUrl/bookings/$bookingId/status'),
@@ -214,6 +215,8 @@ class ProApi {
         'status': status,
         if (declineReason != null && declineReason.isNotEmpty)
           'declineReason': declineReason,
+        if (cancelReason != null && cancelReason.isNotEmpty)
+          'cancelReason': cancelReason,
       }),
     );
     if (res.statusCode >= 400) throw Exception(res.body);
@@ -222,6 +225,32 @@ class ProApi {
   Future<Map<String, dynamic>> getBooking(String id) async {
     final res =
         await http.get(Uri.parse('$baseUrl/bookings/$id'), headers: _headers);
+    if (res.statusCode >= 400) throw Exception(res.body);
+    return jsonDecode(res.body) as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> assignStaff(
+    String bookingId,
+    String? staffUserId,
+  ) async {
+    final res = await http.patch(
+      Uri.parse('$baseUrl/bookings/$bookingId/assign'),
+      headers: _headers,
+      body: jsonEncode({'staffUserId': staffUserId}),
+    );
+    if (res.statusCode >= 400) throw Exception(res.body);
+    return jsonDecode(res.body) as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> reportDispute(
+    String bookingId,
+    String note,
+  ) async {
+    final res = await http.patch(
+      Uri.parse('$baseUrl/bookings/$bookingId/dispute'),
+      headers: _headers,
+      body: jsonEncode({'note': note}),
+    );
     if (res.statusCode >= 400) throw Exception(res.body);
     return jsonDecode(res.body) as Map<String, dynamic>;
   }
