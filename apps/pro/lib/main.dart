@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:zana_pro/api.dart';
 import 'package:zana_pro/screens/pro_home.dart';
 import 'package:zana_pro/theme.dart';
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await api.restoreSession();
   runApp(const ZanaProApp());
 }
 

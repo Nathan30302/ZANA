@@ -9,7 +9,12 @@ import {
   Query,
   UnauthorizedException,
 } from '@nestjs/common';
-import { ProviderApplicationStatus, ProviderType, UserRole } from '@prisma/client';
+import {
+  BookingStatus,
+  ProviderApplicationStatus,
+  ProviderType,
+  UserRole,
+} from '@prisma/client';
 import { AuthService } from '../auth/auth.service';
 import { AdminService } from './admin.service';
 
@@ -60,6 +65,53 @@ export class AdminController {
   ) {
     await this.requireAdmin(authorization);
     return this.admin.review(id, body.status, body.adminNote);
+  }
+
+  @Get('admin/bookings')
+  async bookings(
+    @Headers('authorization') authorization: string | undefined,
+    @Query('status') status?: BookingStatus,
+  ) {
+    await this.requireAdmin(authorization);
+    return this.admin.listBookings(status);
+  }
+
+  @Get('admin/float-packages')
+  async floatPackages(@Headers('authorization') authorization?: string) {
+    await this.requireAdmin(authorization);
+    return this.admin.listFloatPackages();
+  }
+
+  @Post('admin/float-packages')
+  async createFloatPackage(
+    @Headers('authorization') authorization: string | undefined,
+    @Body()
+    body: {
+      code: string;
+      name: string;
+      credits: number;
+      priceZmw: number;
+      isActive?: boolean;
+    },
+  ) {
+    await this.requireAdmin(authorization);
+    return this.admin.createFloatPackage(body);
+  }
+
+  @Patch('admin/float-packages/:id')
+  async updateFloatPackage(
+    @Headers('authorization') authorization: string | undefined,
+    @Param('id') id: string,
+    @Body()
+    body: Partial<{
+      name: string;
+      credits: number;
+      priceZmw: number;
+      isActive: boolean;
+    }>,
+  ) {
+    await this.requireAdmin(authorization);
+    return this.admin.updateFloatPackage(id, body);
   }
 
   private async requireAdmin(authorization?: string) {

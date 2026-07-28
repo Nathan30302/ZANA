@@ -1,5 +1,10 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
 import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import {
+  BookingStatus,
   ProviderApplicationStatus,
   ProviderType,
   UserRole,
@@ -27,6 +32,16 @@ export class AdminService {
       where: { id: applicationId },
     });
     if (!app) throw new NotFoundException('Application not found');
+
+    if (status === ProviderApplicationStatus.NEEDS_INFO) {
+      if (!adminNote?.trim()) {
+        throw new BadRequestException('adminNote required for NEEDS_INFO');
+      }
+      return this.prisma.providerApplication.update({
+        where: { id: applicationId },
+        data: { status, adminNote },
+      });
+    }
 
     if (status !== ProviderApplicationStatus.APPROVED) {
       return this.prisma.providerApplication.update({
@@ -87,6 +102,61 @@ export class AdminService {
         notes: input.notes,
         documentUrls: input.documentUrls ?? [],
       },
+    });
+  }
+
+  listBookings(status?: BookingStatus) {
+    return this.prisma.booking.findMany({
+      where: status ? { status } : undefined,
+      include: {
+        service: true,
+        provider: { select: { id: true, displayName: true, area: true } },
+        customer: { select: { id: true, phone: true, name: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 100,
+    });
+  }
+
+  listFloatPackages() {
+    return this.prisma.floatPackage.findMany({ orderBy: { credits: 'asc' } });
+  }
+
+  createFloatPackage(input: {
+    code: string;
+    name: string;
+    credits: number;
+    priceZmw: number;
+    isActive?: boolean;
+  }) {
+    if (!input.code?.trim() || !input.name?.trim()) {
+      throw new BadRequestException('code and name required');
+    }
+    return this.prisma.floatPackage.create({
+      data: {
+        code: input.code.trim().toUpperCase(),
+        name: input.name.trim(),
+        credits: input.credits,
+        priceZmw: input.priceZmw,
+        isActive: input.isActive ?? true,
+      },
+    });
+  }
+
+  async updateFloatPackage(
+    id: string,
+    input: Partial<{
+      name: string;
+      credits: number;
+      priceZmw: number;
+      isActive: boolean;
+    }>,
+  ) {
+    const existing = await this.prisma.floatPackage.findUnique({ where: { id } });
+    if (!existing) throw new NotFoundException('Package not found');
+    return this.prisma.floatPackage.update({
+      where: { id },
+      data: input,
     });
   }
 

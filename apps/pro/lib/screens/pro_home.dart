@@ -3,7 +3,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:zana_pro/api.dart';
+import 'package:zana_pro/screens/auth_sheet.dart';
 import 'package:zana_pro/screens/buy_float_sheet.dart';
+import 'package:zana_pro/screens/onboarding_screen.dart';
 import 'package:zana_pro/theme.dart';
 
 class ProHomeScreen extends StatefulWidget {
@@ -19,6 +21,7 @@ class _ProHomeScreenState extends State<ProHomeScreen> {
   int credits = 0;
   List<dynamic> jobs = [];
   List<dynamic> packages = [];
+  Map<String, dynamic>? profile;
   String? error;
   Timer? _locationTimer;
   String? _trackingBookingId;
@@ -41,19 +44,61 @@ class _ProHomeScreenState extends State<ProHomeScreen> {
       error = null;
     });
     try {
-      await api.loginAsSeedProvider();
-      // Device FCM token would come from firebase_messaging; stub for now
-      await api.registerFcmToken('pro-dev-fcm-${DateTime.now().millisecondsSinceEpoch}');
+      if (api.token == null) {
+        final ok = await showProAuthSheet(context);
+        if (!ok) {
+          setState(() {
+            error = 'Sign in required';
+            loading = false;
+          });
+          return;
+        }
+      }
+      try {
+        await api.registerFcmToken(
+          'pro-dev-fcm-${DateTime.now().millisecondsSinceEpoch}',
+        );
+      } catch (_) {}
+
+      Map<String, dynamic> me;
+      try {
+        me = await api.me();
+      } catch (_) {
+        await api.logout();
+        if (!mounted) return;
+        setState(() {
+          error = 'No provider profile yet. Apply at zana.zm/apply first.';
+          loading = false;
+        });
+        return;
+      }
+
       final bal = await api.balance();
       final j = await api.jobs();
       final p = await api.packages();
       setState(() {
+        profile = me;
+        online = me['isOnline'] as bool? ?? false;
         credits = bal['creditBalance'] as int? ?? 0;
         jobs = j;
         packages = p;
         loading = false;
       });
       _syncLocationTracking(j);
+
+      final services = (me['services'] as List?) ?? [];
+      final active = services.where((s) => (s as Map)['isActive'] != false);
+      if (active.isEmpty || me['lat'] == null) {
+        if (!mounted) return;
+        await Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => OnboardingScreen(
+              profile: me,
+              onDone: _bootstrap,
+            ),
+          ),
+        );
+      }
     } catch (e) {
       setState(() {
         error = e.toString();
@@ -99,14 +144,19 @@ class _ProHomeScreenState extends State<ProHomeScreen> {
       }
       final pos = await Geolocator.getCurrentPosition();
       await api.updateLocation(bookingId, pos.latitude, pos.longitude);
-    } catch (_) {
-      // Best-effort location share
-    }
+    } catch (_) {}
   }
 
   Future<void> _toggle(bool value) async {
-    final profile = await api.setOnline(value);
-    setState(() => online = profile['isOnline'] as bool? ?? value);
+    try {
+      final next = await api.setOnline(value);
+      setState(() => online = next['isOnline'] as bool? ?? value);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString())),
+      );
+    }
   }
 
   Future<void> _openBuyFloat() async {
@@ -117,8 +167,23 @@ class _ProHomeScreenState extends State<ProHomeScreen> {
     );
   }
 
+  Future<void> _openSetup() async {
+    final me = profile ?? await api.me();
+    if (!mounted) return;
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => OnboardingScreen(profile: me, onDone: _bootstrap),
+      ),
+    );
+  }
+
   Future<void> _accept(String id) async {
     await api.updateStatus(id, 'ACCEPTED');
+    await _bootstrap();
+  }
+
+  Future<void> _decline(String id) async {
+    await api.updateStatus(id, 'DECLINED');
     await _bootstrap();
   }
 
@@ -137,9 +202,19 @@ class _ProHomeScreenState extends State<ProHomeScreen> {
                 ? Center(
                     child: Padding(
                       padding: const EdgeInsets.all(24),
-                      child: Text(
-                        'API offline or seed missing.\n$error',
-                        textAlign: TextAlign.center,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(error!, textAlign: TextAlign.center),
+                          const SizedBox(height: 12),
+                          FilledButton(
+                            onPressed: () async {
+                              await api.logout();
+                              await _bootstrap();
+                            },
+                            child: const Text('Sign in'),
+                          ),
+                        ],
                       ),
                     ),
                   )
@@ -148,13 +223,40 @@ class _ProHomeScreenState extends State<ProHomeScreen> {
                     child: ListView(
                       padding: const EdgeInsets.all(20),
                       children: [
-                        Text(
-                          'ZANA Pro',
-                          style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                                fontWeight: FontWeight.w800,
-                                color: ZanaColors.copper,
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                'ZANA Pro',
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .headlineMedium
+                                    ?.copyWith(
+                                      fontWeight: FontWeight.w800,
+                                      color: ZanaColors.copper,
+                                    ),
                               ),
+                            ),
+                            IconButton(
+                              tooltip: 'Shop setup',
+                              onPressed: _openSetup,
+                              icon: const Icon(Icons.storefront_outlined),
+                            ),
+                            IconButton(
+                              tooltip: 'Sign out',
+                              onPressed: () async {
+                                await api.logout();
+                                await _bootstrap();
+                              },
+                              icon: const Icon(Icons.logout),
+                            ),
+                          ],
                         ),
+                        if (profile != null)
+                          Text(
+                            profile!['displayName'] as String? ?? '',
+                            style: const TextStyle(color: ZanaColors.muted),
+                          ),
                         const SizedBox(height: 16),
                         Container(
                           padding: const EdgeInsets.all(16),
@@ -168,7 +270,8 @@ class _ProHomeScreenState extends State<ProHomeScreen> {
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    const Text('Go Online', style: TextStyle(fontWeight: FontWeight.w700)),
+                                    const Text('Go Online',
+                                        style: TextStyle(fontWeight: FontWeight.w700)),
                                     Text(
                                       online ? 'Accepting jobs' : 'Offline',
                                       style: const TextStyle(color: ZanaColors.muted),
@@ -193,7 +296,8 @@ class _ProHomeScreenState extends State<ProHomeScreen> {
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    const Text('Float credits', style: TextStyle(color: Colors.white70)),
+                                    const Text('Float credits',
+                                        style: TextStyle(color: Colors.white70)),
                                     Text(
                                       '$credits',
                                       style: const TextStyle(
@@ -208,7 +312,8 @@ class _ProHomeScreenState extends State<ProHomeScreen> {
                               if (packages.isNotEmpty)
                                 TextButton(
                                   onPressed: _openBuyFloat,
-                                  style: TextButton.styleFrom(foregroundColor: ZanaColors.copper),
+                                  style: TextButton.styleFrom(
+                                      foregroundColor: ZanaColors.copper),
                                   child: const Text('Buy float'),
                                 ),
                             ],
@@ -218,37 +323,55 @@ class _ProHomeScreenState extends State<ProHomeScreen> {
                           const SizedBox(height: 12),
                           Text(
                             'Sharing live location for active job',
-                            style: TextStyle(color: Colors.green.shade700, fontSize: 13),
+                            style: TextStyle(
+                                color: Colors.green.shade700, fontSize: 13),
                           ),
                         ],
                         const SizedBox(height: 20),
-                        const Text('Incoming jobs', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 18)),
+                        const Text('Incoming jobs',
+                            style: TextStyle(
+                                fontWeight: FontWeight.w700, fontSize: 18)),
                         const SizedBox(height: 8),
                         if (jobs.isEmpty)
-                          const Text('No jobs yet.', style: TextStyle(color: ZanaColors.muted)),
+                          const Text('No jobs yet.',
+                              style: TextStyle(color: ZanaColors.muted)),
                         ...jobs.map((raw) {
                           final job = raw as Map<String, dynamic>;
                           final service = job['service'] as Map<String, dynamic>?;
                           final status = job['status'] as String;
+                          final address = job['customerAddress'] as String?;
                           Widget? action;
                           if (status == 'REQUESTED') {
-                            action = TextButton(
-                              onPressed: () => _accept(job['id'] as String),
-                              child: const Text('Accept'),
+                            action = Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                TextButton(
+                                  onPressed: () => _decline(job['id'] as String),
+                                  child: const Text('Decline'),
+                                ),
+                                TextButton(
+                                  onPressed: () => _accept(job['id'] as String),
+                                  child: const Text('Accept'),
+                                ),
+                              ],
                             );
-                          } else if (status == 'ACCEPTED' || status == 'CONFIRMED') {
+                          } else if (status == 'ACCEPTED' ||
+                              status == 'CONFIRMED') {
                             action = TextButton(
-                              onPressed: () => _advance(job['id'] as String, 'ON_THE_WAY'),
+                              onPressed: () =>
+                                  _advance(job['id'] as String, 'ON_THE_WAY'),
                               child: const Text('On the way'),
                             );
                           } else if (status == 'ON_THE_WAY') {
                             action = TextButton(
-                              onPressed: () => _advance(job['id'] as String, 'IN_SERVICE'),
+                              onPressed: () =>
+                                  _advance(job['id'] as String, 'IN_SERVICE'),
                               child: const Text('Start'),
                             );
                           } else if (status == 'IN_SERVICE') {
                             action = TextButton(
-                              onPressed: () => _advance(job['id'] as String, 'COMPLETED'),
+                              onPressed: () =>
+                                  _advance(job['id'] as String, 'COMPLETED'),
                               child: const Text('Complete'),
                             );
                           }
@@ -257,7 +380,11 @@ class _ProHomeScreenState extends State<ProHomeScreen> {
                             elevation: 0,
                             child: ListTile(
                               title: Text(service?['name'] as String? ?? 'Service'),
-                              subtitle: Text('Status: $status · K${job['priceZmw']}'),
+                              subtitle: Text(
+                                'Status: $status · K${job['priceZmw']}'
+                                '${address != null ? '\n$address' : ''}',
+                              ),
+                              isThreeLine: address != null,
                               trailing: action,
                             ),
                           );

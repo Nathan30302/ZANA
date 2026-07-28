@@ -16,11 +16,13 @@ class ProviderScreen extends StatefulWidget {
 
 class _ProviderScreenState extends State<ProviderScreen> {
   late Future<Map<String, dynamic>> future;
+  late Future<List<dynamic>> reviewsFuture;
 
   @override
   void initState() {
     super.initState();
     future = api.getProvider(widget.providerId);
+    reviewsFuture = api.providerReviews(widget.providerId);
   }
 
   Future<void> _book(Map<String, dynamic> svc) async {
@@ -72,9 +74,64 @@ class _ProviderScreenState extends State<ProviderScreen> {
           }
           final p = snap.data!;
           final services = (p['services'] as List<dynamic>? ?? []);
+          final photos = (p['photos'] as List<dynamic>? ?? []);
+          final cover = p['coverPhotoUrl'] as String?;
+          final rating = (p['ratingAvg'] as num?)?.toDouble() ?? 0;
+          final count = p['ratingCount'] as int? ?? 0;
+          final bio = p['bio'] as String?;
+
           return ListView(
             padding: const EdgeInsets.all(20),
             children: [
+              if (cover != null || photos.isNotEmpty)
+                SizedBox(
+                  height: 160,
+                  child: ListView(
+                    scrollDirection: Axis.horizontal,
+                    children: [
+                      if (cover != null)
+                        Padding(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(12),
+                            child: Image.network(
+                              cover,
+                              width: 240,
+                              height: 160,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => Container(
+                                width: 240,
+                                color: ZanaColors.paper,
+                                child: const Icon(Icons.image),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ...photos.map((raw) {
+                        final url = (raw as Map)['url'] as String?;
+                        if (url == null) return const SizedBox.shrink();
+                        return Padding(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(12),
+                            child: Image.network(
+                              url,
+                              width: 160,
+                              height: 160,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => Container(
+                                width: 160,
+                                color: ZanaColors.paper,
+                                child: const Icon(Icons.image),
+                              ),
+                            ),
+                          ),
+                        );
+                      }),
+                    ],
+                  ),
+                ),
+              if (cover != null || photos.isNotEmpty) const SizedBox(height: 16),
               Text(
                 p['displayName'] as String,
                 style: Theme.of(context).textTheme.headlineSmall?.copyWith(
@@ -82,9 +139,14 @@ class _ProviderScreenState extends State<ProviderScreen> {
                     ),
               ),
               Text(
-                '${p['area']} · ${p['type']}',
+                '${p['area']} · ${p['type']} · '
+                '${count > 0 ? '${rating.toStringAsFixed(1)}★ ($count)' : 'New on ZANA'}',
                 style: const TextStyle(color: ZanaColors.muted),
               ),
+              if (bio != null && bio.isNotEmpty) ...[
+                const SizedBox(height: 10),
+                Text(bio),
+              ],
               const SizedBox(height: 20),
               const Text('Services', style: TextStyle(fontWeight: FontWeight.w700)),
               const SizedBox(height: 8),
@@ -107,6 +169,45 @@ class _ProviderScreenState extends State<ProviderScreen> {
                   ),
                 );
               }),
+              const SizedBox(height: 20),
+              const Text('Reviews', style: TextStyle(fontWeight: FontWeight.w700)),
+              const SizedBox(height: 8),
+              FutureBuilder<List<dynamic>>(
+                future: reviewsFuture,
+                builder: (context, rSnap) {
+                  if (!rSnap.hasData) {
+                    return const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 8),
+                      child: LinearProgressIndicator(),
+                    );
+                  }
+                  final reviews = rSnap.data!;
+                  if (reviews.isEmpty) {
+                    return const Text(
+                      'No reviews yet — be the first after your appointment.',
+                      style: TextStyle(color: ZanaColors.muted),
+                    );
+                  }
+                  return Column(
+                    children: reviews.map((raw) {
+                      final r = raw as Map<String, dynamic>;
+                      final user = r['user'] as Map<String, dynamic>?;
+                      return Card(
+                        color: ZanaColors.paper,
+                        elevation: 0,
+                        child: ListTile(
+                          title: Text('${r['rating']}★ · ${user?['name'] ?? 'Customer'}'),
+                          subtitle: Text(
+                            (r['comment'] as String?)?.isNotEmpty == true
+                                ? r['comment'] as String
+                                : 'No comment',
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  );
+                },
+              ),
             ],
           );
         },

@@ -8,9 +8,12 @@ Future<void> showBuyFloatSheet(
   required Future<void> Function() onDone,
 }) async {
   var method = 'MTN_MOMO';
-  final phoneCtrl = TextEditingController(text: '+260970000001');
+  final phoneCtrl = TextEditingController(text: '+260');
   String? error;
   var busy = false;
+  var simulate = true;
+  String? pendingPurchaseId;
+  String? pendingInstructions;
 
   await showModalBottomSheet<void>(
     context: context,
@@ -62,7 +65,42 @@ Future<void> showBuyFloatSheet(
                     border: OutlineInputBorder(),
                   ),
                 ),
-                const SizedBox(height: 12),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Simulate instant success'),
+                  subtitle: const Text('Off = PENDING until you confirm'),
+                  value: simulate,
+                  onChanged: (v) => setModal(() => simulate = v),
+                ),
+                if (pendingPurchaseId != null) ...[
+                  Text(
+                    pendingInstructions ?? 'Waiting for payment approval',
+                    style: const TextStyle(color: ZanaColors.muted),
+                  ),
+                  const SizedBox(height: 8),
+                  FilledButton(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: ZanaColors.copper,
+                    ),
+                    onPressed: busy
+                        ? null
+                        : () async {
+                            setModal(() => busy = true);
+                            try {
+                              await api.confirmPurchase(pendingPurchaseId!);
+                              if (ctx.mounted) Navigator.of(ctx).pop();
+                              await onDone();
+                            } catch (e) {
+                              setModal(() {
+                                error = e.toString();
+                                busy = false;
+                              });
+                            }
+                          },
+                    child: const Text('Confirm payment (webhook stub)'),
+                  ),
+                  const SizedBox(height: 12),
+                ],
                 ...packages.map((raw) {
                   final pkg = raw as Map<String, dynamic>;
                   return ListTile(
@@ -85,11 +123,24 @@ Future<void> showBuyFloatSheet(
                                   packageId: pkg['id'] as String,
                                   method: method,
                                   phone: phoneCtrl.text.trim(),
-                                  simulate: true,
+                                  simulate: simulate,
                                 );
+                                final pay = res['payment'] as Map?;
+                                final status = pay?['status'] as String?;
+                                if (status == 'PENDING') {
+                                  final purchase =
+                                      res['purchase'] as Map<String, dynamic>?;
+                                  setModal(() {
+                                    pendingPurchaseId =
+                                        purchase?['id'] as String?;
+                                    pendingInstructions =
+                                        pay?['instructions'] as String?;
+                                    busy = false;
+                                  });
+                                  return;
+                                }
                                 if (ctx.mounted) {
                                   Navigator.of(ctx).pop();
-                                  final pay = res['payment'] as Map?;
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     SnackBar(
                                       content: Text(

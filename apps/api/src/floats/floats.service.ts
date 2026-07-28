@@ -107,15 +107,33 @@ export class FloatsService {
       });
       return { purchase, creditBalance: profile?.creditBalance ?? 0 };
     }
+    if (purchase.status !== 'PENDING') {
+      throw new BadRequestException(`Cannot confirm status ${purchase.status}`);
+    }
 
     if (purchase.providerRef) {
       await this.payments.confirm(purchase.providerRef);
     }
 
     return this.prisma.$transaction(async (tx) => {
-      const updatedPurchase = await tx.floatPurchase.update({
-        where: { id: purchaseId },
+      const claimed = await tx.floatPurchase.updateMany({
+        where: { id: purchaseId, status: 'PENDING' },
         data: { status: 'COMPLETED' },
+      });
+      if (claimed.count === 0) {
+        const existing = await tx.floatPurchase.findUnique({
+          where: { id: purchaseId },
+        });
+        const profile = await tx.providerProfile.findUnique({
+          where: { id: purchase.providerId },
+        });
+        return {
+          purchase: existing!,
+          creditBalance: profile?.creditBalance ?? 0,
+        };
+      }
+      const updatedPurchase = await tx.floatPurchase.findUniqueOrThrow({
+        where: { id: purchaseId },
       });
       const updated = await tx.providerProfile.update({
         where: { id: purchase.providerId },

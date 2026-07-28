@@ -49,17 +49,27 @@ class _TrackingScreenState extends State<TrackingScreen> {
 
   Future<void> _call() async {
     final phone = booking?['contactPhone'] as String?;
-    if (phone == null) return;
-    // Masked display number — stub dialer with tel: (real masking later)
-    final uri = Uri(scheme: 'tel', path: phone.replaceAll('*', '0'));
+    if (phone == null || phone.contains('*')) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Number unlocks after the pro accepts')),
+      );
+      return;
+    }
+    final uri = Uri(scheme: 'tel', path: phone);
     await launchUrl(uri);
   }
 
   Future<void> _chat() async {
     final phone = booking?['contactPhone'] as String?;
-    if (phone == null) return;
-    final cleaned = phone.replaceAll('*', '');
-    final uri = Uri.parse('https://wa.me/${cleaned.replaceAll('+', '')}');
+    if (phone == null || phone.contains('*')) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Chat unlocks after the pro accepts')),
+      );
+      return;
+    }
+    final uri = Uri.parse('https://wa.me/${phone.replaceAll('+', '')}');
     await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 

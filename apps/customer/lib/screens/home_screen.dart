@@ -17,10 +17,14 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   String category = 'ALL';
+  String? area;
+  String query = '';
   late Future<List<dynamic>> future;
   List<dynamic> lastProviders = [];
+  List<String> areas = [];
   double userLat = ZanaApi.lusakaLat;
   double userLng = ZanaApi.lusakaLng;
+  final searchCtrl = TextEditingController();
 
   @override
   void initState() {
@@ -28,8 +32,30 @@ class _HomeScreenState extends State<HomeScreen> {
     future = _bootstrap();
   }
 
+  @override
+  void dispose() {
+    searchCtrl.dispose();
+    super.dispose();
+  }
+
   Future<List<dynamic>> _bootstrap() async {
     await _resolveLocation();
+    try {
+      areas = await api.listAreas();
+    } catch (_) {
+      areas = const [
+        'Roma',
+        'Kabulonga',
+        'CBD',
+        'Woodlands',
+        'Rhodes Park',
+        'Olympia',
+        'Chilanga',
+        'Chelstone',
+        'Matero',
+        'Chilenje',
+      ];
+    }
     return _load();
   }
 
@@ -48,14 +74,14 @@ class _HomeScreenState extends State<HomeScreen> {
       final pos = await Geolocator.getCurrentPosition();
       userLat = pos.latitude;
       userLng = pos.longitude;
-    } catch (_) {
-      // Fall back to Lusaka CBD
-    }
+    } catch (_) {}
   }
 
   Future<List<dynamic>> _load() async {
     final items = await api.listProviders(
       category: category == 'ALL' ? null : category,
+      area: area,
+      q: query.isEmpty ? null : query,
       lat: userLat,
       lng: userLng,
     );
@@ -63,9 +89,8 @@ class _HomeScreenState extends State<HomeScreen> {
     return items;
   }
 
-  void _reload(String next) {
+  void _reload() {
     setState(() {
-      category = next;
       future = _load();
     });
   }
@@ -130,6 +155,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               const SizedBox(height: 16),
               TextField(
+                controller: searchCtrl,
                 decoration: InputDecoration(
                   hintText: 'Search salons, barbers, stylists',
                   filled: true,
@@ -140,9 +166,54 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   prefixIcon: const Icon(Icons.search),
                 ),
-                onSubmitted: (_) {},
+                onSubmitted: (v) {
+                  query = v.trim();
+                  _reload();
+                },
+                textInputAction: TextInputAction.search,
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 10),
+              SizedBox(
+                height: 36,
+                child: ListView(
+                  scrollDirection: Axis.horizontal,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: ChoiceChip(
+                        label: const Text('All areas'),
+                        selected: area == null,
+                        onSelected: (_) {
+                          area = null;
+                          _reload();
+                        },
+                        selectedColor: ZanaColors.charcoal,
+                        labelStyle: TextStyle(
+                          color: area == null ? Colors.white : ZanaColors.ink,
+                        ),
+                      ),
+                    ),
+                    ...areas.map(
+                      (a) => Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: ChoiceChip(
+                          label: Text(a),
+                          selected: area == a,
+                          onSelected: (_) {
+                            area = a;
+                            _reload();
+                          },
+                          selectedColor: ZanaColors.charcoal,
+                          labelStyle: TextStyle(
+                            color: area == a ? Colors.white : ZanaColors.ink,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 10),
               SizedBox(
                 height: 40,
                 child: ListView.separated(
@@ -155,7 +226,10 @@ class _HomeScreenState extends State<HomeScreen> {
                     return ChoiceChip(
                       label: Text(c == 'ALL' ? 'Nearby' : c),
                       selected: selected,
-                      onSelected: (_) => _reload(c),
+                      onSelected: (_) {
+                        category = c;
+                        _reload();
+                      },
                       selectedColor: ZanaColors.charcoal,
                       labelStyle: TextStyle(
                         color: selected ? Colors.white : ZanaColors.ink,
@@ -183,7 +257,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     }
                     final items = snap.data ?? [];
                     if (items.isEmpty) {
-                      return const Center(child: Text('No providers yet. Seed the API.'));
+                      return const Center(child: Text('No providers match.'));
                     }
                     return ListView.separated(
                       itemCount: items.length,
@@ -191,6 +265,9 @@ class _HomeScreenState extends State<HomeScreen> {
                       itemBuilder: (context, i) {
                         final p = items[i] as Map<String, dynamic>;
                         final km = (p['distanceKm'] as num?)?.toDouble();
+                        final cover = p['coverPhotoUrl'] as String?;
+                        final rating = (p['ratingAvg'] as num?)?.toDouble() ?? 0;
+                        final count = p['ratingCount'] as int? ?? 0;
                         return Material(
                           color: ZanaColors.paper,
                           borderRadius: BorderRadius.circular(16),
@@ -211,13 +288,18 @@ class _HomeScreenState extends State<HomeScreen> {
                                   CircleAvatar(
                                     radius: 28,
                                     backgroundColor: ZanaColors.cream,
-                                    child: Text(
-                                      (p['displayName'] as String).substring(0, 1),
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        color: ZanaColors.copper,
-                                      ),
-                                    ),
+                                    backgroundImage: cover != null
+                                        ? NetworkImage(cover)
+                                        : null,
+                                    child: cover == null
+                                        ? Text(
+                                            (p['displayName'] as String).substring(0, 1),
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              color: ZanaColors.copper,
+                                            ),
+                                          )
+                                        : null,
                                   ),
                                   const SizedBox(width: 14),
                                   Expanded(
@@ -249,7 +331,9 @@ class _HomeScreenState extends State<HomeScreen> {
                                     ),
                                   ),
                                   Text(
-                                    '${(p['ratingAvg'] as num).toStringAsFixed(1)}★',
+                                    count > 0
+                                        ? '${rating.toStringAsFixed(1)}★'
+                                        : 'New',
                                     style: const TextStyle(fontWeight: FontWeight.w600),
                                   ),
                                 ],

@@ -30,10 +30,28 @@ const TRANSITIONS: Record<BookingStatus, BookingStatus[]> = {
   RATED: [],
 };
 
+const ACCEPTED_OR_LATER: BookingStatus[] = [
+  BookingStatus.ACCEPTED,
+  BookingStatus.ON_THE_WAY,
+  BookingStatus.CONFIRMED,
+  BookingStatus.IN_SERVICE,
+  BookingStatus.COMPLETED,
+  BookingStatus.RATED,
+];
+
 function maskPhone(phone?: string | null) {
   if (!phone || phone.length < 6) return phone ?? null;
   return `${phone.slice(0, 5)}***${phone.slice(-2)}`;
 }
+
+type BookingWithRelations = Prisma.BookingGetPayload<{
+  include: {
+    service: true;
+    provider: { include: { user: true } };
+    customer: true;
+    review: true;
+  };
+}>;
 
 @Injectable()
 export class BookingsService {
@@ -41,6 +59,46 @@ export class BookingsService {
     private readonly prisma: PrismaService,
     private readonly notifications: NotificationsService,
   ) {}
+
+  private serialize(
+    booking: BookingWithRelations,
+    viewerId: string,
+  ): Record<string, unknown> {
+    const isCustomer = booking.customerId === viewerId;
+    const isProvider = booking.provider.userId === viewerId;
+    const revealed = ACCEPTED_OR_LATER.includes(booking.status);
+
+    let customerAddress = booking.customerAddress;
+    if (isProvider && !revealed) {
+      customerAddress = customerAddress
+        ? 'Address shared after you accept'
+        : null;
+    }
+
+    const realProviderPhone = booking.provider.user.phone;
+    const contactPhone = revealed
+      ? realProviderPhone
+      : maskPhone(realProviderPhone);
+
+    const { provider, customer, ...rest } = booking;
+    const { user: _user, ...providerPublic } = provider;
+
+    return {
+      ...rest,
+      customerAddress,
+      contactPhone,
+      provider: providerPublic,
+      customer: isProvider
+        ? {
+            id: customer.id,
+            name: customer.name,
+            phone: revealed ? customer.phone : maskPhone(customer.phone),
+          }
+        : isCustomer
+          ? { id: customer.id, name: customer.name, phone: customer.phone }
+          : undefined,
+    };
+  }
 
   async create(
     customerId: string,
@@ -75,10 +133,15 @@ export class BookingsService {
         customerAddress: input.customerAddress,
         notes: input.notes,
         priceZmw: service.priceZmw,
-        contactPhone: maskPhone(service.provider.user.phone),
+        contactPhone: null,
         status: BookingStatus.REQUESTED,
       },
-      include: { service: true, provider: true },
+      include: {
+        service: true,
+        provider: { include: { user: true } },
+        customer: true,
+        review: true,
+      },
     });
 
     await this.notifications.notifyUser(service.provider.userId, {
@@ -87,32 +150,46 @@ export class BookingsService {
       data: { type: 'booking', bookingId: booking.id },
     });
 
-    return booking;
+    return this.serialize(booking, customerId);
   }
 
-  listForUser(userId: string, role: 'customer' | 'provider') {
+  async expireStaleRequested() {
+    const cutoff = new Date(Date.now() - 30 * 60 * 1000);
+    await this.prisma.booking.updateMany({
+      where: {
+        status: BookingStatus.REQUESTED,
+        createdAt: { lt: cutoff },
+      },
+      data: { status: BookingStatus.EXPIRED },
+    });
+  }
+
+  async listForUser(userId: string, role: 'customer' | 'provider') {
+    await this.expireStaleRequested();
     const where: Prisma.BookingWhereInput =
       role === 'customer'
         ? { customerId: userId }
         : { provider: { userId } };
-    return this.prisma.booking.findMany({
+    const rows = await this.prisma.booking.findMany({
       where,
       include: {
         service: true,
-        provider: true,
+        provider: { include: { user: true } },
         customer: true,
         review: true,
       },
       orderBy: { createdAt: 'desc' },
     });
+    return rows.map((b) => this.serialize(b, userId));
   }
 
   async getForUser(bookingId: string, userId: string) {
+    await this.expireStaleRequested();
     const booking = await this.prisma.booking.findUnique({
       where: { id: bookingId },
       include: {
         service: true,
-        provider: true,
+        provider: { include: { user: true } },
         customer: true,
         review: true,
       },
@@ -124,7 +201,7 @@ export class BookingsService {
     ) {
       throw new ForbiddenException();
     }
-    return booking;
+    return this.serialize(booking, userId);
   }
 
   async updateProviderLocation(
@@ -141,11 +218,17 @@ export class BookingsService {
     if (booking.provider.userId !== providerUserId) {
       throw new ForbiddenException();
     }
-    return this.prisma.booking.update({
+    const updated = await this.prisma.booking.update({
       where: { id: bookingId },
       data: { providerLat: lat, providerLng: lng },
-      include: { service: true, provider: true, customer: true },
+      include: {
+        service: true,
+        provider: { include: { user: true } },
+        customer: true,
+        review: true,
+      },
     });
+    return this.serialize(updated, providerUserId);
   }
 
   async transition(
@@ -155,7 +238,12 @@ export class BookingsService {
   ) {
     const booking = await this.prisma.booking.findUnique({
       where: { id: bookingId },
-      include: { provider: true, service: true },
+      include: {
+        provider: { include: { user: true } },
+        service: true,
+        customer: true,
+        review: true,
+      },
     });
     if (!booking) throw new NotFoundException('Booking not found');
 
@@ -193,7 +281,8 @@ export class BookingsService {
       throw new ForbiddenException('Customer rates after completion');
     }
 
-    let updated;
+    let updated: BookingWithRelations;
+
     if (next === BookingStatus.ACCEPTED && !booking.creditBurned) {
       if (booking.provider.creditBalance < 1) {
         throw new BadRequestException('Insufficient float credits');
@@ -210,15 +299,48 @@ export class BookingsService {
             creditBurned: true,
             providerLat: booking.provider.lat,
             providerLng: booking.provider.lng,
+            contactPhone: booking.provider.user.phone,
           },
-          include: { service: true, provider: true, customer: true },
+          include: {
+            service: true,
+            provider: { include: { user: true } },
+            customer: true,
+            review: true,
+          },
+        });
+      });
+    } else if (next === BookingStatus.CANCELLED && booking.creditBurned) {
+      updated = await this.prisma.$transaction(async (tx) => {
+        await tx.providerProfile.update({
+          where: { id: booking.providerId },
+          data: { creditBalance: { increment: 1 } },
+        });
+        return tx.booking.update({
+          where: { id: bookingId },
+          data: { status: next, creditBurned: false },
+          include: {
+            service: true,
+            provider: { include: { user: true } },
+            customer: true,
+            review: true,
+          },
         });
       });
     } else {
       updated = await this.prisma.booking.update({
         where: { id: bookingId },
-        data: { status: next },
-        include: { service: true, provider: true, customer: true },
+        data: {
+          status: next,
+          ...(next === BookingStatus.ACCEPTED
+            ? { contactPhone: booking.provider.user.phone }
+            : {}),
+        },
+        include: {
+          service: true,
+          provider: { include: { user: true } },
+          customer: true,
+          review: true,
+        },
       });
     }
 
@@ -229,6 +351,6 @@ export class BookingsService {
       serviceName: booking.service.name,
     });
 
-    return updated;
+    return this.serialize(updated, actor.id);
   }
 }

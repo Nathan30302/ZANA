@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 
 class ZanaApi {
   ZanaApi({
@@ -14,21 +15,41 @@ class ZanaApi {
 
   static const lusakaLat = -15.4167;
   static const lusakaLng = 28.2833;
+  static const _tokenKey = 'zana_token';
 
   Map<String, String> get _headers => {
         'Content-Type': 'application/json',
         if (token != null) 'Authorization': 'Bearer $token',
       };
 
+  Future<void> restoreSession() async {
+    final prefs = await SharedPreferences.getInstance();
+    token = prefs.getString(_tokenKey);
+  }
+
+  Future<void> _persistToken(String? value) async {
+    token = value;
+    final prefs = await SharedPreferences.getInstance();
+    if (value == null) {
+      await prefs.remove(_tokenKey);
+    } else {
+      await prefs.setString(_tokenKey, value);
+    }
+  }
+
+  Future<void> logout() => _persistToken(null);
+
   Future<List<dynamic>> listProviders({
     String? area,
     String? category,
+    String? q,
     double? lat,
     double? lng,
   }) async {
     final uri = Uri.parse('$baseUrl/providers').replace(queryParameters: {
       if (area != null) 'area': area,
       if (category != null) 'category': category,
+      if (q != null && q.isNotEmpty) 'q': q,
       if (lat != null) 'lat': lat.toString(),
       if (lng != null) 'lng': lng.toString(),
     });
@@ -37,6 +58,13 @@ class ZanaApi {
       throw Exception('Failed to load providers: ${res.body}');
     }
     return jsonDecode(res.body) as List<dynamic>;
+  }
+
+  Future<List<String>> listAreas() async {
+    final res = await http.get(Uri.parse('$baseUrl/meta/areas'), headers: _headers);
+    if (res.statusCode >= 400) throw Exception(res.body);
+    final data = jsonDecode(res.body) as Map<String, dynamic>;
+    return (data['areas'] as List<dynamic>).cast<String>();
   }
 
   Future<Map<String, dynamic>> getProvider(String id) async {
@@ -63,7 +91,7 @@ class ZanaApi {
     );
     if (res.statusCode >= 400) throw Exception(res.body);
     final data = jsonDecode(res.body) as Map<String, dynamic>;
-    token = data['token'] as String?;
+    await _persistToken(data['token'] as String?);
     return data;
   }
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { FormEvent, useState } from 'react';
+import { FormEvent, useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 
 type Application = {
@@ -9,8 +9,28 @@ type Application = {
   area: string;
   type: string;
   status: string;
+  adminNote?: string | null;
   documentUrls?: string[];
   user: { phone: string; name: string | null };
+};
+
+type BookingRow = {
+  id: string;
+  status: string;
+  priceZmw: number;
+  createdAt: string;
+  service: { name: string };
+  provider: { displayName: string; area: string };
+  customer: { phone: string; name: string | null };
+};
+
+type FloatPackage = {
+  id: string;
+  code: string;
+  name: string;
+  credits: number;
+  priceZmw: number;
+  isActive: boolean;
 };
 
 type Stats = {
@@ -20,13 +40,47 @@ type Stats = {
   pendingApps: number;
 };
 
+const TOKEN_KEY = 'zana_admin_token';
+
 export default function AdminPage() {
   const [phone, setPhone] = useState('+260970000099');
   const [code, setCode] = useState('123456');
   const [token, setToken] = useState('');
   const [stats, setStats] = useState<Stats | null>(null);
   const [apps, setApps] = useState<Application[]>([]);
+  const [bookings, setBookings] = useState<BookingRow[]>([]);
+  const [packages, setPackages] = useState<FloatPackage[]>([]);
   const [error, setError] = useState('');
+  const [noteDraft, setNoteDraft] = useState<Record<string, string>>({});
+  const [newPkg, setNewPkg] = useState({
+    code: '',
+    name: '',
+    credits: 20,
+    priceZmw: 250,
+  });
+
+  async function loadAll(t: string) {
+    const [s, a, b, p] = await Promise.all([
+      api<Stats>('/admin/stats', { token: t }),
+      api<Application[]>('/admin/applications', { token: t }),
+      api<BookingRow[]>('/admin/bookings', { token: t }),
+      api<FloatPackage[]>('/admin/float-packages', { token: t }),
+    ]);
+    setStats(s);
+    setApps(a);
+    setBookings(b);
+    setPackages(p);
+  }
+
+  useEffect(() => {
+    const saved = localStorage.getItem(TOKEN_KEY);
+    if (!saved) return;
+    setToken(saved);
+    loadAll(saved).catch(() => {
+      localStorage.removeItem(TOKEN_KEY);
+      setToken('');
+    });
+  }, []);
 
   async function login(e: FormEvent) {
     e.preventDefault();
@@ -40,37 +94,88 @@ export default function AdminPage() {
         method: 'POST',
         body: JSON.stringify({ phone, code }),
       });
+      localStorage.setItem(TOKEN_KEY, res.token);
       setToken(res.token);
-      const [s, a] = await Promise.all([
-        api<Stats>('/admin/stats', { token: res.token }),
-        api<Application[]>('/admin/applications', { token: res.token }),
-      ]);
-      setStats(s);
-      setApps(a);
+      await loadAll(res.token);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed');
     }
   }
 
-  async function review(id: string, status: 'APPROVED' | 'REJECTED') {
+  async function review(
+    id: string,
+    status: 'APPROVED' | 'REJECTED' | 'NEEDS_INFO',
+  ) {
     if (!token) return;
+    const adminNote = noteDraft[id]?.trim();
+    if (status === 'NEEDS_INFO' && !adminNote) {
+      setError('Add a note before marking Needs info');
+      return;
+    }
     await api(`/admin/applications/${id}`, {
       method: 'PATCH',
       token,
-      body: JSON.stringify({ status }),
+      body: JSON.stringify({ status, adminNote: adminNote || undefined }),
     });
-    const a = await api<Application[]>('/admin/applications', { token });
-    const s = await api<Stats>('/admin/stats', { token });
-    setApps(a);
-    setStats(s);
+    await loadAll(token);
+  }
+
+  async function togglePackage(pkg: FloatPackage) {
+    if (!token) return;
+    await api(`/admin/float-packages/${pkg.id}`, {
+      method: 'PATCH',
+      token,
+      body: JSON.stringify({ isActive: !pkg.isActive }),
+    });
+    await loadAll(token);
+  }
+
+  async function savePackagePrice(pkg: FloatPackage, priceZmw: number) {
+    if (!token) return;
+    await api(`/admin/float-packages/${pkg.id}`, {
+      method: 'PATCH',
+      token,
+      body: JSON.stringify({ priceZmw }),
+    });
+    await loadAll(token);
+  }
+
+  async function createPackage(e: FormEvent) {
+    e.preventDefault();
+    if (!token) return;
+    await api('/admin/float-packages', {
+      method: 'POST',
+      token,
+      body: JSON.stringify(newPkg),
+    });
+    setNewPkg({ code: '', name: '', credits: 20, priceZmw: 250 });
+    await loadAll(token);
+  }
+
+  function logout() {
+    localStorage.removeItem(TOKEN_KEY);
+    setToken('');
+    setStats(null);
+    setApps([]);
+    setBookings([]);
+    setPackages([]);
   }
 
   return (
-    <main style={{ maxWidth: 800, margin: '0 auto', padding: '40px 20px' }}>
-      <p style={{ letterSpacing: '0.2em', fontSize: 12, color: 'var(--gold)' }}>
-        admin.zana.zm
-      </p>
-      <h1 style={{ marginTop: 8 }}>ZANA Admin</h1>
+    <main style={{ maxWidth: 960, margin: '0 auto', padding: '40px 20px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
+        <div>
+          <p style={{ letterSpacing: '0.2em', fontSize: 12, color: 'var(--gold)' }}>
+            admin.zana.zm
+          </p>
+          <h1 style={{ marginTop: 8 }}>ZANA Admin</h1>
+        </div>
+        {token ? (
+          <button type="button" onClick={logout}>
+            Sign out
+          </button>
+        ) : null}
+      </div>
 
       {error ? <p style={{ color: '#b91c1c' }}>{error}</p> : null}
 
@@ -131,46 +236,188 @@ export default function AdminPage() {
                     border: '1px solid var(--line)',
                     borderRadius: 12,
                     padding: 14,
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    gap: 12,
-                    alignItems: 'center',
-                    flexWrap: 'wrap',
+                    display: 'grid',
+                    gap: 10,
                   }}
                 >
-                  <div>
-                    <strong>{app.displayName}</strong> · {app.type} · {app.area}
-                    <div style={{ color: 'var(--muted)', fontSize: 13 }}>
-                      {app.user.phone} · {app.status}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+                    <div>
+                      <strong>{app.displayName}</strong> · {app.type} · {app.area}
+                      <div style={{ color: 'var(--muted)', fontSize: 13 }}>
+                        {app.user.phone} · {app.status}
+                      </div>
+                      {app.adminNote ? (
+                        <div style={{ fontSize: 13, marginTop: 4 }}>Note: {app.adminNote}</div>
+                      ) : null}
+                      {app.documentUrls && app.documentUrls.length > 0 ? (
+                        <div style={{ marginTop: 6, fontSize: 13 }}>
+                          Docs:{' '}
+                          {app.documentUrls.map((url, i) => (
+                            <span key={url}>
+                              {i > 0 ? ' · ' : ''}
+                              <a href={url} target="_blank" rel="noreferrer">
+                                file {i + 1}
+                              </a>
+                            </span>
+                          ))}
+                        </div>
+                      ) : null}
                     </div>
-                    {app.documentUrls && app.documentUrls.length > 0 ? (
-                      <div style={{ marginTop: 6, fontSize: 13 }}>
-                        Docs:{' '}
-                        {app.documentUrls.map((url, i) => (
-                          <span key={url}>
-                            {i > 0 ? ' · ' : ''}
-                            <a href={url} target="_blank" rel="noreferrer">
-                              file {i + 1}
-                            </a>
-                          </span>
-                        ))}
+                    {app.status === 'PENDING' || app.status === 'NEEDS_INFO' ? (
+                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                        <button type="button" onClick={() => review(app.id, 'APPROVED')}>
+                          Approve
+                        </button>
+                        <button type="button" onClick={() => review(app.id, 'NEEDS_INFO')}>
+                          Needs info
+                        </button>
+                        <button type="button" onClick={() => review(app.id, 'REJECTED')}>
+                          Reject
+                        </button>
                       </div>
                     ) : null}
                   </div>
-                  {app.status === 'PENDING' ? (
-                    <div style={{ display: 'flex', gap: 8 }}>
-                      <button type="button" onClick={() => review(app.id, 'APPROVED')}>
-                        Approve
-                      </button>
-                      <button type="button" onClick={() => review(app.id, 'REJECTED')}>
-                        Reject
-                      </button>
-                    </div>
-                  ) : null}
+                  {(app.status === 'PENDING' || app.status === 'NEEDS_INFO') && (
+                    <input
+                      placeholder="Admin note (required for Needs info)"
+                      value={noteDraft[app.id] ?? ''}
+                      onChange={(e) =>
+                        setNoteDraft((prev) => ({ ...prev, [app.id]: e.target.value }))
+                      }
+                    />
+                  )}
                 </div>
               ))
             )}
           </div>
+
+          <h2 style={{ marginTop: 36 }}>Recent bookings</h2>
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
+              <thead>
+                <tr style={{ textAlign: 'left', color: 'var(--muted)' }}>
+                  <th style={{ padding: '8px 6px' }}>When</th>
+                  <th style={{ padding: '8px 6px' }}>Service</th>
+                  <th style={{ padding: '8px 6px' }}>Pro</th>
+                  <th style={{ padding: '8px 6px' }}>Customer</th>
+                  <th style={{ padding: '8px 6px' }}>Status</th>
+                  <th style={{ padding: '8px 6px' }}>K</th>
+                </tr>
+              </thead>
+              <tbody>
+                {bookings.map((b) => (
+                  <tr key={b.id} style={{ borderTop: '1px solid var(--line)' }}>
+                    <td style={{ padding: '8px 6px' }}>
+                      {new Date(b.createdAt).toLocaleString()}
+                    </td>
+                    <td style={{ padding: '8px 6px' }}>{b.service.name}</td>
+                    <td style={{ padding: '8px 6px' }}>
+                      {b.provider.displayName} · {b.provider.area}
+                    </td>
+                    <td style={{ padding: '8px 6px' }}>
+                      {b.customer.name ?? b.customer.phone}
+                    </td>
+                    <td style={{ padding: '8px 6px' }}>{b.status}</td>
+                    <td style={{ padding: '8px 6px' }}>{b.priceZmw}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {bookings.length === 0 ? (
+              <p style={{ color: 'var(--muted)' }}>No bookings yet.</p>
+            ) : null}
+          </div>
+
+          <h2 style={{ marginTop: 36 }}>Float packages</h2>
+          <div style={{ display: 'grid', gap: 10 }}>
+            {packages.map((pkg) => (
+              <div
+                key={pkg.id}
+                style={{
+                  background: 'var(--paper)',
+                  border: '1px solid var(--line)',
+                  borderRadius: 12,
+                  padding: 14,
+                  display: 'flex',
+                  gap: 12,
+                  alignItems: 'center',
+                  flexWrap: 'wrap',
+                }}
+              >
+                <strong>
+                  {pkg.name} ({pkg.code})
+                </strong>
+                <span style={{ color: 'var(--muted)' }}>{pkg.credits} credits</span>
+                <label>
+                  K{' '}
+                  <input
+                    type="number"
+                    defaultValue={pkg.priceZmw}
+                    style={{ width: 90 }}
+                    onBlur={(e) => {
+                      const next = Number(e.target.value);
+                      if (!Number.isNaN(next) && next !== pkg.priceZmw) {
+                        void savePackagePrice(pkg, next);
+                      }
+                    }}
+                  />
+                </label>
+                <button type="button" onClick={() => togglePackage(pkg)}>
+                  {pkg.isActive ? 'Deactivate' : 'Activate'}
+                </button>
+              </div>
+            ))}
+          </div>
+          <form
+            onSubmit={createPackage}
+            style={{
+              marginTop: 16,
+              display: 'grid',
+              gap: 8,
+              gridTemplateColumns: 'repeat(4, 1fr) auto',
+              alignItems: 'end',
+            }}
+          >
+            <label>
+              Code
+              <input
+                value={newPkg.code}
+                onChange={(e) => setNewPkg({ ...newPkg, code: e.target.value })}
+                required
+              />
+            </label>
+            <label>
+              Name
+              <input
+                value={newPkg.name}
+                onChange={(e) => setNewPkg({ ...newPkg, name: e.target.value })}
+                required
+              />
+            </label>
+            <label>
+              Credits
+              <input
+                type="number"
+                value={newPkg.credits}
+                onChange={(e) =>
+                  setNewPkg({ ...newPkg, credits: Number(e.target.value) })
+                }
+                required
+              />
+            </label>
+            <label>
+              Price K
+              <input
+                type="number"
+                value={newPkg.priceZmw}
+                onChange={(e) =>
+                  setNewPkg({ ...newPkg, priceZmw: Number(e.target.value) })
+                }
+                required
+              />
+            </label>
+            <button type="submit">Add package</button>
+          </form>
         </>
       )}
     </main>
