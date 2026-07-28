@@ -12,7 +12,11 @@ async function bootstrap() {
     .split(',')
     .map((s) => s.trim())
     .filter(Boolean);
-  app.enableCors({ origin: origins, credentials: true });
+  // Reflect request origin when '*' so credentialed browser clients work from tunnels.
+  app.enableCors({
+    origin: origins.includes('*') ? true : origins,
+    credentials: true,
+  });
 
   const port = Number(process.env.PORT ?? 3000);
   await app.listen(port, '0.0.0.0');

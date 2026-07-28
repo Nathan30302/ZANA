@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:zana_customer/api.dart';
+import 'package:zana_customer/screens/auth_sheet.dart';
 import 'package:zana_customer/screens/provider_screen.dart';
 import 'package:zana_customer/theme.dart';
 
@@ -175,6 +176,15 @@ class _HomeScreenState extends State<HomeScreen> {
                       },
                       icon: const Icon(Icons.logout_rounded, size: 22),
                       color: ZanaColors.muted,
+                    )
+                  else
+                    TextButton(
+                      onPressed: () async {
+                        final ok = await showAuthSheet(context);
+                        if (!mounted) return;
+                        if (ok) setState(() {});
+                      },
+                      child: const Text('Sign in'),
                     ),
                 ],
               ),
