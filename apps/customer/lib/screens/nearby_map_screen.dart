@@ -280,7 +280,7 @@ class _NearbyMapScreenState extends State<NearbyMapScreen> {
                       Padding(
                         padding: const EdgeInsets.only(right: 8),
                         child: _MapChip(
-                          label: 'Available now',
+                          label: 'Now',
                           icon: Icons.bolt_rounded,
                           selected: onlineOnly,
                           onTap: () => setState(() {
@@ -317,29 +317,28 @@ class _NearbyMapScreenState extends State<NearbyMapScreen> {
                             },
                           ),
                         ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 10),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: FilledButton.icon(
-                    style: FilledButton.styleFrom(
-                      backgroundColor: ZanaColors.copper,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 10,
+                      Padding(
+                        padding: const EdgeInsets.only(left: 4),
+                        child: FilledButton(
+                          style: FilledButton.styleFrom(
+                            backgroundColor: ZanaColors.copper,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 0,
+                            ),
+                            minimumSize: const Size(0, 38),
+                          ),
+                          onPressed: () => showBookNowFlow(
+                            context,
+                            userLat: widget.userLat,
+                            userLng: widget.userLng,
+                            category: category,
+                          ),
+                          child: const Text('Book now'),
+                        ),
                       ),
-                    ),
-                    onPressed: () => showBookNowFlow(
-                      context,
-                      userLat: widget.userLat,
-                      userLng: widget.userLng,
-                      category: category,
-                    ),
-                    icon: const Icon(Icons.bolt_rounded, size: 18),
-                    label: const Text('Book now'),
+                    ],
                   ),
                 ),
               ],

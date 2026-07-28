@@ -264,7 +264,7 @@ export default function AdminPage() {
               OTP code
               <input value={code} onChange={(e) => setCode(e.target.value)} />
             </label>
-            <button type="submit" className="btn-primary">
+            <button type="submit" className="btn-copper">
               Sign in
             </button>
           </form>
@@ -275,13 +275,13 @@ export default function AdminPage() {
             <div className="stats">
               {(
                 [
-                  ['Users', stats.users],
-                  ['Providers', stats.providers],
-                  ['Bookings', stats.bookings],
-                  ['Pending', stats.pendingApps],
+                  ['Users', stats.users, ''],
+                  ['Providers', stats.providers, ''],
+                  ['Bookings', stats.bookings, ''],
+                  ['Pending', stats.pendingApps, 'pending'],
                 ] as const
-              ).map(([label, value]) => (
-                <div className="stat" key={label}>
+              ).map(([label, value, cls]) => (
+                <div className={`stat${cls ? ` ${cls}` : ''}`} key={label}>
                   <strong>{value}</strong>
                   <span>{label}</span>
                 </div>
@@ -309,7 +309,7 @@ export default function AdminPage() {
           </form>
           <div className="list">
             {apps.length === 0 ? (
-              <p className="muted">No applications yet.</p>
+              <p className="empty-panel">No applications yet.</p>
             ) : (
               apps.map((app) => (
                 <div className="card" key={app.id}>
@@ -408,7 +408,7 @@ export default function AdminPage() {
           </form>
           <div className="list">
             {bookings.length === 0 ? (
-              <p className="muted">No bookings match.</p>
+              <p className="empty-panel">No bookings match.</p>
             ) : (
               bookings.map((b) => (
                 <div className="card" key={b.id}>

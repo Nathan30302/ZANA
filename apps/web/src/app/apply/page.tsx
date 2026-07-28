@@ -157,41 +157,45 @@ export default function ApplyPage() {
 
   return (
     <main className="shell shell-narrow">
-      <div className="brand-row" style={{ marginBottom: 18 }}>
+      <div className="brand-row" style={{ marginBottom: 10 }}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/brand/zana-logo.png" alt="ZANA" />
         <div>
-          <div className="brand-wordmark" style={{ fontWeight: 800, letterSpacing: '0.18em', fontSize: 18 }}>
+          <div
+            className="brand-wordmark"
+            style={{ fontWeight: 800, letterSpacing: '0.18em', fontSize: 22 }}
+          >
             ZANA
           </div>
           <div className="brand-kicker">Style at your fingertips</div>
         </div>
       </div>
-      <h1 style={{ marginTop: 8, fontSize: 34, lineHeight: 1.12 }}>Become a Professional</h1>
-      <p className="muted">
-        Apply once. ZANA reviews your docs, then you download ZANA Pro and buy
-        your first float.
+      <h1 style={{ marginTop: 14, fontSize: 34, lineHeight: 1.1 }}>Become a Professional</h1>
+      <p className="muted" style={{ marginTop: 8 }}>
+        Apply once. ZANA reviews your docs, then you open ZANA Pro and buy your first float.
+      </p>
+
+      <div className="steps" aria-label="Application steps">
+        {(['otp', 'form', 'status'] as Step[]).map((s, i) => {
+          const order = step === 'otp' ? 0 : step === 'form' ? 1 : 2;
+          return <div key={s} className={`step-dot${i <= order ? ' on' : ''}`} />;
+        })}
+      </div>
+      <p className="muted" style={{ margin: '0 0 8px', fontSize: 13, fontWeight: 600 }}>
+        {step === 'otp' ? '1 · Verify phone' : step === 'form' ? '2 · Your shop' : '3 · Status'}
       </p>
 
       {error ? <p className="error">{error}</p> : null}
 
       {step === 'otp' ? (
-        <form onSubmit={verifyOtp} className="panel stack" style={{ marginTop: 24 }}>
+        <form onSubmit={verifyOtp} className="panel stack" style={{ marginTop: 16 }}>
           <label className="field">
             Your name
-            <input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              required
-            />
+            <input value={name} onChange={(e) => setName(e.target.value)} required />
           </label>
           <label className="field">
             Phone (+260)
-            <input
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              required
-            />
+            <input value={phone} onChange={(e) => setPhone(e.target.value)} required />
           </label>
           <button type="button" onClick={requestOtp} className="btn-secondary">
             Send OTP
@@ -201,22 +205,29 @@ export default function ApplyPage() {
             <input
               value={code}
               onChange={(e) => setCode(e.target.value)}
-              placeholder="123456 in dev"
+              placeholder="123456 in demo"
               required
             />
           </label>
-          <button type="submit" className="btn-primary">
+          <button type="submit" className="btn-copper">
             Continue
           </button>
         </form>
       ) : null}
 
       {step === 'form' ? (
-        <form onSubmit={submitApplication} className="panel stack" style={{ marginTop: 24 }}>
+        <form onSubmit={submitApplication} className="panel stack" style={{ marginTop: 16 }}>
           {application?.status === 'NEEDS_INFO' ? (
-            <div className="card" style={{ boxShadow: 'none' }}>
+            <div
+              style={{
+                padding: 14,
+                borderRadius: 14,
+                background: '#fff7ed',
+                border: '1px solid rgba(194,65,12,0.2)',
+              }}
+            >
               <strong>More info needed</strong>
-              <p className="muted" style={{ margin: 0 }}>
+              <p className="muted" style={{ margin: '6px 0 0' }}>
                 {application.adminNote || 'Please update your application and resubmit.'}
               </p>
             </div>
@@ -278,35 +289,44 @@ export default function ApplyPage() {
           </label>
           {uploading ? <p className="muted" style={{ margin: 0 }}>Uploading…</p> : null}
           {documentUrls.length > 0 ? (
-            <ul className="muted" style={{ margin: 0, paddingLeft: 18, fontSize: 13 }}>
+            <div className="doc-grid">
               {documentUrls.map((url) => (
-                <li key={url}>
-                  <a href={url} target="_blank" rel="noreferrer">
-                    {url.split('/').pop()}
-                  </a>
-                </li>
+                <a key={url} href={url} target="_blank" rel="noreferrer">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img className="doc-thumb" src={url} alt="Uploaded document" />
+                </a>
               ))}
-            </ul>
+            </div>
           ) : null}
-          <button type="submit" className="btn-primary" disabled={uploading}>
+          <button type="submit" className="btn-copper" disabled={uploading}>
             {application?.status === 'NEEDS_INFO' ? 'Resubmit for review' : 'Submit for review'}
           </button>
         </form>
       ) : null}
 
       {step === 'status' && application ? (
-        <div className="panel" style={{ marginTop: 24 }}>
+        <div className="panel" style={{ marginTop: 16 }}>
           <h2 style={{ marginTop: 0 }}>Application status</h2>
           <p>
             <strong>{application.displayName}</strong>{' '}
-            <span className="badge badge-warn">{application.status}</span>
+            <span
+              className={`badge ${
+                application.status === 'APPROVED'
+                  ? 'badge-ok'
+                  : application.status === 'REJECTED'
+                    ? 'badge-danger'
+                    : 'badge-warn'
+              }`}
+            >
+              {application.status}
+            </span>
           </p>
           {application.adminNote ? (
             <p className="muted">Admin note: {application.adminNote}</p>
           ) : null}
           {application.status === 'APPROVED' ? (
             <p className="muted">
-              Download <strong>ZANA Pro</strong>, complete shop setup, buy a float, and go online.
+              Download <strong>ZANA Pro</strong>, finish shop setup, buy a float, and go online.
             </p>
           ) : null}
           {application.status === 'PENDING' ? (
@@ -320,7 +340,7 @@ export default function ApplyPage() {
             </p>
           ) : null}
           {application.status === 'NEEDS_INFO' ? (
-            <button type="button" className="btn-primary" onClick={() => setStep('form')}>
+            <button type="button" className="btn-copper" onClick={() => setStep('form')}>
               Update and resubmit
             </button>
           ) : null}

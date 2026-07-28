@@ -429,12 +429,38 @@ class _HomeScreenState extends State<HomeScreen> {
                   final items = snap.data ?? [];
                   if (items.isEmpty) {
                     return Center(
-                      child: Text(
-                        onlineOnly
-                            ? 'Nobody online nearby right now.\nTry again in a bit.'
-                            : 'No pros match these filters.\nTry another area or category.',
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(color: ZanaColors.muted),
+                      child: Padding(
+                        padding: const EdgeInsets.all(28),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              onlineOnly
+                                  ? Icons.bolt_rounded
+                                  : Icons.search_off_rounded,
+                              size: 36,
+                              color: ZanaColors.copper.withValues(alpha: 0.7),
+                            ),
+                            const SizedBox(height: 14),
+                            Text(
+                              onlineOnly
+                                  ? 'Nobody online nearby'
+                                  : 'No matches',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .titleMedium
+                                  ?.copyWith(fontWeight: FontWeight.w800),
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              onlineOnly
+                                  ? 'Try again in a bit, or browse all pros.'
+                                  : 'Try another area or category.',
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(color: ZanaColors.muted),
+                            ),
+                          ],
+                        ),
                       ),
                     );
                   }
