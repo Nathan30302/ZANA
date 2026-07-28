@@ -151,6 +151,19 @@ class _HomeScreenState extends State<HomeScreen> {
                     },
                     icon: const Icon(Icons.calendar_month_outlined),
                   ),
+                  if (api.token != null)
+                    IconButton(
+                      tooltip: 'Sign out',
+                      onPressed: () async {
+                        await api.logout();
+                        if (!context.mounted) return;
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Signed out')),
+                        );
+                        setState(() {});
+                      },
+                      icon: const Icon(Icons.logout),
+                    ),
                 ],
               ),
               const SizedBox(height: 16),

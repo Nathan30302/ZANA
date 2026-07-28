@@ -163,6 +163,7 @@ class ZanaApi {
     required String bookingId,
     required int rating,
     String? comment,
+    String? photoUrl,
   }) async {
     final res = await http.post(
       Uri.parse('$baseUrl/bookings/$bookingId/review'),
@@ -170,10 +171,24 @@ class ZanaApi {
       body: jsonEncode({
         'rating': rating,
         if (comment != null && comment.isNotEmpty) 'comment': comment,
+        if (photoUrl != null) 'photoUrl': photoUrl,
       }),
     );
     if (res.statusCode >= 400) throw Exception(res.body);
     return jsonDecode(res.body) as Map<String, dynamic>;
+  }
+
+  Future<List<String>> uploadImages(List<String> filePaths) async {
+    final req = http.MultipartRequest('POST', Uri.parse('$baseUrl/uploads'));
+    if (token != null) req.headers['Authorization'] = 'Bearer $token';
+    for (final path in filePaths) {
+      req.files.add(await http.MultipartFile.fromPath('files', path));
+    }
+    final streamed = await req.send();
+    final body = await streamed.stream.bytesToString();
+    if (streamed.statusCode >= 400) throw Exception(body);
+    final data = jsonDecode(body) as Map<String, dynamic>;
+    return (data['urls'] as List<dynamic>).cast<String>();
   }
 
   Future<List<dynamic>> providerReviews(String providerId) async {

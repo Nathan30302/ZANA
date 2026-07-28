@@ -114,6 +114,7 @@ export class ProvidersService {
       address?: string;
       coverPhotoUrl?: string;
       displayName?: string;
+      hours?: string;
     },
   ) {
     const profile = await this.prisma.providerProfile.findUnique({
@@ -135,12 +136,86 @@ export class ProvidersService {
         ...(input.displayName !== undefined
           ? { displayName: input.displayName }
           : {}),
+        ...(input.hours !== undefined ? { hours: input.hours } : {}),
       },
       include: {
         services: { orderBy: { name: 'asc' } },
         photos: { orderBy: { sortOrder: 'asc' } },
       },
     });
+  }
+
+  async readiness(userId: string) {
+    const profile = await this.prisma.providerProfile.findUnique({
+      where: { userId },
+      include: {
+        services: { where: { isActive: true } },
+        photos: true,
+      },
+    });
+    if (!profile) throw new NotFoundException('Provider profile not found');
+
+    const checks: Array<{
+      key: string;
+      label: string;
+      ok: boolean;
+      required: boolean;
+    }> = [
+      {
+        key: 'verified',
+        label: 'Approved by ZANA',
+        ok: profile.isVerified,
+        required: true,
+      },
+      {
+        key: 'pin',
+        label: 'Shop pin on map',
+        ok: profile.lat != null && profile.lng != null,
+        required: true,
+      },
+      {
+        key: 'services',
+        label: 'At least one service',
+        ok: profile.services.length > 0,
+        required: true,
+      },
+      {
+        key: 'hours',
+        label: 'Opening hours',
+        ok: !!profile.hours?.trim(),
+        required: true,
+      },
+      {
+        key: 'float',
+        label: 'Float credits > 0',
+        ok: profile.creditBalance > 0,
+        required: true,
+      },
+      {
+        key: 'bio',
+        label: 'Bio',
+        ok: !!profile.bio?.trim(),
+        required: true,
+      },
+      {
+        key: 'photos',
+        label: 'Portfolio photo (recommended)',
+        ok: profile.photos.length > 0 || !!profile.coverPhotoUrl,
+        required: false,
+      },
+    ];
+
+    const blockers = checks
+      .filter((c) => c.required && !c.ok)
+      .map((c) => c.label);
+
+    return {
+      ready: blockers.length === 0,
+      blockers,
+      checks,
+      creditBalance: profile.creditBalance,
+      isOnline: profile.isOnline,
+    };
   }
 
   async createService(
@@ -245,27 +320,19 @@ export class ProvidersService {
   }
 
   async setOnline(userId: string, isOnline: boolean) {
-    const profile = await this.prisma.providerProfile.findUnique({
-      where: { userId },
-      include: { services: { where: { isActive: true }, take: 1 } },
-    });
-    if (!profile) throw new NotFoundException('Provider profile not found');
-
     if (isOnline) {
-      if (profile.creditBalance < 1) {
+      const ready = await this.readiness(userId);
+      if (!ready.ready) {
         throw new BadRequestException(
-          'Buy float credits before going online',
+          `Complete setup first: ${ready.blockers.join(', ')}`,
         );
-      }
-      if (profile.services.length === 0) {
-        throw new BadRequestException(
-          'Add at least one service before going online',
-        );
-      }
-      if (profile.lat == null || profile.lng == null) {
-        throw new BadRequestException('Set your shop pin before going online');
       }
     }
+
+    const profile = await this.prisma.providerProfile.findUnique({
+      where: { userId },
+    });
+    if (!profile) throw new NotFoundException('Provider profile not found');
 
     return this.prisma.providerProfile.update({
       where: { id: profile.id },

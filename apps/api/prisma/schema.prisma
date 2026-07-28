@@ -81,6 +81,8 @@ model ProviderProfile {
   lng           Float?
   address       String?
   coverPhotoUrl String?
+  /// Free-text hours, e.g. "Mon–Sat 08:00–18:00"
+  hours         String?
   isOnline      Boolean      @default(false)
   isVerified    Boolean      @default(false)
   ratingAvg     Float        @default(0)
@@ -161,6 +163,8 @@ model Booking {
   priceZmw        Int
   creditBurned    Boolean       @default(false)
   notes           String?
+  declineReason   String?
+  disputeNote     String?
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
 

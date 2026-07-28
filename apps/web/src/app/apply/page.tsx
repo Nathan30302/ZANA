@@ -1,14 +1,26 @@
 'use client';
 
-import { FormEvent, useState, type CSSProperties, type ChangeEvent } from 'react';
+import { FormEvent, useEffect, useState, type CSSProperties, type ChangeEvent } from 'react';
 import { api } from '@/lib/api';
 
-type Step = 'otp' | 'form' | 'done';
+type Step = 'otp' | 'form' | 'status';
+
+type Application = {
+  id: string;
+  displayName: string;
+  area: string;
+  type: string;
+  status: string;
+  notes?: string | null;
+  adminNote?: string | null;
+  documentUrls?: string[];
+};
 
 const API_BASE = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/v1').replace(
   /\/v1\/?$/,
   '',
 );
+const TOKEN_KEY = 'zana_apply_token';
 
 export default function ApplyPage() {
   const [step, setStep] = useState<Step>('otp');
@@ -18,12 +30,44 @@ export default function ApplyPage() {
   const [error, setError] = useState('');
   const [uploading, setUploading] = useState(false);
   const [documentUrls, setDocumentUrls] = useState<string[]>([]);
+  const [application, setApplication] = useState<Application | null>(null);
   const [form, setForm] = useState({
     type: 'INDEPENDENT',
     displayName: '',
     area: 'Roma',
     notes: '',
   });
+
+  async function loadMine(t: string) {
+    const app = await api<Application | null>('/applications/me', { token: t });
+    if (app) {
+      setApplication(app);
+      setForm({
+        type: app.type,
+        displayName: app.displayName,
+        area: app.area,
+        notes: app.notes ?? '',
+      });
+      setDocumentUrls(app.documentUrls ?? []);
+      if (app.status === 'NEEDS_INFO') {
+        setStep('form');
+      } else {
+        setStep('status');
+      }
+    } else {
+      setStep('form');
+    }
+  }
+
+  useEffect(() => {
+    const saved = localStorage.getItem(TOKEN_KEY);
+    if (!saved) return;
+    setToken(saved);
+    loadMine(saved).catch(() => {
+      localStorage.removeItem(TOKEN_KEY);
+      setToken('');
+    });
+  }, []);
 
   async function requestOtp(e: FormEvent) {
     e.preventDefault();
@@ -46,8 +90,9 @@ export default function ApplyPage() {
         method: 'POST',
         body: JSON.stringify({ phone, code }),
       });
+      localStorage.setItem(TOKEN_KEY, res.token);
       setToken(res.token);
-      setStep('form');
+      await loadMine(res.token);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Invalid OTP');
     }
@@ -81,12 +126,22 @@ export default function ApplyPage() {
     e.preventDefault();
     setError('');
     try {
-      await api('/applications', {
-        method: 'POST',
-        token,
-        body: JSON.stringify({ ...form, documentUrls }),
-      });
-      setStep('done');
+      if (application && (application.status === 'NEEDS_INFO' || application.status === 'PENDING')) {
+        const updated = await api<Application>('/applications/me', {
+          method: 'PATCH',
+          token,
+          body: JSON.stringify({ ...form, documentUrls }),
+        });
+        setApplication(updated);
+      } else {
+        const created = await api<Application>('/applications', {
+          method: 'POST',
+          token,
+          body: JSON.stringify({ ...form, documentUrls }),
+        });
+        setApplication(created);
+      }
+      setStep('status');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Submit failed');
     }
@@ -142,6 +197,21 @@ export default function ApplyPage() {
           onSubmit={submitApplication}
           style={{ display: 'grid', gap: 12, marginTop: 24 }}
         >
+          {application?.status === 'NEEDS_INFO' ? (
+            <div
+              style={{
+                padding: 12,
+                borderRadius: 10,
+                background: 'var(--paper)',
+                border: '1px solid var(--line)',
+              }}
+            >
+              <strong>More info needed</strong>
+              <p style={{ margin: '6px 0 0', color: 'var(--muted)' }}>
+                {application.adminNote || 'Please update your application and resubmit.'}
+              </p>
+            </div>
+          ) : null}
           <label>
             Type
             <select
@@ -221,12 +291,12 @@ export default function ApplyPage() {
             </ul>
           ) : null}
           <button type="submit" style={primaryBtn} disabled={uploading}>
-            Submit for review
+            {application?.status === 'NEEDS_INFO' ? 'Resubmit for review' : 'Submit for review'}
           </button>
         </form>
       ) : null}
 
-      {step === 'done' ? (
+      {step === 'status' && application ? (
         <div
           style={{
             marginTop: 24,
@@ -236,11 +306,33 @@ export default function ApplyPage() {
             borderRadius: 12,
           }}
         >
-          <h2 style={{ marginTop: 0 }}>Application received</h2>
-          <p style={{ color: 'var(--muted)' }}>
-            Our team will review and message you on WhatsApp/SMS. After approval,
-            download <strong>ZANA Pro</strong>, buy a float, and go online.
+          <h2 style={{ marginTop: 0 }}>Application status</h2>
+          <p>
+            <strong>{application.displayName}</strong> · {application.status}
           </p>
+          {application.adminNote ? (
+            <p style={{ color: 'var(--muted)' }}>Admin note: {application.adminNote}</p>
+          ) : null}
+          {application.status === 'APPROVED' ? (
+            <p style={{ color: 'var(--muted)' }}>
+              Download <strong>ZANA Pro</strong>, complete shop setup, buy a float, and go online.
+            </p>
+          ) : null}
+          {application.status === 'PENDING' ? (
+            <p style={{ color: 'var(--muted)' }}>
+              Our team is reviewing your docs. We&apos;ll message you on WhatsApp/SMS.
+            </p>
+          ) : null}
+          {application.status === 'REJECTED' ? (
+            <p style={{ color: '#b91c1c' }}>
+              This application was rejected. Contact support if you think this is a mistake.
+            </p>
+          ) : null}
+          {application.status === 'NEEDS_INFO' ? (
+            <button type="button" style={primaryBtn} onClick={() => setStep('form')}>
+              Update and resubmit
+            </button>
+          ) : null}
         </div>
       ) : null}
     </main>

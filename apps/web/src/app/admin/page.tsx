@@ -19,6 +19,7 @@ type BookingRow = {
   status: string;
   priceZmw: number;
   createdAt: string;
+  disputeNote?: string | null;
   service: { name: string };
   provider: { displayName: string; area: string };
   customer: { phone: string; name: string | null };
@@ -52,6 +53,10 @@ export default function AdminPage() {
   const [packages, setPackages] = useState<FloatPackage[]>([]);
   const [error, setError] = useState('');
   const [noteDraft, setNoteDraft] = useState<Record<string, string>>({});
+  const [disputeDraft, setDisputeDraft] = useState<Record<string, string>>({});
+  const [appQuery, setAppQuery] = useState('');
+  const [bookingStatus, setBookingStatus] = useState('');
+  const [bookingQuery, setBookingQuery] = useState('');
   const [newPkg, setNewPkg] = useState({
     code: '',
     name: '',
@@ -59,11 +64,24 @@ export default function AdminPage() {
     priceZmw: 250,
   });
 
-  async function loadAll(t: string) {
+  async function loadAll(
+    t: string,
+    opts?: { appQ?: string; bookingStatus?: string; bookingQ?: string },
+  ) {
+    const aq = opts?.appQ ?? appQuery;
+    const bs = opts?.bookingStatus ?? bookingStatus;
+    const bq = opts?.bookingQ ?? bookingQuery;
+    const appsPath = `/admin/applications${aq ? `?q=${encodeURIComponent(aq)}` : ''}`;
+    const bookingParams = new URLSearchParams();
+    if (bs) bookingParams.set('status', bs);
+    if (bq) bookingParams.set('q', bq);
+    const bookingsPath = `/admin/bookings${
+      bookingParams.toString() ? `?${bookingParams}` : ''
+    }`;
     const [s, a, b, p] = await Promise.all([
       api<Stats>('/admin/stats', { token: t }),
-      api<Application[]>('/admin/applications', { token: t }),
-      api<BookingRow[]>('/admin/bookings', { token: t }),
+      api<Application[]>(appsPath, { token: t }),
+      api<BookingRow[]>(bookingsPath, { token: t }),
       api<FloatPackage[]>('/admin/float-packages', { token: t }),
     ]);
     setStats(s);
@@ -152,6 +170,16 @@ export default function AdminPage() {
     await loadAll(token);
   }
 
+  async function saveDispute(id: string) {
+    if (!token) return;
+    await api(`/admin/bookings/${id}/dispute`, {
+      method: 'PATCH',
+      token,
+      body: JSON.stringify({ disputeNote: disputeDraft[id] ?? '' }),
+    });
+    await loadAll(token);
+  }
+
   function logout() {
     localStorage.removeItem(TOKEN_KEY);
     setToken('');
@@ -224,6 +252,21 @@ export default function AdminPage() {
           ) : null}
 
           <h2>Applications</h2>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              void loadAll(token, { appQ: appQuery });
+            }}
+            style={{ display: 'flex', gap: 8, marginBottom: 12 }}
+          >
+            <input
+              placeholder="Search name, area, phone"
+              value={appQuery}
+              onChange={(e) => setAppQuery(e.target.value)}
+              style={{ flex: 1 }}
+            />
+            <button type="submit">Search</button>
+          </form>
           <div style={{ display: 'grid', gap: 10 }}>
             {apps.length === 0 ? (
               <p style={{ color: 'var(--muted)' }}>No applications yet.</p>
@@ -292,40 +335,91 @@ export default function AdminPage() {
           </div>
 
           <h2 style={{ marginTop: 36 }}>Recent bookings</h2>
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
-              <thead>
-                <tr style={{ textAlign: 'left', color: 'var(--muted)' }}>
-                  <th style={{ padding: '8px 6px' }}>When</th>
-                  <th style={{ padding: '8px 6px' }}>Service</th>
-                  <th style={{ padding: '8px 6px' }}>Pro</th>
-                  <th style={{ padding: '8px 6px' }}>Customer</th>
-                  <th style={{ padding: '8px 6px' }}>Status</th>
-                  <th style={{ padding: '8px 6px' }}>K</th>
-                </tr>
-              </thead>
-              <tbody>
-                {bookings.map((b) => (
-                  <tr key={b.id} style={{ borderTop: '1px solid var(--line)' }}>
-                    <td style={{ padding: '8px 6px' }}>
-                      {new Date(b.createdAt).toLocaleString()}
-                    </td>
-                    <td style={{ padding: '8px 6px' }}>{b.service.name}</td>
-                    <td style={{ padding: '8px 6px' }}>
-                      {b.provider.displayName} · {b.provider.area}
-                    </td>
-                    <td style={{ padding: '8px 6px' }}>
-                      {b.customer.name ?? b.customer.phone}
-                    </td>
-                    <td style={{ padding: '8px 6px' }}>{b.status}</td>
-                    <td style={{ padding: '8px 6px' }}>{b.priceZmw}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              void loadAll(token, {
+                bookingStatus,
+                bookingQ: bookingQuery,
+              });
+            }}
+            style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}
+          >
+            <select
+              value={bookingStatus}
+              onChange={(e) => setBookingStatus(e.target.value)}
+            >
+              <option value="">All statuses</option>
+              {[
+                'REQUESTED',
+                'ACCEPTED',
+                'ON_THE_WAY',
+                'IN_SERVICE',
+                'COMPLETED',
+                'CANCELLED',
+                'DECLINED',
+                'EXPIRED',
+                'RATED',
+              ].map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
+            </select>
+            <input
+              placeholder="Search service, pro, phone, dispute"
+              value={bookingQuery}
+              onChange={(e) => setBookingQuery(e.target.value)}
+              style={{ flex: 1, minWidth: 180 }}
+            />
+            <button type="submit">Filter</button>
+          </form>
+          <div style={{ display: 'grid', gap: 10 }}>
             {bookings.length === 0 ? (
-              <p style={{ color: 'var(--muted)' }}>No bookings yet.</p>
-            ) : null}
+              <p style={{ color: 'var(--muted)' }}>No bookings match.</p>
+            ) : (
+              bookings.map((b) => (
+                <div
+                  key={b.id}
+                  style={{
+                    background: 'var(--paper)',
+                    border: '1px solid var(--line)',
+                    borderRadius: 12,
+                    padding: 14,
+                    display: 'grid',
+                    gap: 8,
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
+                    <div>
+                      <strong>{b.service.name}</strong> · {b.status} · K{b.priceZmw}
+                      <div style={{ color: 'var(--muted)', fontSize: 13 }}>
+                        {b.provider.displayName} · {b.customer.name ?? b.customer.phone} ·{' '}
+                        {new Date(b.createdAt).toLocaleString()}
+                      </div>
+                      {b.disputeNote ? (
+                        <div style={{ fontSize: 13, marginTop: 4 }}>
+                          Dispute: {b.disputeNote}
+                        </div>
+                      ) : null}
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    <input
+                      placeholder="Dispute / ops note"
+                      value={disputeDraft[b.id] ?? b.disputeNote ?? ''}
+                      onChange={(e) =>
+                        setDisputeDraft((prev) => ({ ...prev, [b.id]: e.target.value }))
+                      }
+                      style={{ flex: 1, minWidth: 200 }}
+                    />
+                    <button type="button" onClick={() => saveDispute(b.id)}>
+                      Save note
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
 
           <h2 style={{ marginTop: 36 }}>Float packages</h2>

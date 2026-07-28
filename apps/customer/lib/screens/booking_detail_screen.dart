@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:zana_customer/api.dart';
-import 'package:zana_customer/theme.dart';
+import 'package:zana_customer/screens/provider_screen.dart';
 import 'package:zana_customer/screens/tracking_screen.dart';
+import 'package:zana_customer/theme.dart';
 
 const _timeline = [
   'REQUESTED',
@@ -27,6 +29,7 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
   late Future<Map<String, dynamic>> future;
   int rating = 5;
   final commentCtrl = TextEditingController();
+  String? reviewPhotoUrl;
   bool busy = false;
 
   @override
@@ -59,6 +62,22 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
     }
   }
 
+  Future<void> _pickReviewPhoto() async {
+    final file = await ImagePicker().pickImage(source: ImageSource.gallery, imageQuality: 80);
+    if (file == null) return;
+    setState(() => busy = true);
+    try {
+      final urls = await api.uploadImages([file.path]);
+      setState(() => reviewPhotoUrl = urls.first);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+      }
+    } finally {
+      if (mounted) setState(() => busy = false);
+    }
+  }
+
   Future<void> _rate() async {
     setState(() => busy = true);
     try {
@@ -66,6 +85,7 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
         bookingId: widget.bookingId,
         rating: rating,
         comment: commentCtrl.text.trim(),
+        photoUrl: reviewPhotoUrl,
       );
       await _reload();
     } catch (e) {
@@ -98,6 +118,11 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
               status == 'IN_SERVICE' ||
               status == 'ACCEPTED' ||
               status == 'CONFIRMED';
+          final canRebook = status == 'COMPLETED' ||
+              status == 'RATED' ||
+              status == 'CANCELLED' ||
+              status == 'DECLINED' ||
+              status == 'EXPIRED';
           final scheduled = b['scheduledAt'] != null
               ? DateTime.tryParse(b['scheduledAt'] as String)
               : null;
@@ -131,11 +156,16 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
                   'Contact: ${b['contactPhone']}',
                   style: const TextStyle(color: ZanaColors.muted),
                 ),
+              if (b['declineReason'] != null)
+                Text(
+                  'Declined: ${b['declineReason']}',
+                  style: TextStyle(color: Colors.red.shade700),
+                ),
               const SizedBox(height: 20),
               const Text('Status', style: TextStyle(fontWeight: FontWeight.w700)),
               const SizedBox(height: 10),
               ..._buildTimeline(status),
-              if (status == 'CANCELLED' || status == 'DECLINED') ...[
+              if (status == 'CANCELLED' || status == 'DECLINED' || status == 'EXPIRED') ...[
                 const SizedBox(height: 8),
                 Text(
                   status,
@@ -169,7 +199,24 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
                   child: const Text('Cancel booking'),
                 ),
               ],
+              if (canRebook && provider?['id'] != null) ...[
+                const SizedBox(height: 8),
+                OutlinedButton.icon(
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => ProviderScreen(
+                          providerId: provider!['id'] as String,
+                        ),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.replay),
+                  label: const Text('Book again'),
+                ),
+              ],
               if (canRate) ...[
+                const SizedBox(height: 16),
                 const Text('Rate your experience',
                     style: TextStyle(fontWeight: FontWeight.w700)),
                 const SizedBox(height: 8),
@@ -193,6 +240,12 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
                     border: OutlineInputBorder(),
                   ),
                 ),
+                const SizedBox(height: 8),
+                OutlinedButton.icon(
+                  onPressed: busy ? null : _pickReviewPhoto,
+                  icon: const Icon(Icons.photo_camera_outlined),
+                  label: Text(reviewPhotoUrl == null ? 'Add photo' : 'Photo attached'),
+                ),
                 const SizedBox(height: 12),
                 FilledButton(
                   style: FilledButton.styleFrom(
@@ -208,6 +261,19 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
                   'You rated ${(b['review'] as Map)['rating']}★',
                   style: const TextStyle(color: ZanaColors.muted),
                 ),
+                if ((b['review'] as Map)['photoUrl'] != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(10),
+                      child: Image.network(
+                        (b['review'] as Map)['photoUrl'] as String,
+                        height: 140,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                      ),
+                    ),
+                  ),
               ],
             ],
           );

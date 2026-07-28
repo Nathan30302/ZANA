@@ -5,6 +5,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:zana_pro/api.dart';
 import 'package:zana_pro/screens/auth_sheet.dart';
 import 'package:zana_pro/screens/buy_float_sheet.dart';
+import 'package:zana_pro/screens/job_detail_screen.dart';
 import 'package:zana_pro/screens/onboarding_screen.dart';
 import 'package:zana_pro/theme.dart';
 
@@ -22,6 +23,7 @@ class _ProHomeScreenState extends State<ProHomeScreen> {
   List<dynamic> jobs = [];
   List<dynamic> packages = [];
   Map<String, dynamic>? profile;
+  Map<String, dynamic>? readiness;
   String? error;
   Timer? _locationTimer;
   String? _trackingBookingId;
@@ -76,8 +78,13 @@ class _ProHomeScreenState extends State<ProHomeScreen> {
       final bal = await api.balance();
       final j = await api.jobs();
       final p = await api.packages();
+      Map<String, dynamic>? ready;
+      try {
+        ready = await api.readiness();
+      } catch (_) {}
       setState(() {
         profile = me;
+        readiness = ready;
         online = me['isOnline'] as bool? ?? false;
         credits = bal['creditBalance'] as int? ?? 0;
         jobs = j;
@@ -86,9 +93,13 @@ class _ProHomeScreenState extends State<ProHomeScreen> {
       });
       _syncLocationTracking(j);
 
-      final services = (me['services'] as List?) ?? [];
-      final active = services.where((s) => (s as Map)['isActive'] != false);
-      if (active.isEmpty || me['lat'] == null) {
+      final blockers = (ready?['blockers'] as List?) ?? [];
+      final needsSetup = blockers.any((b) =>
+          b == 'Shop pin on map' ||
+          b == 'At least one service' ||
+          b == 'Opening hours' ||
+          b == 'Bio');
+      if (needsSetup) {
         if (!mounted) return;
         await Navigator.of(context).push(
           MaterialPageRoute(
@@ -183,7 +194,33 @@ class _ProHomeScreenState extends State<ProHomeScreen> {
   }
 
   Future<void> _decline(String id) async {
-    await api.updateStatus(id, 'DECLINED');
+    final reasonCtrl = TextEditingController();
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Decline job'),
+        content: TextField(
+          controller: reasonCtrl,
+          decoration: const InputDecoration(
+            labelText: 'Reason (optional)',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Decline')),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    await api.updateStatus(id, 'DECLINED', declineReason: reasonCtrl.text.trim());
+    await _bootstrap();
+  }
+
+  Future<void> _openJob(String id) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => JobDetailScreen(bookingId: id)),
+    );
     await _bootstrap();
   }
 
@@ -258,6 +295,34 @@ class _ProHomeScreenState extends State<ProHomeScreen> {
                             style: const TextStyle(color: ZanaColors.muted),
                           ),
                         const SizedBox(height: 16),
+                        if (readiness != null &&
+                            (readiness!['ready'] as bool? ?? false) == false) ...[
+                          Container(
+                            padding: const EdgeInsets.all(14),
+                            decoration: BoxDecoration(
+                              color: ZanaColors.paper,
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(color: ZanaColors.copper.withValues(alpha: 0.4)),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text('Finish setup to go online',
+                                    style: TextStyle(fontWeight: FontWeight.w700)),
+                                const SizedBox(height: 6),
+                                ...((readiness!['blockers'] as List?) ?? []).map(
+                                  (b) => Text('• $b',
+                                      style: const TextStyle(color: ZanaColors.muted, fontSize: 13)),
+                                ),
+                                TextButton(
+                                  onPressed: _openSetup,
+                                  child: const Text('Open shop setup'),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                        ],
                         Container(
                           padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
@@ -333,8 +398,14 @@ class _ProHomeScreenState extends State<ProHomeScreen> {
                                 fontWeight: FontWeight.w700, fontSize: 18)),
                         const SizedBox(height: 8),
                         if (jobs.isEmpty)
-                          const Text('No jobs yet.',
-                              style: TextStyle(color: ZanaColors.muted)),
+                          const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 24),
+                            child: Text(
+                              'No jobs yet.\nGo online and wait for nearby requests.',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(color: ZanaColors.muted),
+                            ),
+                          ),
                         ...jobs.map((raw) {
                           final job = raw as Map<String, dynamic>;
                           final service = job['service'] as Map<String, dynamic>?;
@@ -379,6 +450,7 @@ class _ProHomeScreenState extends State<ProHomeScreen> {
                             color: ZanaColors.paper,
                             elevation: 0,
                             child: ListTile(
+                              onTap: () => _openJob(job['id'] as String),
                               title: Text(service?['name'] as String? ?? 'Service'),
                               subtitle: Text(
                                 'Status: $status · K${job['priceZmw']}'

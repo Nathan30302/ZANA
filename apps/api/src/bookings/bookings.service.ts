@@ -235,6 +235,7 @@ export class BookingsService {
     bookingId: string,
     actor: { id: string; isProvider: boolean },
     next: BookingStatus,
+    extras: { declineReason?: string } = {},
   ) {
     const booking = await this.prisma.booking.findUnique({
       where: { id: bookingId },
@@ -333,6 +334,9 @@ export class BookingsService {
           status: next,
           ...(next === BookingStatus.ACCEPTED
             ? { contactPhone: booking.provider.user.phone }
+            : {}),
+          ...(next === BookingStatus.DECLINED && extras.declineReason
+            ? { declineReason: extras.declineReason.trim() }
             : {}),
         },
         include: {

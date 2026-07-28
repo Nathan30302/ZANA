@@ -42,6 +42,32 @@ export class AdminController {
     return this.admin.submitApplication(user.id, body);
   }
 
+  @Get('applications/me')
+  async myApplication(
+    @Headers('authorization') authorization: string | undefined,
+  ) {
+    const user = await this.auth.userFromToken(authorization);
+    if (!user) throw new UnauthorizedException();
+    return this.admin.getMyApplication(user.id);
+  }
+
+  @Patch('applications/me')
+  async resubmit(
+    @Headers('authorization') authorization: string | undefined,
+    @Body()
+    body: {
+      type?: ProviderType;
+      displayName?: string;
+      area?: string;
+      notes?: string;
+      documentUrls?: string[];
+    },
+  ) {
+    const user = await this.auth.userFromToken(authorization);
+    if (!user) throw new UnauthorizedException();
+    return this.admin.resubmitApplication(user.id, body);
+  }
+
   @Get('admin/stats')
   async stats(@Headers('authorization') authorization?: string) {
     await this.requireAdmin(authorization);
@@ -52,9 +78,10 @@ export class AdminController {
   async listApps(
     @Headers('authorization') authorization: string | undefined,
     @Query('status') status?: ProviderApplicationStatus,
+    @Query('q') q?: string,
   ) {
     await this.requireAdmin(authorization);
-    return this.admin.listApplications(status);
+    return this.admin.listApplications(status, q);
   }
 
   @Patch('admin/applications/:id')
@@ -71,9 +98,20 @@ export class AdminController {
   async bookings(
     @Headers('authorization') authorization: string | undefined,
     @Query('status') status?: BookingStatus,
+    @Query('q') q?: string,
   ) {
     await this.requireAdmin(authorization);
-    return this.admin.listBookings(status);
+    return this.admin.listBookings(status, q);
+  }
+
+  @Patch('admin/bookings/:id/dispute')
+  async dispute(
+    @Headers('authorization') authorization: string | undefined,
+    @Param('id') id: string,
+    @Body() body: { disputeNote: string },
+  ) {
+    await this.requireAdmin(authorization);
+    return this.admin.setDisputeNote(id, body.disputeNote ?? '');
   }
 
   @Get('admin/float-packages')

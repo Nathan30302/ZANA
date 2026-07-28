@@ -17,6 +17,7 @@ class OnboardingScreen extends StatefulWidget {
 class _OnboardingScreenState extends State<OnboardingScreen> {
   late final TextEditingController bioCtrl;
   late final TextEditingController addressCtrl;
+  late final TextEditingController hoursCtrl;
   late String area;
   double? lat;
   double? lng;
@@ -36,6 +37,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     bioCtrl = TextEditingController(text: widget.profile['bio'] as String? ?? '');
     addressCtrl =
         TextEditingController(text: widget.profile['address'] as String? ?? '');
+    hoursCtrl = TextEditingController(
+      text: widget.profile['hours'] as String? ?? 'Mon–Sat 08:00–18:00',
+    );
     area = widget.profile['area'] as String? ?? 'Roma';
     lat = (widget.profile['lat'] as num?)?.toDouble();
     lng = (widget.profile['lng'] as num?)?.toDouble();
@@ -47,6 +51,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   void dispose() {
     bioCtrl.dispose();
     addressCtrl.dispose();
+    hoursCtrl.dispose();
     nameCtrl.dispose();
     priceCtrl.dispose();
     super.dispose();
@@ -75,6 +80,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         'bio': bioCtrl.text.trim(),
         'area': area,
         'address': addressCtrl.text.trim(),
+        'hours': hoursCtrl.text.trim(),
         if (lat != null) 'lat': lat,
         if (lng != null) 'lng': lng,
       });
@@ -173,7 +179,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   bool get ready =>
       services.where((s) => (s as Map)['isActive'] != false).isNotEmpty &&
       lat != null &&
-      lng != null;
+      lng != null &&
+      hoursCtrl.text.trim().isNotEmpty &&
+      bioCtrl.text.trim().isNotEmpty;
 
   @override
   Widget build(BuildContext context) {
@@ -205,6 +213,15 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             maxLines: 3,
             decoration: const InputDecoration(
               labelText: 'Bio',
+              border: OutlineInputBorder(),
+            ),
+          ),
+          const SizedBox(height: 10),
+          TextField(
+            controller: hoursCtrl,
+            decoration: const InputDecoration(
+              labelText: 'Opening hours',
+              hintText: 'Mon–Sat 08:00–18:00',
               border: OutlineInputBorder(),
             ),
           ),
@@ -340,7 +357,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             const Padding(
               padding: EdgeInsets.only(top: 16),
               child: Text(
-                'Need at least one service and a map pin before going online.',
+                'Need bio, hours, one service, and a map pin before going online.',
                 style: TextStyle(color: ZanaColors.muted),
               ),
             ),

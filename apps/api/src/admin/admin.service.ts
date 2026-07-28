@@ -15,11 +15,72 @@ import { PrismaService } from '../prisma/prisma.service';
 export class AdminService {
   constructor(private readonly prisma: PrismaService) {}
 
-  listApplications(status?: ProviderApplicationStatus) {
+  listApplications(status?: ProviderApplicationStatus, q?: string) {
+    const query = q?.trim();
     return this.prisma.providerApplication.findMany({
-      where: status ? { status } : undefined,
+      where: {
+        ...(status ? { status } : {}),
+        ...(query
+          ? {
+              OR: [
+                { displayName: { contains: query, mode: 'insensitive' } },
+                { area: { contains: query, mode: 'insensitive' } },
+                { user: { phone: { contains: query } } },
+              ],
+            }
+          : {}),
+      },
       include: { user: true },
       orderBy: { createdAt: 'asc' },
+    });
+  }
+
+  getMyApplication(userId: string) {
+    return this.prisma.providerApplication.findFirst({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  async resubmitApplication(
+    userId: string,
+    input: {
+      type?: ProviderType;
+      displayName?: string;
+      area?: string;
+      notes?: string;
+      documentUrls?: string[];
+    },
+  ) {
+    const app = await this.prisma.providerApplication.findFirst({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+    });
+    if (!app) throw new NotFoundException('No application found');
+    if (
+      app.status !== ProviderApplicationStatus.NEEDS_INFO &&
+      app.status !== ProviderApplicationStatus.PENDING
+    ) {
+      throw new BadRequestException(
+        `Cannot resubmit while status is ${app.status}`,
+      );
+    }
+
+    return this.prisma.providerApplication.update({
+      where: { id: app.id },
+      data: {
+        status: ProviderApplicationStatus.PENDING,
+        adminNote: null,
+        ...(input.type !== undefined ? { type: input.type } : {}),
+        ...(input.displayName !== undefined
+          ? { displayName: input.displayName }
+          : {}),
+        ...(input.area !== undefined ? { area: input.area } : {}),
+        ...(input.notes !== undefined ? { notes: input.notes } : {}),
+        ...(input.documentUrls !== undefined
+          ? { documentUrls: input.documentUrls }
+          : {}),
+      },
     });
   }
 
@@ -105,9 +166,26 @@ export class AdminService {
     });
   }
 
-  listBookings(status?: BookingStatus) {
+  listBookings(status?: BookingStatus, q?: string) {
+    const query = q?.trim();
     return this.prisma.booking.findMany({
-      where: status ? { status } : undefined,
+      where: {
+        ...(status ? { status } : {}),
+        ...(query
+          ? {
+              OR: [
+                { service: { name: { contains: query, mode: 'insensitive' } } },
+                {
+                  provider: {
+                    displayName: { contains: query, mode: 'insensitive' },
+                  },
+                },
+                { customer: { phone: { contains: query } } },
+                { disputeNote: { contains: query, mode: 'insensitive' } },
+              ],
+            }
+          : {}),
+      },
       include: {
         service: true,
         provider: { select: { id: true, displayName: true, area: true } },
@@ -115,6 +193,22 @@ export class AdminService {
       },
       orderBy: { createdAt: 'desc' },
       take: 100,
+    });
+  }
+
+  async setDisputeNote(bookingId: string, disputeNote: string) {
+    const booking = await this.prisma.booking.findUnique({
+      where: { id: bookingId },
+    });
+    if (!booking) throw new NotFoundException('Booking not found');
+    return this.prisma.booking.update({
+      where: { id: bookingId },
+      data: { disputeNote: disputeNote.trim() || null },
+      include: {
+        service: true,
+        provider: { select: { id: true, displayName: true, area: true } },
+        customer: { select: { id: true, phone: true, name: true } },
+      },
     });
   }
 

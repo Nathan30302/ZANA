@@ -143,6 +143,11 @@ class _ProviderScreenState extends State<ProviderScreen> {
                 '${count > 0 ? '${rating.toStringAsFixed(1)}★ ($count)' : 'New on ZANA'}',
                 style: const TextStyle(color: ZanaColors.muted),
               ),
+              if (p['hours'] != null)
+                Text(
+                  'Hours: ${p['hours']}',
+                  style: const TextStyle(color: ZanaColors.muted),
+                ),
               if (bio != null && bio.isNotEmpty) ...[
                 const SizedBox(height: 10),
                 Text(bio),

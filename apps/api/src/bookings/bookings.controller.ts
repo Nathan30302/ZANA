@@ -63,7 +63,7 @@ export class BookingsController {
   async status(
     @Headers('authorization') authorization: string | undefined,
     @Param('id') id: string,
-    @Body() body: { status: BookingStatus },
+    @Body() body: { status: BookingStatus; declineReason?: string },
   ) {
     const user = await this.auth.userFromToken(authorization);
     if (!user) throw new UnauthorizedException();
@@ -71,6 +71,7 @@ export class BookingsController {
       id,
       { id: user.id, isProvider: !!user.providerProfile },
       body.status,
+      { declineReason: body.declineReason },
     );
   }
 

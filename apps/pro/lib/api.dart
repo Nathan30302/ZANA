@@ -73,6 +73,15 @@ class ProApi {
     return jsonDecode(res.body) as Map<String, dynamic>;
   }
 
+  Future<Map<String, dynamic>> readiness() async {
+    final res = await http.get(
+      Uri.parse('$baseUrl/providers/me/readiness'),
+      headers: _headers,
+    );
+    if (res.statusCode >= 400) throw Exception(res.body);
+    return jsonDecode(res.body) as Map<String, dynamic>;
+  }
+
   Future<Map<String, dynamic>> updateProfile(Map<String, dynamic> body) async {
     final res = await http.patch(
       Uri.parse('$baseUrl/providers/me'),
@@ -185,13 +194,28 @@ class ProApi {
     return jsonDecode(res.body) as List<dynamic>;
   }
 
-  Future<void> updateStatus(String bookingId, String status) async {
+  Future<void> updateStatus(
+    String bookingId,
+    String status, {
+    String? declineReason,
+  }) async {
     final res = await http.patch(
       Uri.parse('$baseUrl/bookings/$bookingId/status'),
       headers: _headers,
-      body: jsonEncode({'status': status}),
+      body: jsonEncode({
+        'status': status,
+        if (declineReason != null && declineReason.isNotEmpty)
+          'declineReason': declineReason,
+      }),
     );
     if (res.statusCode >= 400) throw Exception(res.body);
+  }
+
+  Future<Map<String, dynamic>> getBooking(String id) async {
+    final res =
+        await http.get(Uri.parse('$baseUrl/bookings/$id'), headers: _headers);
+    if (res.statusCode >= 400) throw Exception(res.body);
+    return jsonDecode(res.body) as Map<String, dynamic>;
   }
 
   Future<void> updateLocation(String bookingId, double lat, double lng) async {

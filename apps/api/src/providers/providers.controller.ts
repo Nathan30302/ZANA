@@ -45,6 +45,13 @@ export class ProvidersController {
     return this.providers.getMe(user.id);
   }
 
+  @Get('me/readiness')
+  async readiness(@Headers('authorization') authorization: string | undefined) {
+    const user = await this.auth.userFromToken(authorization);
+    if (!user) throw new UnauthorizedException();
+    return this.providers.readiness(user.id);
+  }
+
   @Patch('me')
   async updateMe(
     @Headers('authorization') authorization: string | undefined,
@@ -57,6 +64,7 @@ export class ProvidersController {
       address?: string;
       coverPhotoUrl?: string;
       displayName?: string;
+      hours?: string;
     },
   ) {
     const user = await this.auth.userFromToken(authorization);
