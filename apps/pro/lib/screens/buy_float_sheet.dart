@@ -103,16 +103,27 @@ Future<void> showBuyFloatSheet(
                 const SizedBox(height: 6),
                 const Text(
                   'Credits let you accept jobs. Pay with MTN MoMo or Airtel Money.',
-                  style: TextStyle(color: ZanaColors.muted),
+                  style: TextStyle(color: ZanaColors.muted, height: 1.35),
                 ),
-                const SizedBox(height: 14),
-                SegmentedButton<String>(
-                  segments: const [
-                    ButtonSegment(value: 'MTN_MOMO', label: Text('MTN MoMo')),
-                    ButtonSegment(value: 'AIRTEL_MONEY', label: Text('Airtel')),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _PayMethodChip(
+                        label: 'MTN MoMo',
+                        selected: method == 'MTN_MOMO',
+                        onTap: () => setModal(() => method = 'MTN_MOMO'),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _PayMethodChip(
+                        label: 'Airtel',
+                        selected: method == 'AIRTEL_MONEY',
+                        onTap: () => setModal(() => method = 'AIRTEL_MONEY'),
+                      ),
+                    ),
                   ],
-                  selected: {method},
-                  onSelectionChanged: (s) => setModal(() => method = s.first),
                 ),
                 const SizedBox(height: 12),
                 TextField(
@@ -124,9 +135,13 @@ Future<void> showBuyFloatSheet(
                 ),
                 SwitchListTile(
                   contentPadding: EdgeInsets.zero,
-                  title: const Text('Simulate payment (dev)'),
+                  title: const Text(
+                    'Simulate payment (dev)',
+                    style: TextStyle(fontWeight: FontWeight.w600),
+                  ),
                   subtitle: const Text('Turn off for live MoMo/Airtel prompts'),
                   value: simulate,
+                  activeThumbColor: ZanaColors.copper,
                   onChanged: (v) => setModal(() => simulate = v),
                 ),
                 if (pendingPurchaseId != null) ...[
@@ -184,6 +199,9 @@ Future<void> showBuyFloatSheet(
                           ),
                         ),
                         FilledButton(
+                          style: FilledButton.styleFrom(
+                            backgroundColor: ZanaColors.copper,
+                          ),
                           onPressed: busy
                               ? null
                               : () async {
@@ -247,4 +265,39 @@ Future<void> showBuyFloatSheet(
       );
     },
   ).whenComplete(() => pollTimer?.cancel());
+}
+
+class _PayMethodChip extends StatelessWidget {
+  const _PayMethodChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: selected ? ZanaColors.ink : ZanaColors.sand,
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          child: Text(
+            label,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontWeight: FontWeight.w800,
+              color: selected ? Colors.white : ZanaColors.ink,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }

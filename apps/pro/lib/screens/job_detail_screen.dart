@@ -103,19 +103,19 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
+        backgroundColor: ZanaColors.paper,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Text('Decline job'),
         content: TextField(
           controller: reasonCtrl,
-          decoration: const InputDecoration(
-            labelText: 'Reason (optional)',
-            border: OutlineInputBorder(),
-          ),
+          decoration: const InputDecoration(labelText: 'Reason (optional)'),
           maxLines: 2,
         ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancel')),
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
             child: const Text('Decline'),
@@ -133,19 +133,19 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
+        backgroundColor: ZanaColors.paper,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Text('Cancel job'),
         content: TextField(
           controller: reasonCtrl,
-          decoration: const InputDecoration(
-            labelText: 'Reason',
-            border: OutlineInputBorder(),
-          ),
+          decoration: const InputDecoration(labelText: 'Reason'),
           maxLines: 2,
         ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Back')),
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Back'),
+          ),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
             child: const Text('Cancel job'),
@@ -163,19 +163,19 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
+        backgroundColor: ZanaColors.paper,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Text('Report issue'),
         content: TextField(
           controller: noteCtrl,
-          decoration: const InputDecoration(
-            labelText: 'What went wrong?',
-            border: OutlineInputBorder(),
-          ),
+          decoration: const InputDecoration(labelText: 'What went wrong?'),
           maxLines: 3,
         ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Back')),
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Back'),
+          ),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
             child: const Text('Submit'),
@@ -209,80 +209,102 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
     }
   }
 
+  String _statusLabel(String status) {
+    switch (status) {
+      case 'REQUESTED':
+        return 'New request';
+      case 'ACCEPTED':
+        return 'Accepted';
+      case 'CONFIRMED':
+        return 'Customer ready';
+      case 'ON_THE_WAY':
+        return 'On the way';
+      case 'IN_SERVICE':
+        return 'In service';
+      case 'COMPLETED':
+        return 'Completed';
+      default:
+        return status.replaceAll('_', ' ');
+    }
+  }
+
   List<Widget> _statusActions(String status, String? mode) {
     final atShop = mode == 'AT_SHOP';
+    Widget primary(String label, VoidCallback onPressed, {Color? color}) {
+      return SizedBox(
+        width: double.infinity,
+        child: FilledButton(
+          style: FilledButton.styleFrom(
+            backgroundColor: color ?? ZanaColors.charcoal,
+            padding: const EdgeInsets.symmetric(vertical: 16),
+          ),
+          onPressed: busy ? null : onPressed,
+          child: Text(label),
+        ),
+      );
+    }
+
     if (status == 'REQUESTED') {
       return [
-        FilledButton(
-          style: FilledButton.styleFrom(backgroundColor: ZanaColors.charcoal),
-          onPressed: busy ? null : () => _advance('ACCEPTED'),
-          child: const Text('Accept'),
-        ),
+        primary('Accept job', () => _advance('ACCEPTED'), color: ZanaColors.copper),
         const SizedBox(height: 8),
-        OutlinedButton(
-          onPressed: busy ? null : _decline,
-          child: const Text('Decline'),
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton(
+            onPressed: busy ? null : _decline,
+            child: const Text('Decline'),
+          ),
         ),
       ];
     }
     if (status == 'ACCEPTED') {
       return [
         if (atShop)
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: ZanaColors.charcoal),
-            onPressed: busy ? null : () => _advance('CONFIRMED'),
-            child: const Text('Customer arrived'),
-          )
+          primary('Customer arrived', () => _advance('CONFIRMED'))
         else
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: ZanaColors.charcoal),
-            onPressed: busy ? null : () => _advance('ON_THE_WAY'),
-            child: const Text('On the way'),
-          ),
+          primary('On the way', () => _advance('ON_THE_WAY'),
+              color: ZanaColors.copper),
         if (atShop) ...[
           const SizedBox(height: 8),
-          OutlinedButton(
-            onPressed: busy ? null : () => _advance('ON_THE_WAY'),
-            child: const Text('On the way (mobile)'),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton(
+              onPressed: busy ? null : () => _advance('ON_THE_WAY'),
+              child: const Text('On the way (mobile)'),
+            ),
           ),
         ],
       ];
     }
     if (status == 'CONFIRMED') {
       return [
-        FilledButton(
-          style: FilledButton.styleFrom(backgroundColor: ZanaColors.charcoal),
-          onPressed: busy ? null : () => _advance('IN_SERVICE'),
-          child: const Text('Start service'),
-        ),
+        primary('Start service', () => _advance('IN_SERVICE'),
+            color: ZanaColors.copper),
         const SizedBox(height: 8),
-        OutlinedButton(
-          onPressed: busy ? null : () => _advance('ON_THE_WAY'),
-          child: const Text('On the way'),
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton(
+            onPressed: busy ? null : () => _advance('ON_THE_WAY'),
+            child: const Text('On the way'),
+          ),
         ),
       ];
     }
     if (status == 'ON_THE_WAY') {
       return [
-        FilledButton(
-          style: FilledButton.styleFrom(backgroundColor: ZanaColors.charcoal),
-          onPressed: busy ? null : () => _advance('IN_SERVICE'),
-          child: const Text('Start service'),
-        ),
+        primary('Start service', () => _advance('IN_SERVICE'),
+            color: ZanaColors.copper),
       ];
     }
     if (status == 'IN_SERVICE') {
       return [
-        FilledButton(
-          style: FilledButton.styleFrom(backgroundColor: ZanaColors.charcoal),
-          onPressed: busy ? null : () => _advance('COMPLETED'),
-          child: const Text('Complete'),
-        ),
+        primary('Complete job', () => _advance('COMPLETED'),
+            color: ZanaColors.copper),
       ];
     }
     return [
       Text(
-        'No actions for $status',
+        'No actions for ${_statusLabel(status)}',
         style: const TextStyle(color: ZanaColors.muted),
       ),
     ];
@@ -303,47 +325,92 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
         status == 'IN_SERVICE';
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Job detail')),
+      backgroundColor: ZanaColors.cream,
+      appBar: AppBar(
+        title: const Text('Job'),
+        backgroundColor: ZanaColors.cream,
+      ),
       body: b == null
           ? Center(
               child: error != null
                   ? Text(error!, style: const TextStyle(color: Colors.red))
-                  : const CircularProgressIndicator(),
+                  : const CircularProgressIndicator(color: ZanaColors.copper),
             )
           : ListView(
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
               children: [
-                Text(
-                  service?['name'] as String? ?? 'Service',
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                        fontWeight: FontWeight.w800,
+                Container(
+                  padding: const EdgeInsets.all(18),
+                  decoration: BoxDecoration(
+                    color: ZanaColors.paper,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: ZanaColors.ink.withValues(alpha: 0.05),
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 5,
+                        ),
+                        decoration: BoxDecoration(
+                          color: ZanaColors.copper.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          _statusLabel(status),
+                          style: const TextStyle(
+                            color: ZanaColors.copper,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 12,
+                          ),
+                        ),
                       ),
+                      const SizedBox(height: 12),
+                      Text(
+                        service?['name'] as String? ?? 'Service',
+                        style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                              fontWeight: FontWeight.w800,
+                            ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        [
+                          'K${b['priceZmw']}',
+                          if (mode != null)
+                            mode == 'COMES_TO_YOU' ? 'Comes to you' : 'At shop',
+                        ].join(' · '),
+                        style: const TextStyle(
+                          color: ZanaColors.muted,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-                Text('Status: $status · K${b['priceZmw']}',
-                    style: const TextStyle(color: ZanaColors.muted)),
-                if (mode != null)
-                  Text('Mode: $mode',
-                      style: const TextStyle(color: ZanaColors.muted)),
-                const SizedBox(height: 16),
-                const Text('Customer',
-                    style: TextStyle(fontWeight: FontWeight.w700)),
-                Text(customer?['name'] as String? ?? 'Customer'),
-                Text(
-                  'Phone: ${customer?['phone'] ?? '—'}',
-                  style: const TextStyle(color: ZanaColors.muted),
+                const SizedBox(height: 14),
+                _InfoBlock(
+                  title: 'Customer',
+                  lines: [
+                    customer?['name'] as String? ?? 'Customer',
+                    'Phone: ${customer?['phone'] ?? '—'}',
+                  ],
                 ),
-                const SizedBox(height: 12),
-                const Text('Address',
-                    style: TextStyle(fontWeight: FontWeight.w700)),
-                Text(
-                  b['customerAddress'] as String? ?? '—',
-                  style: const TextStyle(color: ZanaColors.muted),
+                const SizedBox(height: 10),
+                _InfoBlock(
+                  title: 'Address',
+                  lines: [b['customerAddress'] as String? ?? '—'],
                 ),
-                if (b['notes'] != null && (b['notes'] as String).isNotEmpty) ...[
-                  const SizedBox(height: 12),
-                  const Text('Notes',
-                      style: TextStyle(fontWeight: FontWeight.w700)),
-                  Text(b['notes'] as String),
+                if (b['notes'] != null &&
+                    (b['notes'] as String).isNotEmpty) ...[
+                  const SizedBox(height: 10),
+                  _InfoBlock(
+                    title: 'Notes',
+                    lines: [b['notes'] as String],
+                  ),
                 ],
                 if (b['declineReason'] != null) ...[
                   const SizedBox(height: 12),
@@ -367,10 +434,12 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
                   ),
                 ],
                 if (staff.isNotEmpty && !_isTerminal(status)) ...[
-                  const SizedBox(height: 16),
-                  const Text('Assign staff',
-                      style: TextStyle(fontWeight: FontWeight.w700)),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 18),
+                  const Text(
+                    'Assign staff',
+                    style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
+                  ),
+                  const SizedBox(height: 10),
                   Wrap(
                     spacing: 8,
                     runSpacing: 8,
@@ -378,6 +447,7 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
                       ChoiceChip(
                         label: const Text('Unassigned'),
                         selected: assigned == null,
+                        selectedColor: ZanaColors.sand,
                         onSelected: busy
                             ? null
                             : (_) {
@@ -394,6 +464,7 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
                         return ChoiceChip(
                           label: Text(label),
                           selected: assigned?['id'] == uid,
+                          selectedColor: ZanaColors.sand,
                           onSelected: busy || uid == null
                               ? null
                               : (_) {
@@ -414,18 +485,68 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
                 ..._statusActions(status, mode),
                 if (canCancel) ...[
                   const SizedBox(height: 8),
-                  OutlinedButton(
-                    onPressed: busy ? null : _cancel,
-                    child: const Text('Cancel job'),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton(
+                      onPressed: busy ? null : _cancel,
+                      child: const Text('Cancel job'),
+                    ),
                   ),
                 ],
-                const SizedBox(height: 8),
-                TextButton(
-                  onPressed: busy ? null : _dispute,
-                  child: const Text('Report issue'),
+                const SizedBox(height: 4),
+                Center(
+                  child: TextButton(
+                    onPressed: busy ? null : _dispute,
+                    child: const Text('Report issue'),
+                  ),
                 ),
               ],
             ),
+    );
+  }
+}
+
+class _InfoBlock extends StatelessWidget {
+  const _InfoBlock({required this.title, required this.lines});
+
+  final String title;
+  final List<String> lines;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: ZanaColors.paper,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: ZanaColors.ink.withValues(alpha: 0.05)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(
+              fontWeight: FontWeight.w800,
+              fontSize: 13,
+              color: ZanaColors.muted,
+            ),
+          ),
+          const SizedBox(height: 6),
+          for (final line in lines)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 2),
+              child: Text(
+                line,
+                style: const TextStyle(
+                  fontWeight: FontWeight.w600,
+                  height: 1.35,
+                ),
+              ),
+            ),
+        ],
+      ),
     );
   }
 }
