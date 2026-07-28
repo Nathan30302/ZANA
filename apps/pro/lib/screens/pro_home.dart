@@ -1,8 +1,10 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:zana_pro/api.dart';
+import 'package:zana_pro/push_refresh.dart';
 import 'package:zana_pro/screens/auth_sheet.dart';
 import 'package:zana_pro/screens/buy_float_sheet.dart';
 import 'package:zana_pro/screens/job_detail_screen.dart';
@@ -33,8 +35,10 @@ class _ProHomeScreenState extends State<ProHomeScreen>
   Timer? _locationTimer;
   Timer? _pollTimer;
   String? _trackingBookingId;
+  StreamSubscription<Position>? _positionSub;
   bool _setupChecked = false;
   int tabIndex = 0;
+  bool locationDenied = false;
   late final AnimationController _pulse;
 
   @override
@@ -44,6 +48,7 @@ class _ProHomeScreenState extends State<ProHomeScreen>
       vsync: this,
       duration: const Duration(milliseconds: 1600),
     )..repeat(reverse: true);
+    PushRefreshBus.instance.addListener(_onPushRefresh);
     _bootstrap();
   }
 
@@ -51,14 +56,22 @@ class _ProHomeScreenState extends State<ProHomeScreen>
   void dispose() {
     _locationTimer?.cancel();
     _pollTimer?.cancel();
+    _positionSub?.cancel();
+    PushRefreshBus.instance.removeListener(_onPushRefresh);
     _pulse.dispose();
     super.dispose();
+  }
+
+  void _onPushRefresh() {
+    _refreshJobs(silent: true);
   }
 
   void _startJobPolling() {
     _pollTimer?.cancel();
     if (api.token == null) return;
-    _pollTimer = Timer.periodic(const Duration(seconds: 8), (_) {
+    final hasRequested = jobs.any((raw) => (raw as Map)['status'] == 'REQUESTED');
+    final seconds = hasRequested ? 4 : 8;
+    _pollTimer = Timer.periodic(Duration(seconds: seconds), (_) {
       _refreshJobs(silent: true);
     });
   }
@@ -77,6 +90,7 @@ class _ProHomeScreenState extends State<ProHomeScreen>
         error = null;
       });
       _syncLocationTracking(j);
+      _startJobPolling();
     } catch (e) {
       if (!mounted || silent) return;
       setState(() {
@@ -176,18 +190,64 @@ class _ProHomeScreenState extends State<ProHomeScreen>
     if (active.isEmpty) {
       _locationTimer?.cancel();
       _locationTimer = null;
+      _positionSub?.cancel();
+      _positionSub = null;
       _trackingBookingId = null;
       return;
     }
 
     final id = active.first['id'] as String;
-    if (_trackingBookingId == id && _locationTimer != null) return;
+    if (_trackingBookingId == id &&
+        (_positionSub != null || _locationTimer != null)) {
+      return;
+    }
     _trackingBookingId = id;
     _locationTimer?.cancel();
-    _pingLocation(id);
-    _locationTimer = Timer.periodic(const Duration(seconds: 6), (_) {
-      _pingLocation(id);
-    });
+    _positionSub?.cancel();
+    _startPositionStream(id);
+  }
+
+  Future<void> _startPositionStream(String bookingId) async {
+    try {
+      final enabled = await Geolocator.isLocationServiceEnabled();
+      if (!enabled) {
+        if (mounted) setState(() => locationDenied = true);
+        return;
+      }
+      var perm = await Geolocator.checkPermission();
+      if (perm == LocationPermission.denied) {
+        perm = await Geolocator.requestPermission();
+      }
+      if (perm == LocationPermission.denied ||
+          perm == LocationPermission.deniedForever) {
+        if (mounted) setState(() => locationDenied = true);
+        return;
+      }
+      if (mounted) setState(() => locationDenied = false);
+
+      // Immediate seed, then stream for smoother movement.
+      await _pingLocation(bookingId);
+
+      const settings = LocationSettings(
+        accuracy: LocationAccuracy.high,
+        distanceFilter: 12,
+      );
+      _positionSub = Geolocator.getPositionStream(locationSettings: settings)
+          .listen((pos) async {
+        try {
+          await api.updateLocation(bookingId, pos.latitude, pos.longitude);
+        } catch (_) {}
+      });
+
+      // Fallback heartbeat if the stream is quiet (web / low movement).
+      _locationTimer = Timer.periodic(const Duration(seconds: 20), (_) {
+        _pingLocation(bookingId);
+      });
+    } catch (_) {
+      _locationTimer = Timer.periodic(const Duration(seconds: 6), (_) {
+        _pingLocation(bookingId);
+      });
+    }
   }
 
   Future<void> _pingLocation(String bookingId) async {
@@ -350,7 +410,11 @@ class _ProHomeScreenState extends State<ProHomeScreen>
           ),
           if (_trackingBookingId != null) ...[
             const SizedBox(height: 12),
-            _LiveShareHint(pulse: _pulse),
+            _LiveShareHint(pulse: _pulse, web: kIsWeb),
+          ],
+          if (locationDenied) ...[
+            const SizedBox(height: 10),
+            const _LocationDeniedHint(),
           ],
           const SizedBox(height: 26),
           Row(
@@ -838,27 +902,58 @@ class _FloatStrip extends StatelessWidget {
 }
 
 class _LiveShareHint extends StatelessWidget {
-  const _LiveShareHint({required this.pulse});
+  const _LiveShareHint({required this.pulse, this.web = false});
 
   final AnimationController pulse;
+  final bool web;
 
   @override
   Widget build(BuildContext context) {
     return FadeTransition(
       opacity: Tween(begin: 0.7, end: 1.0).animate(pulse),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Icon(Icons.near_me_rounded, size: 16, color: Color(0xFF047857)),
           const SizedBox(width: 8),
-          Text(
-            'Sharing live location with customer',
-            style: TextStyle(
-              color: Colors.green.shade800,
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
+          Expanded(
+            child: Text(
+              web
+                  ? 'Sharing live location — keep this tab open while en route'
+                  : 'Sharing live location with customer',
+              style: TextStyle(
+                color: Colors.green.shade800,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _LocationDeniedHint extends StatelessWidget {
+  const _LocationDeniedHint();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF7ED),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: const Text(
+        'Location permission is off — enable it so customers can see you moving on the map.',
+        style: TextStyle(
+          color: ZanaColors.ink,
+          fontSize: 13,
+          fontWeight: FontWeight.w600,
+          height: 1.35,
+        ),
       ),
     );
   }

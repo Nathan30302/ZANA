@@ -18,6 +18,9 @@ Future<void> showBuyFloatSheet(
   String? pendingPurchaseId;
   String? pendingInstructions;
   Timer? pollTimer;
+  List<dynamic> recentPurchases = [];
+  var historyLoading = true;
+  var historyStarted = false;
 
   await showModalBottomSheet<void>(
     context: context,
@@ -29,6 +32,25 @@ Future<void> showBuyFloatSheet(
     builder: (ctx) {
       return StatefulBuilder(
         builder: (ctx, setModal) {
+          Future<void> loadHistory() async {
+            try {
+              final rows = await api.floatPurchases();
+              if (!ctx.mounted) return;
+              setModal(() {
+                recentPurchases = rows;
+                historyLoading = false;
+              });
+            } catch (_) {
+              if (!ctx.mounted) return;
+              setModal(() => historyLoading = false);
+            }
+          }
+
+          if (!historyStarted) {
+            historyStarted = true;
+            Future.microtask(loadHistory);
+          }
+
           Future<void> confirmPending() async {
             if (pendingPurchaseId == null) return;
             setModal(() => busy = true);
@@ -79,7 +101,8 @@ Future<void> showBuyFloatSheet(
               22,
               22 + MediaQuery.of(ctx).viewInsets.bottom,
             ),
-            child: Column(
+            child: SingleChildScrollView(
+              child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -258,7 +281,30 @@ Future<void> showBuyFloatSheet(
                 }),
                 if (error != null)
                   Text(error!, style: const TextStyle(color: Colors.red)),
+                if (!historyLoading && recentPurchases.isNotEmpty) ...[
+                  const SizedBox(height: 18),
+                  const Text(
+                    'Recent purchases',
+                    style: TextStyle(fontWeight: FontWeight.w800),
+                  ),
+                  const SizedBox(height: 8),
+                  ...recentPurchases.take(5).map((raw) {
+                    final p = raw as Map<String, dynamic>;
+                    final pkg = p['package'] as Map<String, dynamic>?;
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 6),
+                      child: Text(
+                        '${pkg?['name'] ?? 'Float'} · ${p['credits']} credits · ${p['status']}',
+                        style: const TextStyle(
+                          color: ZanaColors.muted,
+                          fontSize: 13,
+                        ),
+                      ),
+                    );
+                  }),
+                ],
               ],
+            ),
             ),
           );
         },

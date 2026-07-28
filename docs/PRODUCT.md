@@ -21,11 +21,13 @@ REQUESTED → ACCEPTED → ON_THE_WAY | CONFIRMED → IN_SERVICE → COMPLETED �
                 ↘ DECLINED / CANCELLED / EXPIRED
 ```
 
-- **Book now (ASAP):** `scheduledAt` null — customer picks a nearby **online** pro; request goes live on the map until accept; float burns on accept.
-- **Schedule later:** pick a slot (overlap guarded). Offline pros cannot take new requests.
+- **Book now (ASAP):** `scheduledAt` null — customer picks a nearby **online** pro; request goes live on the map until accept (**5 min** timeout); float burns on accept.
+- **Schedule later:** pick a slot (overlap guarded). Offline pros cannot take new requests. Unaccepted scheduled requests expire after **30 min**.
 - Full client address only after **ACCEPTED** (home visits).
 - 1 accepted/completed job burns **1 float credit**.
 - Live map: satellite/hybrid imagery, road route + ETA, smooth pro motion toward the customer pin, status coaching, call/WhatsApp after accept, review prompt when done.
+- If a request **expires / declines**, customer gets **Find another pro** (excludes the timed-out pro).
+- Arrival assist: when the pro is within ~90 m on a comes-to-you trip, status can auto-mark arrived (`CONFIRMED`).
 
 ## Live tracking model (comes-to-you)
 

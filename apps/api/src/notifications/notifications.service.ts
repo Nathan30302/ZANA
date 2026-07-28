@@ -66,20 +66,18 @@ export class NotificationsService {
     providerUserId: string;
     status: string;
     serviceName: string;
+    bookingId: string;
   }) {
     const title = 'ZANA booking update';
     const body = `${input.serviceName} is now ${input.status.replaceAll('_', ' ')}`;
+    const data = {
+      type: 'booking',
+      status: input.status,
+      bookingId: input.bookingId,
+    };
     await Promise.all([
-      this.notifyUser(input.customerId, {
-        title,
-        body,
-        data: { type: 'booking', status: input.status },
-      }),
-      this.notifyUser(input.providerUserId, {
-        title,
-        body,
-        data: { type: 'booking', status: input.status },
-      }),
+      this.notifyUser(input.customerId, { title, body, data }),
+      this.notifyUser(input.providerUserId, { title, body, data }),
     ]);
   }
 }

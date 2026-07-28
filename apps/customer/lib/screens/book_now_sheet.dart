@@ -12,6 +12,7 @@ Future<void> showBookNowFlow(
   required double userLat,
   required double userLng,
   String? category,
+  String? excludeProviderId,
 }) async {
   if (api.token == null) {
     final ok = await showAuthSheet(context);
@@ -27,6 +28,11 @@ Future<void> showBookNowFlow(
       online: true,
       radiusKm: 12,
     );
+    if (excludeProviderId != null) {
+      online = online
+          .where((raw) => (raw as Map)['id'] != excludeProviderId)
+          .toList();
+    }
   } catch (e) {
     if (!context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(

@@ -30,6 +30,13 @@ export class FloatsController {
     return this.floats.balance(user.id);
   }
 
+  @Get('purchases')
+  async purchases(@Headers('authorization') authorization?: string) {
+    const user = await this.auth.userFromToken(authorization);
+    if (!user) throw new UnauthorizedException();
+    return this.floats.listPurchases(user.id);
+  }
+
   @Post('purchase')
   async purchase(
     @Headers('authorization') authorization: string | undefined,

@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:zana_pro/api.dart';
+import 'package:zana_pro/push_refresh.dart';
 
 /// Registers an FCM device token when available.
 ///
@@ -15,4 +16,8 @@ Future<void> registerPushTokenIfPossible() async {
       debugPrint('[push] demo register failed: $e');
     }
   }
+}
+
+void onPushBookingUpdate({String? bookingId}) {
+  PushRefreshBus.instance.ping(bookingId: bookingId);
 }

@@ -180,6 +180,17 @@ export class FloatsService {
     };
   }
 
+  async listPurchases(userId: string) {
+    const profile = await this.resolveShopProfile(userId);
+    if (!profile) throw new NotFoundException('Provider profile not found');
+    return this.prisma.floatPurchase.findMany({
+      where: { providerId: profile.id },
+      include: { package: true },
+      orderBy: { createdAt: 'desc' },
+      take: 20,
+    });
+  }
+
   /** Owner shop, or first staff membership shop (shared team float). */
   private async resolveShopProfile(userId: string) {
     const owned = await this.prisma.providerProfile.findUnique({

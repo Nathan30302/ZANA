@@ -9,6 +9,8 @@ import 'package:latlong2/latlong.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:zana_customer/api.dart';
 import 'package:zana_customer/map_style.dart';
+import 'package:zana_customer/push_refresh.dart';
+import 'package:zana_customer/screens/book_now_sheet.dart';
 import 'package:zana_customer/screens/booking_detail_screen.dart';
 import 'package:zana_customer/theme.dart';
 
@@ -50,6 +52,9 @@ class _TrackingScreenState extends State<TrackingScreen>
   bool _didFit = false;
   DateTime? _lastRouteFetch;
   Ticker? _glideTicker;
+  Timer? _countdownTicker;
+  Duration? _timeLeft;
+  bool _findingAnother = false;
 
   @override
   void initState() {
@@ -59,16 +64,59 @@ class _TrackingScreenState extends State<TrackingScreen>
       duration: const Duration(milliseconds: 1400),
     )..repeat(reverse: true);
     _glideTicker = createTicker(_onGlideTick)..start();
+    PushRefreshBus.instance.addListener(_onPushRefresh);
     _load();
-    timer = Timer.periodic(const Duration(seconds: 3), (_) => _load());
+    _schedulePoll(const Duration(seconds: 2));
+    _countdownTicker = Timer.periodic(const Duration(seconds: 1), (_) {
+      _updateCountdown();
+    });
   }
 
   @override
   void dispose() {
     timer?.cancel();
+    _countdownTicker?.cancel();
+    PushRefreshBus.instance.removeListener(_onPushRefresh);
     _glideTicker?.dispose();
     pulse.dispose();
     super.dispose();
+  }
+
+  void _onPushRefresh() {
+    final id = PushRefreshBus.instance.lastBookingId;
+    if (id == null || id == widget.bookingId) {
+      _load();
+    }
+  }
+
+  void _schedulePoll(Duration interval) {
+    timer?.cancel();
+    timer = Timer.periodic(interval, (_) => _load());
+  }
+
+  void _retunePoll(String status) {
+    final next = switch (status) {
+      'REQUESTED' || 'ON_THE_WAY' || 'ACCEPTED' => const Duration(seconds: 2),
+      'IN_SERVICE' || 'CONFIRMED' => const Duration(seconds: 5),
+      _ => const Duration(seconds: 12),
+    };
+    _schedulePoll(next);
+  }
+
+  void _updateCountdown() {
+    final raw = booking?['expiresAt'] as String?;
+    if (booking?['status'] != 'REQUESTED' || raw == null) {
+      if (_timeLeft != null && mounted) setState(() => _timeLeft = null);
+      return;
+    }
+    final ends = DateTime.tryParse(raw)?.toLocal();
+    if (ends == null) return;
+    final left = ends.difference(DateTime.now());
+    if (!mounted) return;
+    setState(() => _timeLeft = left.isNegative ? Duration.zero : left);
+    if (left.isNegative) {
+      _load();
+    }
   }
 
   void _onGlideTick(Duration _) {
@@ -137,10 +185,16 @@ class _TrackingScreenState extends State<TrackingScreen>
         _setProTarget(LatLng(providerLat, providerLng));
       }
 
+      final prevStatus = booking?['status'] as String?;
+      if (status != null && prevStatus != status) {
+        _retunePoll(status);
+      }
+
       setState(() {
         booking = b;
         error = null;
       });
+      _updateCountdown();
 
       if (customerLat != null &&
           customerLng != null &&
@@ -245,8 +299,31 @@ class _TrackingScreenState extends State<TrackingScreen>
     await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 
-  String _coach(String status, {String? proName, int? durationMin}) {
+  Future<void> _tryAnotherPro() async {
+    final b = booking;
+    if (b == null || _findingAnother) return;
+    setState(() => _findingAnother = true);
+    try {
+      final lat = (b['customerLat'] as num?)?.toDouble() ?? ZanaApi.lusakaLat;
+      final lng = (b['customerLng'] as num?)?.toDouble() ?? ZanaApi.lusakaLng;
+      final exclude = (b['provider'] as Map?)?['id'] as String?;
+      if (!mounted) return;
+      await showBookNowFlow(
+        context,
+        userLat: lat,
+        userLng: lng,
+        excludeProviderId: exclude,
+      );
+    } finally {
+      if (mounted) setState(() => _findingAnother = false);
+    }
+  }
+
+  String _coach(String status, {String? proName, int? durationMin, bool near = false}) {
     final name = proName ?? 'Your stylist';
+    if (near && (status == 'ON_THE_WAY' || status == 'ACCEPTED')) {
+      return '$name is nearby — they should be at your pin any moment.';
+    }
     switch (status) {
       case 'REQUESTED':
         return 'Looking for $name nearby… hang tight while they accept.';
@@ -255,7 +332,7 @@ class _TrackingScreenState extends State<TrackingScreen>
       case 'ON_THE_WAY':
         return '$name is coming to you. Watch them move on the map in real time.';
       case 'CONFIRMED':
-        return 'You’re checked in. Relax — service is about to start.';
+        return 'They’re here / ready. Relax — service is about to start.';
       case 'IN_SERVICE':
         final mins = durationMin ?? 45;
         return 'Service in progress (~$mins min). Sit back and enjoy the vibe.';
@@ -266,7 +343,7 @@ class _TrackingScreenState extends State<TrackingScreen>
       case 'CANCELLED':
       case 'DECLINED':
       case 'EXPIRED':
-        return 'This booking ended. You can request another nearby pro anytime.';
+        return 'This booking ended. Find another nearby pro who’s online now.';
       default:
         return 'Live booking status';
     }
@@ -443,6 +520,19 @@ class _TrackingScreenState extends State<TrackingScreen>
     final etaText = _route != null
         ? etaLabelFromSeconds(_route!.durationSeconds)
         : etaLabelFromKm(distKm);
+    final near = b?['nearCustomer'] == true ||
+        (distKm != null && distKm < 0.22);
+    final failed = status == 'EXPIRED' ||
+        status == 'DECLINED' ||
+        status == 'CANCELLED';
+
+    String? countdownLabel;
+    if (status == 'REQUESTED' && _timeLeft != null) {
+      final s = _timeLeft!.inSeconds;
+      final m = (s ~/ 60).toString().padLeft(1, '0');
+      final sec = (s % 60).toString().padLeft(2, '0');
+      countdownLabel = s <= 0 ? 'Timing out…' : 'Expires in $m:$sec';
+    }
 
     return Scaffold(
       backgroundColor: ZanaColors.ink,
@@ -600,9 +690,9 @@ class _TrackingScreenState extends State<TrackingScreen>
                                 if (status == 'REQUESTED')
                                   FadeTransition(
                                     opacity: pulse,
-                                    child: const Text(
-                                      'Waiting…',
-                                      style: TextStyle(
+                                    child: Text(
+                                      countdownLabel ?? 'Waiting…',
+                                      style: const TextStyle(
                                         color: ZanaColors.copper,
                                         fontWeight: FontWeight.w700,
                                       ),
@@ -615,13 +705,17 @@ class _TrackingScreenState extends State<TrackingScreen>
                                       vertical: 5,
                                     ),
                                     decoration: BoxDecoration(
-                                      color: const Color(0xFFECFDF5),
+                                      color: near
+                                          ? const Color(0xFFFFF7ED)
+                                          : const Color(0xFFECFDF5),
                                       borderRadius: BorderRadius.circular(999),
                                     ),
-                                    child: const Text(
-                                      'Live',
+                                    child: Text(
+                                      near ? 'Nearby' : 'Live',
                                       style: TextStyle(
-                                        color: Color(0xFF047857),
+                                        color: near
+                                            ? ZanaColors.copper
+                                            : const Color(0xFF047857),
                                         fontWeight: FontWeight.w800,
                                         fontSize: 12,
                                       ),
@@ -635,6 +729,7 @@ class _TrackingScreenState extends State<TrackingScreen>
                                 status,
                                 proName: proName,
                                 durationMin: durationMin,
+                                near: near,
                               ),
                               style: const TextStyle(
                                 color: ZanaColors.muted,
@@ -642,6 +737,34 @@ class _TrackingScreenState extends State<TrackingScreen>
                                 fontSize: 14,
                               ),
                             ),
+                            if (failed) ...[
+                              const SizedBox(height: 14),
+                              SizedBox(
+                                width: double.infinity,
+                                child: FilledButton.icon(
+                                  style: FilledButton.styleFrom(
+                                    backgroundColor: ZanaColors.copper,
+                                  ),
+                                  onPressed:
+                                      _findingAnother ? null : _tryAnotherPro,
+                                  icon: _findingAnother
+                                      ? const SizedBox(
+                                          width: 16,
+                                          height: 16,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            color: Colors.white,
+                                          ),
+                                        )
+                                      : const Icon(Icons.explore_rounded),
+                                  label: Text(
+                                    _findingAnother
+                                        ? 'Finding…'
+                                        : 'Find another pro',
+                                  ),
+                                ),
+                              ),
+                            ],
                             if (mode == 'COMES_TO_YOU' &&
                                 (status == 'ON_THE_WAY' ||
                                     status == 'ACCEPTED')) ...[

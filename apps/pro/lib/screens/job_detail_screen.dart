@@ -417,6 +417,26 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
                   title: 'Address',
                   lines: [b['customerAddress'] as String? ?? '—'],
                 ),
+                if (b['nearCustomer'] == true &&
+                    (status == 'ON_THE_WAY' || status == 'ACCEPTED')) ...[
+                  const SizedBox(height: 10),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFECFDF5),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: const Text(
+                      'You’re near the customer — tap Start service when ready.',
+                      style: TextStyle(
+                        color: Color(0xFF047857),
+                        fontWeight: FontWeight.w700,
+                        height: 1.35,
+                      ),
+                    ),
+                  ),
+                ],
                 if ((b['customerLat'] as num?) != null &&
                     (b['customerLng'] as num?) != null &&
                     !_isTerminal(status)) ...[

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:zana_customer/api.dart';
+import 'package:zana_customer/screens/book_now_sheet.dart';
 import 'package:zana_customer/screens/provider_screen.dart';
 import 'package:zana_customer/screens/tracking_screen.dart';
 import 'package:zana_customer/theme.dart';
@@ -419,6 +420,30 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
                         icon: const Icon(Icons.replay),
                         label: const Text('Book again'),
                       ),
+                      if (status == 'EXPIRED' ||
+                          status == 'DECLINED' ||
+                          status == 'CANCELLED') ...[
+                        const SizedBox(height: 8),
+                        FilledButton.icon(
+                          style: FilledButton.styleFrom(
+                            backgroundColor: ZanaColors.copper,
+                          ),
+                          onPressed: () async {
+                            final lat = (b['customerLat'] as num?)?.toDouble() ??
+                                ZanaApi.lusakaLat;
+                            final lng = (b['customerLng'] as num?)?.toDouble() ??
+                                ZanaApi.lusakaLng;
+                            await showBookNowFlow(
+                              context,
+                              userLat: lat,
+                              userLng: lng,
+                              excludeProviderId: provider!['id'] as String?,
+                            );
+                          },
+                          icon: const Icon(Icons.explore_rounded),
+                          label: const Text('Try someone else'),
+                        ),
+                      ],
                     ],
                     if (canRate && !hasReview) ...[
                       const SizedBox(height: 16),

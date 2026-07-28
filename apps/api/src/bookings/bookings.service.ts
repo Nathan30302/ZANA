@@ -20,7 +20,11 @@ const TRANSITIONS: Record<BookingStatus, BookingStatus[]> = {
     BookingStatus.CONFIRMED,
     BookingStatus.CANCELLED,
   ],
-  ON_THE_WAY: [BookingStatus.IN_SERVICE, BookingStatus.CANCELLED],
+  ON_THE_WAY: [
+    BookingStatus.IN_SERVICE,
+    BookingStatus.CONFIRMED,
+    BookingStatus.CANCELLED,
+  ],
   // CONFIRMED = at-shop arrived; allow ON_THE_WAY if pro then goes mobile
   CONFIRMED: [
     BookingStatus.IN_SERVICE,
@@ -58,6 +62,35 @@ const LUSAKA_OFFSET_MS = 2 * 60 * 60 * 1000;
 function maskPhone(phone?: string | null) {
   if (!phone || phone.length < 6) return phone ?? null;
   return `${phone.slice(0, 5)}***${phone.slice(-2)}`;
+}
+
+/** Book-now (ASAP) requests expire faster than scheduled slot requests. */
+const REQUEST_TTL_ASAP_MS = 5 * 60 * 1000;
+const REQUEST_TTL_SCHEDULED_MS = 30 * 60 * 1000;
+const ARRIVAL_RADIUS_M = 90;
+const NEARBY_RADIUS_M = 220;
+
+function requestTtlMs(scheduledAt: Date | null): number {
+  return scheduledAt == null ? REQUEST_TTL_ASAP_MS : REQUEST_TTL_SCHEDULED_MS;
+}
+
+function haversineMeters(
+  lat1: number,
+  lng1: number,
+  lat2: number,
+  lng2: number,
+): number {
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const r = 6371000;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(toRad(lat1)) *
+      Math.cos(toRad(lat2)) *
+      Math.sin(dLng / 2) *
+      Math.sin(dLng / 2);
+  return r * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
 function lusakaDayBounds(dateIso?: string): { start: Date; end: Date; date: string } {
@@ -103,6 +136,9 @@ const bookingInclude = {
 
 @Injectable()
 export class BookingsService {
+  /** Throttle location push noise per booking. */
+  private readonly lastLocationNotify = new Map<string, number>();
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly notifications: NotificationsService,
@@ -112,6 +148,7 @@ export class BookingsService {
     booking: BookingWithRelations,
     viewerId: string,
     asProviderSide = false,
+    extras: { nearCustomer?: boolean; distanceMeters?: number | null } = {},
   ): Record<string, unknown> {
     const isCustomer = booking.customerId === viewerId;
     const isProvider =
@@ -135,16 +172,48 @@ export class BookingsService {
     const { provider, customer, assignedStaff, ...rest } = booking;
     const { user: _user, ...providerPublic } = provider;
 
+    const expiresAt =
+      booking.status === BookingStatus.REQUESTED
+        ? new Date(
+            booking.createdAt.getTime() + requestTtlMs(booking.scheduledAt),
+          ).toISOString()
+        : null;
+
+    let nearCustomer = extras.nearCustomer ?? false;
+    let distanceMeters = extras.distanceMeters ?? null;
+    if (
+      distanceMeters == null &&
+      booking.providerLat != null &&
+      booking.providerLng != null &&
+      booking.customerLat != null &&
+      booking.customerLng != null
+    ) {
+      distanceMeters = haversineMeters(
+        booking.providerLat,
+        booking.providerLng,
+        booking.customerLat,
+        booking.customerLng,
+      );
+      nearCustomer = distanceMeters <= NEARBY_RADIUS_M;
+    }
+
     return {
       ...rest,
       customerAddress,
       contactPhone,
+      expiresAt,
+      nearCustomer,
+      distanceMeters:
+        distanceMeters != null ? Math.round(distanceMeters) : null,
       provider: providerPublic,
       assignedStaff: assignedStaff
         ? {
             id: assignedStaff.id,
             name: assignedStaff.name,
-            phone: isProvider || revealed ? assignedStaff.phone : maskPhone(assignedStaff.phone),
+            phone:
+              isProvider || revealed
+                ? assignedStaff.phone
+                : maskPhone(assignedStaff.phone),
           }
         : null,
       customer: isProvider
@@ -260,14 +329,40 @@ export class BookingsService {
   }
 
   async expireStaleRequested() {
-    const cutoff = new Date(Date.now() - 30 * 60 * 1000);
-    await this.prisma.booking.updateMany({
+    const now = Date.now();
+    const asapCutoff = new Date(now - REQUEST_TTL_ASAP_MS);
+    const scheduledCutoff = new Date(now - REQUEST_TTL_SCHEDULED_MS);
+
+    const stale = await this.prisma.booking.findMany({
       where: {
         status: BookingStatus.REQUESTED,
-        createdAt: { lt: cutoff },
+        OR: [
+          { scheduledAt: null, createdAt: { lt: asapCutoff } },
+          { scheduledAt: { not: null }, createdAt: { lt: scheduledCutoff } },
+        ],
       },
+      include: { service: { select: { name: true } } },
+    });
+    if (stale.length === 0) return;
+
+    await this.prisma.booking.updateMany({
+      where: { id: { in: stale.map((b) => b.id) } },
       data: { status: BookingStatus.EXPIRED },
     });
+
+    await Promise.all(
+      stale.map((b) =>
+        this.notifications.notifyUser(b.customerId, {
+          title: 'No pro available',
+          body: `${b.service.name} timed out — try another nearby pro.`,
+          data: {
+            type: 'booking',
+            status: BookingStatus.EXPIRED,
+            bookingId: b.id,
+          },
+        }),
+      ),
+    );
   }
 
   async listForUser(userId: string, role: 'customer' | 'provider') {
@@ -357,14 +452,15 @@ export class BookingsService {
   ) {
     const booking = await this.prisma.booking.findUnique({
       where: { id: bookingId },
-      include: { provider: true },
+      include: bookingInclude,
     });
     if (!booking) throw new NotFoundException('Booking not found');
     const providerIds = await this.providerIdsForUser(providerUserId);
     if (!providerIds.includes(booking.providerId)) {
       throw new ForbiddenException();
     }
-    const updated = await this.prisma.booking.update({
+
+    let updated = await this.prisma.booking.update({
       where: { id: bookingId },
       data: {
         providerLat: lat,
@@ -373,7 +469,63 @@ export class BookingsService {
       },
       include: bookingInclude,
     });
-    return this.serialize(updated, providerUserId, true);
+
+    let distanceMeters: number | null = null;
+    let nearCustomer = false;
+    if (
+      updated.customerLat != null &&
+      updated.customerLng != null
+    ) {
+      distanceMeters = haversineMeters(
+        lat,
+        lng,
+        updated.customerLat,
+        updated.customerLng,
+      );
+      nearCustomer = distanceMeters <= NEARBY_RADIUS_M;
+    }
+
+    const autoArrival = process.env.AUTO_ARRIVAL !== 'false';
+    if (
+      autoArrival &&
+      updated.status === BookingStatus.ON_THE_WAY &&
+      updated.service.mode === ServiceMode.COMES_TO_YOU &&
+      distanceMeters != null &&
+      distanceMeters <= ARRIVAL_RADIUS_M
+    ) {
+      updated = await this.prisma.booking.update({
+        where: { id: bookingId },
+        data: { status: BookingStatus.CONFIRMED },
+        include: bookingInclude,
+      });
+      await this.notifications.notifyBookingParties({
+        customerId: updated.customerId,
+        providerUserId: updated.provider.userId,
+        status: BookingStatus.CONFIRMED,
+        serviceName: updated.service.name,
+        bookingId: updated.id,
+      });
+    } else if (nearCustomer) {
+      const last = this.lastLocationNotify.get(bookingId) ?? 0;
+      if (Date.now() - last > 45_000) {
+        this.lastLocationNotify.set(bookingId, Date.now());
+        await this.notifications.notifyUser(updated.customerId, {
+          title: 'Your pro is nearby',
+          body: `${updated.provider.displayName} is almost at your pin.`,
+          data: {
+            type: 'booking',
+            status: updated.status,
+            bookingId: updated.id,
+            near: '1',
+          },
+        });
+      }
+    }
+
+    return this.serialize(updated, providerUserId, true, {
+      nearCustomer,
+      distanceMeters,
+    });
   }
 
   async assignStaff(
@@ -574,6 +726,7 @@ export class BookingsService {
       providerUserId: booking.provider.userId,
       status: next,
       serviceName: booking.service.name,
+      bookingId: updated.id,
     });
 
     return this.serialize(updated, actor.id, isOwnerProvider);
