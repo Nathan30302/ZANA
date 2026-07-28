@@ -10,10 +10,12 @@ class OnboardingScreen extends StatefulWidget {
     super.key,
     required this.profile,
     required this.onDone,
+    this.embedded = false,
   });
 
   final Map<String, dynamic> profile;
   final Future<void> Function() onDone;
+  final bool embedded;
 
   @override
   State<OnboardingScreen> createState() => _OnboardingScreenState();
@@ -195,7 +197,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       setState(() => step += 1);
     } else if (ready) {
       await widget.onDone();
-      if (mounted) Navigator.of(context).pop();
+      if (mounted && !widget.embedded) Navigator.of(context).pop();
     }
   }
 
@@ -210,16 +212,24 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               padding: const EdgeInsets.fromLTRB(12, 8, 16, 0),
               child: Row(
                 children: [
-                  IconButton(
-                    onPressed: () {
-                      if (step == 0) {
-                        Navigator.of(context).maybePop();
-                      } else {
-                        setState(() => step -= 1);
-                      }
-                    },
-                    icon: const Icon(Icons.arrow_back_rounded),
-                  ),
+                  if (!widget.embedded)
+                    IconButton(
+                      onPressed: () {
+                        if (step == 0) {
+                          Navigator.of(context).maybePop();
+                        } else {
+                          setState(() => step -= 1);
+                        }
+                      },
+                      icon: const Icon(Icons.arrow_back_rounded),
+                    )
+                  else if (step > 0)
+                    IconButton(
+                      onPressed: () => setState(() => step -= 1),
+                      icon: const Icon(Icons.arrow_back_rounded),
+                    )
+                  else
+                    const SizedBox(width: 48),
                   const Expanded(
                     child: ZanaWordmark(
                       markSize: 32,

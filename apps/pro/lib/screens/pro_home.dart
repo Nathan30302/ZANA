@@ -10,6 +10,7 @@ import 'package:zana_pro/screens/onboarding_screen.dart';
 import 'package:zana_pro/screens/schedule_screen.dart';
 import 'package:zana_pro/screens/staff_screen.dart';
 import 'package:zana_pro/theme.dart';
+import 'package:zana_pro/widgets.dart';
 
 class ProHomeScreen extends StatefulWidget {
   const ProHomeScreen({super.key});
@@ -33,6 +34,7 @@ class _ProHomeScreenState extends State<ProHomeScreen>
   Timer? _pollTimer;
   String? _trackingBookingId;
   bool _setupChecked = false;
+  int tabIndex = 0;
   late final AnimationController _pulse;
 
   @override
@@ -85,8 +87,9 @@ class _ProHomeScreenState extends State<ProHomeScreen>
   }
 
   Future<void> _bootstrap() async {
+    final initial = profile == null && error == null;
     setState(() {
-      loading = true;
+      if (initial) loading = true;
       error = null;
     });
     try {
@@ -124,6 +127,7 @@ class _ProHomeScreenState extends State<ProHomeScreen>
           ready = await api.readiness();
         } catch (_) {}
       }
+      if (!mounted) return;
       setState(() {
         profile = me;
         readiness = ready;
@@ -145,19 +149,12 @@ class _ProHomeScreenState extends State<ProHomeScreen>
             b == 'At least one service' ||
             b == 'Opening hours' ||
             b == 'Bio');
-        if (needsSetup) {
-          if (!mounted) return;
-          await Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => OnboardingScreen(
-                profile: me,
-                onDone: _bootstrap,
-              ),
-            ),
-          );
+        if (needsSetup && mounted) {
+          setState(() => tabIndex = 3);
         }
       }
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         error = e.toString();
         loading = false;
@@ -225,14 +222,14 @@ class _ProHomeScreenState extends State<ProHomeScreen>
     );
   }
 
-  Future<void> _openSetup() async {
-    final me = profile ?? await api.me();
-    if (!mounted) return;
-    await Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => OnboardingScreen(profile: me, onDone: _bootstrap),
-      ),
-    );
+  bool get _isOwner =>
+      profile != null && profile!['roleOnShop'] != 'STAFF';
+
+  int get _shopTabIndex => _isOwner ? 3 : -1;
+
+  void _openSetup() {
+    if (!_isOwner) return;
+    setState(() => tabIndex = _shopTabIndex);
   }
 
   Future<void> _accept(String id) async {
@@ -301,8 +298,115 @@ class _ProHomeScreenState extends State<ProHomeScreen>
         .toList();
   }
 
+  Widget _jobsTab() {
+    return RefreshIndicator(
+      color: ZanaColors.copper,
+      onRefresh: _bootstrap,
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(20, 10, 20, 24),
+        children: [
+          _Header(
+            profile: profile,
+            sharedFloat: sharedFloat,
+            onSignOut: () async {
+              await api.logout();
+              if (!mounted) return;
+              setState(() {
+                profile = null;
+                tabIndex = 0;
+                _setupChecked = false;
+              });
+              await _bootstrap();
+            },
+          ),
+          const SizedBox(height: 18),
+          if (_isOwner &&
+              readiness != null &&
+              (readiness!['ready'] as bool? ?? false) == false) ...[
+            _SetupBanner(
+              blockers: ((readiness!['blockers'] as List?) ?? []).cast<String>(),
+              onOpen: _openSetup,
+            ),
+            const SizedBox(height: 14),
+          ],
+          if (_isOwner) ...[
+            _OnlinePanel(
+              online: online,
+              pulse: _pulse,
+              onChanged: _toggle,
+            ),
+            const SizedBox(height: 12),
+          ],
+          _FloatStrip(
+            credits: credits,
+            canBuy: packages.isNotEmpty,
+            onBuy: _openBuyFloat,
+          ),
+          if (_trackingBookingId != null) ...[
+            const SizedBox(height: 12),
+            _LiveShareHint(pulse: _pulse),
+          ],
+          const SizedBox(height: 26),
+          Row(
+            children: [
+              Text(
+                'Active jobs',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w800,
+                      color: ZanaColors.ink,
+                    ),
+              ),
+              const Spacer(),
+              if (_activeJobs.isNotEmpty)
+                Text(
+                  '${_activeJobs.length}',
+                  style: const TextStyle(
+                    color: ZanaColors.copper,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          if (_activeJobs.isEmpty)
+            _EmptyJobs(online: online)
+          else
+            ..._activeJobs.map((job) {
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: _JobTile(
+                  job: job,
+                  onOpen: () => _openJob(job['id'] as String),
+                  onAccept: () => _accept(job['id'] as String),
+                  onDecline: () => _decline(job['id'] as String),
+                  onAdvance: (status) =>
+                      _advance(job['id'] as String, status),
+                ),
+              );
+            }),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final showChrome = !loading && error == null;
+    final tabs = <Widget>[
+      _jobsTab(),
+      const ScheduleScreen(embedded: true),
+      if (_isOwner) const StaffScreen(embedded: true),
+      if (_isOwner && profile != null)
+        OnboardingScreen(
+          profile: profile!,
+          onDone: _bootstrap,
+          embedded: true,
+        ),
+    ];
+    final safeIndex =
+        tabIndex.clamp(0, tabs.isEmpty ? 0 : tabs.length - 1).toInt();
+
     return Scaffold(
       backgroundColor: ZanaColors.cream,
       body: DecoratedBox(
@@ -319,6 +423,7 @@ class _ProHomeScreenState extends State<ProHomeScreen>
           ),
         ),
         child: SafeArea(
+          bottom: false,
           child: loading
               ? const Center(
                   child: CircularProgressIndicator(color: ZanaColors.copper),
@@ -331,118 +436,72 @@ class _ProHomeScreenState extends State<ProHomeScreen>
                         await _bootstrap();
                       },
                     )
-                  : RefreshIndicator(
-                      color: ZanaColors.copper,
-                      onRefresh: _bootstrap,
-                      child: ListView(
-                        physics: const AlwaysScrollableScrollPhysics(),
-                        padding: const EdgeInsets.fromLTRB(20, 10, 20, 32),
-                        children: [
-                          _Header(
-                            profile: profile,
-                            sharedFloat: sharedFloat,
-                            onSchedule: () {
-                              Navigator.of(context).push(
-                                MaterialPageRoute(
-                                  builder: (_) => const ScheduleScreen(),
-                                ),
-                              );
-                            },
-                            onStaff: profile?['roleOnShop'] != 'STAFF'
-                                ? () {
-                                    Navigator.of(context).push(
-                                      MaterialPageRoute(
-                                        builder: (_) => const StaffScreen(),
-                                      ),
-                                    );
-                                  }
-                                : null,
-                            onSetup: profile?['roleOnShop'] != 'STAFF'
-                                ? _openSetup
-                                : null,
-                            onSignOut: () async {
-                              await api.logout();
-                              await _bootstrap();
-                            },
-                          ),
-                          const SizedBox(height: 18),
-                          if (profile?['roleOnShop'] != 'STAFF' &&
-                              readiness != null &&
-                              (readiness!['ready'] as bool? ?? false) ==
-                                  false) ...[
-                            _SetupBanner(
-                              blockers:
-                                  ((readiness!['blockers'] as List?) ?? [])
-                                      .cast<String>(),
-                              onOpen: _openSetup,
-                            ),
-                            const SizedBox(height: 14),
-                          ],
-                          if (profile?['roleOnShop'] != 'STAFF') ...[
-                            _OnlinePanel(
-                              online: online,
-                              pulse: _pulse,
-                              onChanged: _toggle,
-                            ),
-                            const SizedBox(height: 12),
-                          ],
-                          _FloatStrip(
-                            credits: credits,
-                            canBuy: packages.isNotEmpty,
-                            onBuy: _openBuyFloat,
-                          ),
-                          if (_trackingBookingId != null) ...[
-                            const SizedBox(height: 12),
-                            _LiveShareHint(pulse: _pulse),
-                          ],
-                          const SizedBox(height: 26),
-                          Row(
-                            children: [
-                              Text(
-                                'Active jobs',
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .titleMedium
-                                    ?.copyWith(
-                                      fontWeight: FontWeight.w800,
-                                      color: ZanaColors.ink,
-                                    ),
-                              ),
-                              const Spacer(),
-                              if (_activeJobs.isNotEmpty)
-                                Text(
-                                  '${_activeJobs.length}',
-                                  style: const TextStyle(
-                                    color: ZanaColors.copper,
-                                    fontWeight: FontWeight.w800,
-                                  ),
-                                ),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-                          if (_activeJobs.isEmpty)
-                            _EmptyJobs(online: online)
-                          else
-                            ..._activeJobs.map((job) {
-                              return Padding(
-                                padding: const EdgeInsets.only(bottom: 12),
-                                child: _JobTile(
-                                  job: job,
-                                  onOpen: () => _openJob(job['id'] as String),
-                                  onAccept: () =>
-                                      _accept(job['id'] as String),
-                                  onDecline: () =>
-                                      _decline(job['id'] as String),
-                                  onAdvance: (status) =>
-                                      _advance(job['id'] as String, status),
-                                ),
-                              );
-                            }),
-                        ],
-                      ),
+                  : IndexedStack(
+                      index: safeIndex,
+                      children: tabs,
                     ),
         ),
       ),
+      bottomNavigationBar: showChrome
+          ? Container(
+              decoration: BoxDecoration(
+                color: ZanaColors.paper.withValues(alpha: 0.96),
+                border: Border(
+                  top: BorderSide(
+                    color: ZanaColors.ink.withValues(alpha: 0.06),
+                  ),
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: ZanaColors.ink.withValues(alpha: 0.05),
+                    blurRadius: 20,
+                    offset: const Offset(0, -6),
+                  ),
+                ],
+              ),
+              child: SafeArea(
+                top: false,
+                child: Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+                  child: Row(
+                    children: [
+                      ProNavItem(
+                        icon: Icons.work_outline_rounded,
+                        activeIcon: Icons.work_rounded,
+                        label: 'Jobs',
+                        selected: safeIndex == 0,
+                        onTap: () => setState(() => tabIndex = 0),
+                      ),
+                      ProNavItem(
+                        icon: Icons.calendar_month_outlined,
+                        activeIcon: Icons.calendar_month_rounded,
+                        label: 'Schedule',
+                        selected: safeIndex == 1,
+                        onTap: () => setState(() => tabIndex = 1),
+                      ),
+                      if (_isOwner)
+                        ProNavItem(
+                          icon: Icons.groups_outlined,
+                          activeIcon: Icons.groups_rounded,
+                          label: 'Team',
+                          selected: safeIndex == 2,
+                          onTap: () => setState(() => tabIndex = 2),
+                        ),
+                      if (_isOwner)
+                        ProNavItem(
+                          icon: Icons.storefront_outlined,
+                          activeIcon: Icons.storefront_rounded,
+                          label: 'Shop',
+                          selected: safeIndex == 3,
+                          onTap: () => setState(() => tabIndex = 3),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            )
+          : null,
     );
   }
 }
@@ -451,17 +510,11 @@ class _Header extends StatelessWidget {
   const _Header({
     required this.profile,
     required this.sharedFloat,
-    required this.onSchedule,
-    required this.onStaff,
-    required this.onSetup,
     required this.onSignOut,
   });
 
   final Map<String, dynamic>? profile;
   final bool sharedFloat;
-  final VoidCallback onSchedule;
-  final VoidCallback? onStaff;
-  final VoidCallback? onSetup;
   final VoidCallback onSignOut;
 
   @override
@@ -478,28 +531,6 @@ class _Header extends StatelessWidget {
             const Expanded(
               child: ZanaWordmark(markSize: 42, pro: true),
             ),
-            _IconAction(
-              icon: Icons.calendar_month_rounded,
-              tooltip: 'Schedule',
-              onTap: onSchedule,
-            ),
-            if (onStaff != null) ...[
-              const SizedBox(width: 6),
-              _IconAction(
-                icon: Icons.groups_rounded,
-                tooltip: 'Team',
-                onTap: onStaff!,
-              ),
-            ],
-            if (onSetup != null) ...[
-              const SizedBox(width: 6),
-              _IconAction(
-                icon: Icons.storefront_rounded,
-                tooltip: 'Shop setup',
-                onTap: onSetup!,
-              ),
-            ],
-            const SizedBox(width: 6),
             _IconAction(
               icon: Icons.logout_rounded,
               tooltip: 'Sign out',
