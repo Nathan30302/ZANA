@@ -217,11 +217,20 @@ export default function AdminPage() {
   return (
     <main style={{ maxWidth: 960, margin: '0 auto', padding: '40px 20px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
-        <div>
-          <p style={{ letterSpacing: '0.2em', fontSize: 12, color: 'var(--gold)' }}>
-            admin.zana.zm
-          </p>
-          <h1 style={{ marginTop: 8 }}>ZANA Admin</h1>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/brand/zana-mark.svg" alt="ZANA" width={40} height={40} />
+          <div>
+            <div
+              className="brand-wordmark"
+              style={{ fontWeight: 800, letterSpacing: '0.18em', fontSize: 18 }}
+            >
+              ZANA Admin
+            </div>
+            <div style={{ color: 'var(--muted)', fontSize: 13 }}>
+              Style at your fingertips · ops
+            </div>
+          </div>
         </div>
         {token ? (
           <button type="button" onClick={logout}>

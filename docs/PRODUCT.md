@@ -53,6 +53,7 @@ REQUESTED → ACCEPTED → ON_THE_WAY | CONFIRMED → IN_SERVICE → COMPLETED �
 
 ## Brand (UI)
 
+- **Slogan:** Style at your fingertips  
 - Warm charcoal + copper/gold accent + soft cream  
-- Premium African beauty — not purple SaaS, not neon dark  
-- Strong ZANA wordmark; one job per screen  
+- Premium African salon & barbershop — not purple SaaS, not neon dark  
+- Strong ZANA mark (copper Z on charcoal) + wordmark; one job per screen  

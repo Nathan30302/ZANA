@@ -155,36 +155,12 @@ class _HomeScreenState extends State<HomeScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 12, 12, 0),
+              padding: const EdgeInsets.fromLTRB(20, 14, 12, 0),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'ZANA',
-                          style: Theme.of(context)
-                              .textTheme
-                              .headlineMedium
-                              ?.copyWith(
-                                fontWeight: FontWeight.w800,
-                                letterSpacing: 3,
-                                color: ZanaColors.copper,
-                                height: 1.05,
-                              ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Beauty & cuts around Lusaka',
-                          style:
-                              Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                    color: ZanaColors.muted,
-                                  ),
-                        ),
-                      ],
-                    ),
+                  const Expanded(
+                    child: ZanaWordmark(markSize: 44),
                   ),
                   if (api.token != null)
                     IconButton(
@@ -302,12 +278,24 @@ class _HomeScreenState extends State<HomeScreen> {
             const SizedBox(height: 8),
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 8, 20, 4),
-              child: Text(
-                'Near you',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w700,
-                      color: ZanaColors.ink,
-                    ),
+              child: Row(
+                children: [
+                  Text(
+                    'Near you',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: ZanaColors.ink,
+                        ),
+                  ),
+                  const Spacer(),
+                  Text(
+                    'Lusaka',
+                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                          color: ZanaColors.copper,
+                          fontWeight: FontWeight.w600,
+                        ),
+                  ),
+                ],
               ),
             ),
             Expanded(
@@ -420,7 +408,7 @@ class _ProviderCard extends StatelessWidget {
     return Material(
       color: ZanaColors.paper,
       elevation: 0,
-      borderRadius: BorderRadius.circular(18),
+      borderRadius: BorderRadius.circular(20),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: () {
@@ -431,97 +419,103 @@ class _ProviderCard extends StatelessWidget {
             ),
           );
         },
-        child: Row(
-          children: [
-            SizedBox(
-              width: 96,
-              height: 104,
-              child: cover != null
-                  ? Image.network(
-                      cover,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => _Initial(name: name),
-                    )
-                  : _Initial(name: name),
-            ),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            name,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w700,
-                              fontSize: 16,
-                              color: ZanaColors.ink,
+        child: Ink(
+          decoration: BoxDecoration(
+            border: Border.all(color: ZanaColors.ink.withValues(alpha: 0.05)),
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Row(
+            children: [
+              SizedBox(
+                width: 100,
+                height: 110,
+                child: cover != null
+                    ? Image.network(
+                        cover,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => _Initial(name: name),
+                      )
+                    : _Initial(name: name),
+              ),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              name,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w700,
+                                fontSize: 16,
+                                color: ZanaColors.ink,
+                              ),
                             ),
                           ),
+                          Text(
+                            count > 0 ? '${rating.toStringAsFixed(1)}★' : 'New',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w700,
+                              fontSize: 13,
+                              color: count > 0
+                                  ? ZanaColors.copper
+                                  : ZanaColors.muted,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '${provider['area']} · ${provider['type']}'
+                        '${km != null ? ' · ${km.toStringAsFixed(1)} km' : ''}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: ZanaColors.muted,
+                          fontSize: 13,
                         ),
-                        Text(
-                          count > 0 ? '${rating.toStringAsFixed(1)}★' : 'New',
+                      ),
+                      const SizedBox(height: 10),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 9,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: online
+                              ? const Color(0xFFECFDF5)
+                              : ZanaColors.sand,
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: Text(
+                          online ? 'Online now' : 'Offline',
                           style: TextStyle(
-                            fontWeight: FontWeight.w700,
-                            fontSize: 13,
-                            color: count > 0
-                                ? ZanaColors.copper
+                            color: online
+                                ? const Color(0xFF047857)
                                 : ZanaColors.muted,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '${provider['area']} · ${provider['type']}'
-                      '${km != null ? ' · ${km.toStringAsFixed(1)} km' : ''}',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: ZanaColors.muted,
-                        fontSize: 13,
                       ),
-                    ),
-                    const SizedBox(height: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 3,
-                      ),
-                      decoration: BoxDecoration(
-                        color: online
-                            ? const Color(0xFFECFDF5)
-                            : ZanaColors.cream,
-                        borderRadius: BorderRadius.circular(999),
-                      ),
-                      child: Text(
-                        online ? 'Online now' : 'Offline',
-                        style: TextStyle(
-                          color: online
-                              ? const Color(0xFF047857)
-                              : ZanaColors.muted,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
-            ),
-            const Padding(
-              padding: EdgeInsets.only(right: 10),
-              child: Icon(
-                Icons.chevron_right_rounded,
-                color: ZanaColors.muted,
+              const Padding(
+                padding: EdgeInsets.only(right: 10),
+                child: Icon(
+                  Icons.chevron_right_rounded,
+                  color: ZanaColors.muted,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

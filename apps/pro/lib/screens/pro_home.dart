@@ -298,20 +298,15 @@ class _ProHomeScreenState extends State<ProHomeScreen> {
                 : RefreshIndicator(
                     onRefresh: _bootstrap,
                     child: ListView(
-                      padding: const EdgeInsets.all(20),
+                      padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
                       children: [
                         Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Expanded(
-                              child: Text(
-                                'ZANA Pro',
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .headlineMedium
-                                    ?.copyWith(
-                                      fontWeight: FontWeight.w800,
-                                      color: ZanaColors.copper,
-                                    ),
+                            const Expanded(
+                              child: ZanaWordmark(
+                                markSize: 42,
+                                pro: true,
                               ),
                             ),
                             IconButton(
@@ -353,14 +348,16 @@ class _ProHomeScreenState extends State<ProHomeScreen> {
                             ),
                           ],
                         ),
-                        if (profile != null)
+                        if (profile != null) ...[
+                          const SizedBox(height: 6),
                           Text(
                             '${profile!['displayName'] ?? ''}'
                             '${profile!['roleOnShop'] == 'STAFF' ? ' · Staff' : ''}'
                             '${sharedFloat ? ' · shared float' : ''}',
                             style: const TextStyle(color: ZanaColors.muted),
                           ),
-                        const SizedBox(height: 16),
+                        ],
+                        const SizedBox(height: 18),
                         if (profile?['roleOnShop'] != 'STAFF') ...[
                           if (readiness != null &&
                               (readiness!['ready'] as bool? ?? false) == false) ...[
@@ -368,18 +365,27 @@ class _ProHomeScreenState extends State<ProHomeScreen> {
                               padding: const EdgeInsets.all(14),
                               decoration: BoxDecoration(
                                 color: ZanaColors.paper,
-                                borderRadius: BorderRadius.circular(14),
-                                border: Border.all(color: ZanaColors.copper.withValues(alpha: 0.4)),
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(
+                                  color: ZanaColors.copper.withValues(alpha: 0.35),
+                                ),
                               ),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  const Text('Finish setup to go online',
-                                      style: TextStyle(fontWeight: FontWeight.w700)),
+                                  const Text(
+                                    'Finish setup to go online',
+                                    style: TextStyle(fontWeight: FontWeight.w700),
+                                  ),
                                   const SizedBox(height: 6),
                                   ...((readiness!['blockers'] as List?) ?? []).map(
-                                    (b) => Text('• $b',
-                                        style: const TextStyle(color: ZanaColors.muted, fontSize: 13)),
+                                    (b) => Text(
+                                      '• $b',
+                                      style: const TextStyle(
+                                        color: ZanaColors.muted,
+                                        fontSize: 13,
+                                      ),
+                                    ),
                                   ),
                                   TextButton(
                                     onPressed: _openSetup,
@@ -394,7 +400,10 @@ class _ProHomeScreenState extends State<ProHomeScreen> {
                             padding: const EdgeInsets.all(16),
                             decoration: BoxDecoration(
                               color: ZanaColors.paper,
-                              borderRadius: BorderRadius.circular(16),
+                              borderRadius: BorderRadius.circular(18),
+                              border: Border.all(
+                                color: ZanaColors.ink.withValues(alpha: 0.05),
+                              ),
                             ),
                             child: Row(
                               children: [
@@ -402,8 +411,10 @@ class _ProHomeScreenState extends State<ProHomeScreen> {
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      const Text('Go Online',
-                                          style: TextStyle(fontWeight: FontWeight.w700)),
+                                      const Text(
+                                        'Go Online',
+                                        style: TextStyle(fontWeight: FontWeight.w700),
+                                      ),
                                       Text(
                                         online ? 'Accepting jobs' : 'Offline',
                                         style: const TextStyle(color: ZanaColors.muted),
@@ -418,10 +429,18 @@ class _ProHomeScreenState extends State<ProHomeScreen> {
                           const SizedBox(height: 12),
                         ],
                         Container(
-                          padding: const EdgeInsets.all(16),
+                          padding: const EdgeInsets.all(18),
                           decoration: BoxDecoration(
-                            color: ZanaColors.charcoal,
-                            borderRadius: BorderRadius.circular(16),
+                            gradient: const LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [
+                                ZanaColors.ink,
+                                ZanaColors.charcoal,
+                                Color(0xFF3F2A1C),
+                              ],
+                            ),
+                            borderRadius: BorderRadius.circular(20),
                           ),
                           child: Row(
                             children: [
@@ -429,13 +448,15 @@ class _ProHomeScreenState extends State<ProHomeScreen> {
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    const Text('Float credits',
-                                        style: TextStyle(color: Colors.white70)),
+                                    const Text(
+                                      'Float credits',
+                                      style: TextStyle(color: Colors.white70),
+                                    ),
                                     Text(
                                       '$credits',
                                       style: const TextStyle(
                                         color: Colors.white,
-                                        fontSize: 32,
+                                        fontSize: 34,
                                         fontWeight: FontWeight.w800,
                                       ),
                                     ),
@@ -446,13 +467,17 @@ class _ProHomeScreenState extends State<ProHomeScreen> {
                                 TextButton(
                                   onPressed: _openBuyFloat,
                                   style: TextButton.styleFrom(
-                                      foregroundColor: ZanaColors.copper),
+                                    foregroundColor: ZanaColors.copperSoft,
+                                  ),
                                   child: const Text('Buy float'),
                                 )
                               else
                                 const Text(
                                   'No packages',
-                                  style: TextStyle(color: Colors.white54, fontSize: 12),
+                                  style: TextStyle(
+                                    color: Colors.white54,
+                                    fontSize: 12,
+                                  ),
                                 ),
                             ],
                           ),
@@ -462,13 +487,19 @@ class _ProHomeScreenState extends State<ProHomeScreen> {
                           Text(
                             'Sharing live location for active job',
                             style: TextStyle(
-                                color: Colors.green.shade700, fontSize: 13),
+                              color: Colors.green.shade700,
+                              fontSize: 13,
+                            ),
                           ),
                         ],
-                        const SizedBox(height: 20),
-                        const Text('Active jobs',
-                            style: TextStyle(
-                                fontWeight: FontWeight.w700, fontSize: 18)),
+                        const SizedBox(height: 22),
+                        const Text(
+                          'Active jobs',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 18,
+                          ),
+                        ),
                         const SizedBox(height: 8),
                         Builder(builder: (context) {
                           const activeStatuses = {
@@ -553,10 +584,20 @@ class _ProHomeScreenState extends State<ProHomeScreen> {
                               return Card(
                                 color: ZanaColors.paper,
                                 elevation: 0,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                  side: BorderSide(
+                                    color: ZanaColors.ink.withValues(alpha: 0.05),
+                                  ),
+                                ),
                                 child: ListTile(
                                   onTap: () => _openJob(job['id'] as String),
                                   title: Text(
-                                      service?['name'] as String? ?? 'Service'),
+                                    service?['name'] as String? ?? 'Service',
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
                                   subtitle: Text(
                                     'Status: $status · K${job['priceZmw']}'
                                     '${assigned != null ? '\nStaff: ${assigned['name'] ?? assigned['phone']}' : ''}'

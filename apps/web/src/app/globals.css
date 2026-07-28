@@ -1,11 +1,19 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Syne:wght@600;700;800&display=swap');
+
 :root {
   --ink: #1c1917;
   --muted: #57534e;
   --line: #e7e5e4;
   --cream: #faf7f2;
+  --sand: #f3ede4;
   --paper: #ffffff;
   --gold: #b45309;
+  --copper: #d97706;
+  --copper-soft: #f59e0b;
   --charcoal: #292524;
+  --radius: 14px;
+  --font-sans: "DM Sans", "Avenir Next", "Segoe UI", sans-serif;
+  --font-display: "Syne", "Avenir Next", sans-serif;
 }
 
 * {
@@ -18,7 +26,8 @@ body {
   padding: 0;
   color: var(--ink);
   background: var(--cream);
-  font-family: "Avenir Next", "Segoe UI", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-family: var(--font-sans);
+  line-height: 1.5;
 }
 
 a {
@@ -31,4 +40,66 @@ input,
 select,
 textarea {
   font: inherit;
+}
+
+h1,
+h2,
+h3,
+.brand-wordmark {
+  font-family: var(--font-display);
+  letter-spacing: 0.02em;
+}
+
+.btn-primary,
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 14px 20px;
+  border-radius: 12px;
+  font-weight: 600;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+
+.btn-primary {
+  background: var(--charcoal);
+  color: #fff;
+  border: 0;
+}
+
+.btn-primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 24px rgba(28, 25, 23, 0.18);
+}
+
+.btn-secondary {
+  background: transparent;
+  border: 1px solid rgba(250, 247, 242, 0.28);
+  color: #fff;
+}
+
+.btn-secondary:hover {
+  background: rgba(250, 247, 242, 0.08);
+}
+
+@keyframes riseIn {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes softPulse {
+  0%,
+  100% {
+    opacity: 0.45;
+  }
+  50% {
+    opacity: 0.75;
+  }
 }

@@ -14,22 +14,35 @@ Future<bool> showAuthSheet(BuildContext context) async {
     isScrollControlled: true,
     backgroundColor: ZanaColors.paper,
     shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
     ),
     builder: (ctx) {
       return StatefulBuilder(
         builder: (ctx, setModal) {
           return Padding(
             padding: EdgeInsets.fromLTRB(
-              20,
-              20,
-              20,
-              20 + MediaQuery.of(ctx).viewInsets.bottom,
+              22,
+              14,
+              22,
+              22 + MediaQuery.of(ctx).viewInsets.bottom,
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    margin: const EdgeInsets.only(bottom: 16),
+                    decoration: BoxDecoration(
+                      color: ZanaColors.line,
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                  ),
+                ),
+                const ZanaWordmark(markSize: 36, compact: true),
+                const SizedBox(height: 18),
                 Text(
                   'Sign in to book',
                   style: Theme.of(ctx).textTheme.titleLarge?.copyWith(
@@ -47,7 +60,6 @@ Future<bool> showAuthSheet(BuildContext context) async {
                   textCapitalization: TextCapitalization.words,
                   decoration: const InputDecoration(
                     labelText: 'Your name',
-                    border: OutlineInputBorder(),
                   ),
                 ),
                 const SizedBox(height: 10),
@@ -56,7 +68,6 @@ Future<bool> showAuthSheet(BuildContext context) async {
                   keyboardType: TextInputType.phone,
                   decoration: const InputDecoration(
                     labelText: 'Phone (+260)',
-                    border: OutlineInputBorder(),
                   ),
                 ),
                 const SizedBox(height: 10),
@@ -67,14 +78,13 @@ Future<bool> showAuthSheet(BuildContext context) async {
                     decoration: const InputDecoration(
                       labelText: 'OTP code',
                       hintText: '123456 in dev',
-                      border: OutlineInputBorder(),
                     ),
                   ),
                 if (error != null) ...[
                   const SizedBox(height: 8),
                   Text(error!, style: const TextStyle(color: Colors.red)),
                 ],
-                const SizedBox(height: 14),
+                const SizedBox(height: 16),
                 Row(
                   children: [
                     TextButton(
@@ -93,9 +103,6 @@ Future<bool> showAuthSheet(BuildContext context) async {
                     ),
                     const Spacer(),
                     FilledButton(
-                      style: FilledButton.styleFrom(
-                        backgroundColor: ZanaColors.charcoal,
-                      ),
                       onPressed: () async {
                         final name = nameCtrl.text.trim();
                         if (name.isEmpty) {

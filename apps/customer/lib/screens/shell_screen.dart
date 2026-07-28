@@ -103,22 +103,22 @@ class _CustomerShellState extends State<CustomerShell> {
       ),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
-          color: ZanaColors.paper,
+          color: ZanaColors.paper.withValues(alpha: 0.96),
           border: Border(
             top: BorderSide(color: ZanaColors.ink.withValues(alpha: 0.06)),
           ),
           boxShadow: [
             BoxShadow(
-              color: ZanaColors.ink.withValues(alpha: 0.04),
-              blurRadius: 16,
-              offset: const Offset(0, -4),
+              color: ZanaColors.ink.withValues(alpha: 0.05),
+              blurRadius: 20,
+              offset: const Offset(0, -6),
             ),
           ],
         ),
         child: SafeArea(
           top: false,
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
             child: Row(
               children: [
                 _NavItem(
@@ -179,9 +179,16 @@ class _NavItem extends StatelessWidget {
     return Expanded(
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(14),
-        child: Padding(
+        borderRadius: BorderRadius.circular(16),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
           padding: const EdgeInsets.symmetric(vertical: 8),
+          decoration: BoxDecoration(
+            color: selected
+                ? ZanaColors.copper.withValues(alpha: 0.08)
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(16),
+          ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
