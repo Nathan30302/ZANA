@@ -18,6 +18,8 @@
     "prisma:seed": "npm run prisma:seed -w apps/api",
     "db:up": "docker compose up -d",
     "db:setup": "npm run db:up && npm run prisma:migrate && npm run prisma:seed",
+    "deploy:prod": "docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build",
+    "build:internal": "bash scripts/build-internal.sh",
     "lint": "npm run lint -w apps/api && npm run lint -w apps/web"
   },
   "engines": {

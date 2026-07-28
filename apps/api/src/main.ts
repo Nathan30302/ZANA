@@ -15,8 +15,10 @@ async function bootstrap() {
   app.enableCors({ origin: origins, credentials: true });
 
   const port = Number(process.env.PORT ?? 3000);
-  await app.listen(port);
+  await app.listen(port, '0.0.0.0');
   // eslint-disable-next-line no-console
-  console.log(`ZANA API listening on http://localhost:${port}/v1`);
+  console.log(
+    `ZANA API listening on http://0.0.0.0:${port}/v1 (PUBLIC_BASE_URL=${process.env.PUBLIC_BASE_URL || 'unset'})`,
+  );
 }
 bootstrap();

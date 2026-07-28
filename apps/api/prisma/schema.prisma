@@ -124,6 +124,15 @@ model Favorite {
   @@unique([userId, providerId])
 }
 
+/// Short-lived phone OTP challenges (shared by all OTP providers; required for multi-instance deploys)
+model OtpChallenge {
+  phone     String   @id
+  code      String
+  expiresAt DateTime
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+}
+
 model ProviderPhoto {
   id         String @id @default(cuid())
   providerId String

@@ -12,7 +12,7 @@ Zambia’s beauty booking marketplace — salons, barbershops, and mobile stylis
 | API | `apps/api` | NestJS + Prisma + PostgreSQL |
 | Shared types | `packages/shared` | TypeScript |
 
-Product blueprint: [`docs/ZANA_Product_Blueprint.pdf`](docs/ZANA_Product_Blueprint.pdf) · domain wiki: [`docs/PRODUCT.md`](docs/PRODUCT.md)
+Product blueprint: [`docs/ZANA_Product_Blueprint.pdf`](docs/ZANA_Product_Blueprint.pdf) · domain wiki: [`docs/PRODUCT.md`](docs/PRODUCT.md) · **pilot deploy:** [`docs/DEPLOY.md`](docs/DEPLOY.md)
 
 ## Quick start
 
@@ -41,12 +41,26 @@ npm run dev:web           # http://localhost:3001
 - `/apply` — Become a Professional  
 - `/admin` — approve applications  
 
-### 3. Mobile
+### 3. Mobile (simulator / device)
 ```bash
 export PATH="$HOME/development/flutter/bin:$PATH"
-cd apps/customer && flutter create --platforms=ios,android . && flutter pub get && flutter run
-cd apps/pro && flutter create --platforms=ios,android . && flutter pub get && flutter run
+# Simulator (API on same machine):
+cd apps/customer && flutter run
+cd apps/pro && flutter run
+
+# Physical device / internal APK — point at hosted API (see docs/DEPLOY.md):
+export API_URL="https://YOUR_HOST/v1"
+./scripts/build-internal.sh
 ```
+
+## Pilot hosting (API + OTP + builds)
+
+See **[`docs/DEPLOY.md`](docs/DEPLOY.md)** for:
+1. Docker Compose / Fly.io API + Postgres  
+2. Africa’s Talking SMS OTP (`OTP_PROVIDER=africas_talking`)  
+3. Internal APK / TestFlight builds with `--dart-define=API_URL=…`  
+
+Payments stay stubbed until you enable MoMo/Airtel intentionally.
 
 ## API surface (MVP)
 | Method | Path | Purpose |

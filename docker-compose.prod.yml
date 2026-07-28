@@ -1,0 +1,61 @@
+# Production-style stack: Postgres + API
+# Usage:
+#   cp apps/api/.env.example apps/api/.env.prod   # edit secrets
+#   docker compose -f docker-compose.prod.yml --env-file apps/api/.env.prod up -d --build
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: zana-db-prod
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-zana}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-zana}
+    volumes:
+      - zana_pg_prod:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-zana} -d ${POSTGRES_DB:-zana}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: zana-api
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "${PORT:-3000}:3000"
+    environment:
+      PORT: 3000
+      NODE_ENV: production
+      DATABASE_URL: postgresql://${POSTGRES_USER:-zana}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-zana}?schema=public
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET}
+      CORS_ORIGINS: ${CORS_ORIGINS:-*}
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:?set PUBLIC_BASE_URL}
+      OTP_PROVIDER: ${OTP_PROVIDER:-africas_talking}
+      OTP_DEV_CODE: ${OTP_DEV_CODE:-}
+      AT_USERNAME: ${AT_USERNAME:-}
+      AT_API_KEY: ${AT_API_KEY:-}
+      AT_SENDER_ID: ${AT_SENDER_ID:-ZANA}
+      AT_ENV: ${AT_ENV:-production}
+      PAYMENT_PROVIDER: ${PAYMENT_PROVIDER:-stub}
+      PAYMENT_SIMULATE: ${PAYMENT_SIMULATE:-true}
+      FIREBASE_SERVER_KEY: ${FIREBASE_SERVER_KEY:-}
+    volumes:
+      - zana_uploads:/app/uploads
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:3000/v1/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+
+volumes:
+  zana_pg_prod:
+  zana_uploads:
