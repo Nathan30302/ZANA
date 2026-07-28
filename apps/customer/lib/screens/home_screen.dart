@@ -4,7 +4,7 @@ import 'package:zana_customer/api.dart';
 import 'package:zana_customer/screens/provider_screen.dart';
 import 'package:zana_customer/theme.dart';
 
-const categories = ['ALL', 'BARBER', 'SALON', 'NAILS', 'BRIDAL', 'MOBILE'];
+const categories = ['ALL', 'BARBER', 'SALON', 'MOBILE'];
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({
@@ -127,10 +127,6 @@ class _HomeScreenState extends State<HomeScreen> {
         return 'Barber';
       case 'SALON':
         return 'Salon';
-      case 'NAILS':
-        return 'Nails';
-      case 'BRIDAL':
-        return 'Bridal';
       case 'MOBILE':
         return 'Mobile';
       default:
