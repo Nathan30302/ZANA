@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:zana_customer/api.dart';
-import 'package:zana_customer/screens/home_screen.dart';
+import 'package:zana_customer/screens/shell_screen.dart';
 import 'package:zana_customer/theme.dart';
 
 Future<void> main() async {
@@ -36,7 +36,7 @@ class ZanaApp extends StatelessWidget {
           elevation: 0,
         ),
       ),
-      home: const HomeScreen(),
+      home: const CustomerShell(),
     );
   }
 }

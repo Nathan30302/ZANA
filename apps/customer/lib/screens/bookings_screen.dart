@@ -8,7 +8,9 @@ import 'package:zana_customer/screens/booking_detail_screen.dart';
 import 'package:zana_customer/theme.dart';
 
 class BookingsScreen extends StatefulWidget {
-  const BookingsScreen({super.key});
+  const BookingsScreen({super.key, this.embedded = false});
+
+  final bool embedded;
 
   @override
   State<BookingsScreen> createState() => _BookingsScreenState();
@@ -57,16 +59,26 @@ class _BookingsScreenState extends State<BookingsScreen>
   }
 
   Future<void> _bootstrap() async {
-    if (api.token == null && !_authPrompted) {
-      _authPrompted = true;
-      final ok = await showAuthSheet(context);
-      if (!ok) {
+    if (api.token == null) {
+      if (widget.embedded) {
         if (!mounted) return;
         setState(() {
           items = [];
           loading = false;
         });
         return;
+      }
+      if (!_authPrompted) {
+        _authPrompted = true;
+        final ok = await showAuthSheet(context);
+        if (!ok) {
+          if (!mounted) return;
+          setState(() {
+            items = [];
+            loading = false;
+          });
+          return;
+        }
       }
     }
     await _refresh(silent: false);
@@ -129,6 +141,92 @@ class _BookingsScreenState extends State<BookingsScreen>
 
   @override
   Widget build(BuildContext context) {
+    final content = loading && items == null
+        ? const Center(child: CircularProgressIndicator())
+        : Column(
+            children: [
+              SizedBox(
+                height: 44,
+                child: ListView.separated(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  scrollDirection: Axis.horizontal,
+                  itemCount: filters.length,
+                  separatorBuilder: (_, __) => const SizedBox(width: 8),
+                  itemBuilder: (context, i) {
+                    final f = filters[i];
+                    final selected = f == filter;
+                    return ChoiceChip(
+                      label: Text(f),
+                      selected: selected,
+                      onSelected: (_) => setState(() => filter = f),
+                      selectedColor: ZanaColors.charcoal,
+                      labelStyle: TextStyle(
+                        color: selected ? Colors.white : ZanaColors.ink,
+                      ),
+                    );
+                  },
+                ),
+              ),
+              Expanded(child: _buildBody()),
+            ],
+          );
+
+    if (widget.embedded) {
+      return ColoredBox(
+        color: ZanaColors.cream,
+        child: SafeArea(
+          bottom: false,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 16, 8, 8),
+                child: Row(
+                  children: [
+                    const Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Bookings',
+                            style: TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.w800,
+                              color: ZanaColors.ink,
+                            ),
+                          ),
+                          SizedBox(height: 4),
+                          Text(
+                            'Track every appointment',
+                            style: TextStyle(color: ZanaColors.muted),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (api.token != null)
+                      IconButton(
+                        tooltip: 'Sign out',
+                        onPressed: () async {
+                          _pollTimer?.cancel();
+                          await api.logout();
+                          if (!context.mounted) return;
+                          setState(() {
+                            items = [];
+                            _authPrompted = false;
+                          });
+                        },
+                        icon: const Icon(Icons.logout_rounded),
+                      ),
+                  ],
+                ),
+              ),
+              Expanded(child: content),
+            ],
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('My bookings'),
@@ -146,44 +244,42 @@ class _BookingsScreenState extends State<BookingsScreen>
             ),
         ],
       ),
-      body: loading && items == null
-          ? const Center(child: CircularProgressIndicator())
-          : Column(
-              children: [
-                SizedBox(
-                  height: 44,
-                  child: ListView.separated(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    scrollDirection: Axis.horizontal,
-                    itemCount: filters.length,
-                    separatorBuilder: (_, __) => const SizedBox(width: 8),
-                    itemBuilder: (context, i) {
-                      final f = filters[i];
-                      final selected = f == filter;
-                      return ChoiceChip(
-                        label: Text(f),
-                        selected: selected,
-                        onSelected: (_) => setState(() => filter = f),
-                        selectedColor: ZanaColors.charcoal,
-                        labelStyle: TextStyle(
-                          color: selected ? Colors.white : ZanaColors.ink,
-                        ),
-                      );
-                    },
-                  ),
-                ),
-                Expanded(child: _buildBody()),
-              ],
-            ),
+      body: content,
     );
   }
 
   Widget _buildBody() {
     if (api.token == null) {
-      return const Center(
-        child: Text(
-          'Sign in to see your bookings.',
-          style: TextStyle(color: ZanaColors.muted),
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Sign in to see your bookings.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: ZanaColors.muted),
+              ),
+              if (widget.embedded) ...[
+                const SizedBox(height: 14),
+                FilledButton(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: ZanaColors.charcoal,
+                  ),
+                  onPressed: () async {
+                    final ok = await showAuthSheet(context);
+                    if (ok) {
+                      _authPrompted = true;
+                      await _refresh(silent: false);
+                      _startPolling();
+                    }
+                  },
+                  child: const Text('Sign in'),
+                ),
+              ],
+            ],
+          ),
         ),
       );
     }
@@ -194,7 +290,7 @@ class _BookingsScreenState extends State<BookingsScreen>
     if (filtered.isEmpty) {
       return const Center(
         child: Text(
-          'No bookings in this view.\nFind a pro on Home.',
+          'No bookings in this view.\nFind a pro on Discover.',
           textAlign: TextAlign.center,
           style: TextStyle(color: ZanaColors.muted),
         ),

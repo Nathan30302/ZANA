@@ -11,11 +11,13 @@ class NearbyMapScreen extends StatefulWidget {
     required this.providers,
     this.userLat = ZanaApi.lusakaLat,
     this.userLng = ZanaApi.lusakaLng,
+    this.embedded = false,
   });
 
   final List<dynamic> providers;
   final double userLat;
   final double userLng;
+  final bool embedded;
 
   @override
   State<NearbyMapScreen> createState() => _NearbyMapScreenState();
@@ -31,7 +33,11 @@ class _NearbyMapScreenState extends State<NearbyMapScreen> {
         point: LatLng(widget.userLat, widget.userLng),
         width: 40,
         height: 40,
-        child: const Icon(Icons.person_pin_circle, color: ZanaColors.charcoal, size: 36),
+        child: const Icon(
+          Icons.person_pin_circle,
+          color: ZanaColors.charcoal,
+          size: 36,
+        ),
       ),
     ];
     for (final raw in widget.providers) {
@@ -48,7 +54,8 @@ class _NearbyMapScreenState extends State<NearbyMapScreen> {
             onTap: () {
               Navigator.of(context).push(
                 MaterialPageRoute(
-                  builder: (_) => ProviderScreen(providerId: p['id'] as String),
+                  builder: (_) =>
+                      ProviderScreen(providerId: p['id'] as String),
                 ),
               );
             },
@@ -62,22 +69,67 @@ class _NearbyMapScreenState extends State<NearbyMapScreen> {
       );
     }
 
+    final map = FlutterMap(
+      mapController: mapController,
+      options: MapOptions(
+        initialCenter: LatLng(widget.userLat, widget.userLng),
+        initialZoom: 12.2,
+      ),
+      children: [
+        TileLayer(
+          urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+          userAgentPackageName: 'zm.zana.zana_customer',
+        ),
+        MarkerLayer(markers: markers),
+      ],
+    );
+
+    if (widget.embedded) {
+      return ColoredBox(
+        color: ZanaColors.cream,
+        child: SafeArea(
+          bottom: false,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Padding(
+                padding: EdgeInsets.fromLTRB(20, 16, 20, 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Map',
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.w800,
+                        color: ZanaColors.ink,
+                      ),
+                    ),
+                    SizedBox(height: 4),
+                    Text(
+                      'Tap a pin to open a pro',
+                      style: TextStyle(color: ZanaColors.muted),
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: ClipRRect(
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(20),
+                  ),
+                  child: map,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       appBar: AppBar(title: const Text('Nearby on map')),
-      body: FlutterMap(
-        mapController: mapController,
-        options: MapOptions(
-          initialCenter: LatLng(widget.userLat, widget.userLng),
-          initialZoom: 12.2,
-        ),
-        children: [
-          TileLayer(
-            urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-            userAgentPackageName: 'zm.zana.zana_customer',
-          ),
-          MarkerLayer(markers: markers),
-        ],
-      ),
+      body: map,
     );
   }
 }
