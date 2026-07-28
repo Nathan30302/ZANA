@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:zana_customer/api.dart';
 import 'package:zana_customer/screens/auth_sheet.dart';
+import 'package:zana_customer/screens/book_now_sheet.dart';
 import 'package:zana_customer/screens/provider_screen.dart';
 import 'package:zana_customer/theme.dart';
 
@@ -34,6 +35,7 @@ class _HomeScreenState extends State<HomeScreen> {
   late double userLat;
   late double userLng;
   final searchCtrl = TextEditingController();
+  bool onlineOnly = false;
 
   @override
   void initState() {
@@ -111,6 +113,8 @@ class _HomeScreenState extends State<HomeScreen> {
       q: query.isEmpty ? null : query,
       lat: userLat,
       lng: userLng,
+      online: onlineOnly ? true : null,
+      radiusKm: onlineOnly ? 12 : null,
     );
     widget.onProvidersLoaded?.call(items);
     return items;
@@ -243,6 +247,69 @@ class _HomeScreenState extends State<HomeScreen> {
                 textInputAction: TextInputAction.search,
               ),
             ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
+              child: Material(
+                color: ZanaColors.ink,
+                borderRadius: BorderRadius.circular(18),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(18),
+                  onTap: () => showBookNowFlow(
+                    context,
+                    userLat: userLat,
+                    userLng: userLng,
+                    category: category,
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 14, 14, 14),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 42,
+                          height: 42,
+                          decoration: BoxDecoration(
+                            color: ZanaColors.copper,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Icon(
+                            Icons.bolt_rounded,
+                            color: Colors.white,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        const Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Need it now?',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 15,
+                                ),
+                              ),
+                              SizedBox(height: 2),
+                              Text(
+                                'See who’s online nearby — request & track live',
+                                style: TextStyle(
+                                  color: Color(0xFFD6D3D1),
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const Icon(
+                          Icons.arrow_forward_rounded,
+                          color: Colors.white,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
             const SizedBox(height: 14),
             SizedBox(
               height: 38,
@@ -250,6 +317,16 @@ class _HomeScreenState extends State<HomeScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 scrollDirection: Axis.horizontal,
                 children: [
+                  _FilterChip(
+                    label: 'Available now',
+                    icon: Icons.bolt_rounded,
+                    selected: onlineOnly,
+                    onTap: () {
+                      onlineOnly = !onlineOnly;
+                      _reload();
+                    },
+                  ),
+                  const SizedBox(width: 8),
                   _FilterChip(
                     label: 'All areas',
                     selected: area == null,
@@ -303,7 +380,7 @@ class _HomeScreenState extends State<HomeScreen> {
               child: Row(
                 children: [
                   Text(
-                    'Near you',
+                    onlineOnly ? 'Online near you' : 'Near you',
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.w800,
                           color: ZanaColors.ink,
@@ -351,11 +428,13 @@ class _HomeScreenState extends State<HomeScreen> {
                   }
                   final items = snap.data ?? [];
                   if (items.isEmpty) {
-                    return const Center(
+                    return Center(
                       child: Text(
-                        'No pros match these filters.\nTry another area or category.',
+                        onlineOnly
+                            ? 'Nobody online nearby right now.\nTry again in a bit.'
+                            : 'No pros match these filters.\nTry another area or category.',
                         textAlign: TextAlign.center,
-                        style: TextStyle(color: ZanaColors.muted),
+                        style: const TextStyle(color: ZanaColors.muted),
                       ),
                     );
                   }

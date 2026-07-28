@@ -5,14 +5,17 @@ import 'package:zana_customer/theme.dart';
 
 class BookingDraft {
   BookingDraft({
-    required this.scheduledAt,
+    required this.asap,
+    this.scheduledAt,
     required this.address,
     this.lat,
     this.lng,
     this.notes,
   });
 
-  final DateTime scheduledAt;
+  /// True = request right now (no scheduled slot). Online pro must accept.
+  final bool asap;
+  final DateTime? scheduledAt;
   final String address;
   final double? lat;
   final double? lng;
@@ -25,7 +28,9 @@ Future<BookingDraft?> showBookingSheet(
   required String serviceMode,
   int? priceZmw,
   int? durationMin,
+  bool preferAsap = false,
 }) async {
+  var asap = preferAsap;
   DateTime when = DateTime.now().add(const Duration(hours: 1));
   final addressCtrl = TextEditingController(
     text: serviceMode == 'COMES_TO_YOU' ? '' : 'At shop',
@@ -83,39 +88,86 @@ Future<BookingDraft?> showBookingSheet(
                   style: const TextStyle(color: ZanaColors.muted),
                 ),
                 const SizedBox(height: 16),
-                Material(
-                  color: ZanaColors.sand,
-                  borderRadius: BorderRadius.circular(14),
-                  child: ListTile(
-                    title: const Text('When', style: TextStyle(fontWeight: FontWeight.w700)),
-                    subtitle: Text(DateFormat('EEE d MMM · HH:mm').format(when)),
-                    trailing: const Icon(Icons.schedule_rounded),
-                    onTap: () async {
-                      final date = await showDatePicker(
-                        context: ctx,
-                        firstDate: DateTime.now(),
-                        lastDate: DateTime.now().add(const Duration(days: 60)),
-                        initialDate: when,
-                      );
-                      if (date == null) return;
-                      if (!ctx.mounted) return;
-                      final time = await showTimePicker(
-                        context: ctx,
-                        initialTime: TimeOfDay.fromDateTime(when),
-                      );
-                      if (time == null) return;
-                      setModal(() {
-                        when = DateTime(
-                          date.year,
-                          date.month,
-                          date.day,
-                          time.hour,
-                          time.minute,
-                        );
-                      });
-                    },
-                  ),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _WhenChip(
+                        label: 'Now',
+                        subtitle: 'As soon as they accept',
+                        selected: asap,
+                        onTap: () => setModal(() => asap = true),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _WhenChip(
+                        label: 'Schedule',
+                        subtitle: 'Pick a time',
+                        selected: !asap,
+                        onTap: () => setModal(() => asap = false),
+                      ),
+                    ),
+                  ],
                 ),
+                if (!asap) ...[
+                  const SizedBox(height: 12),
+                  Material(
+                    color: ZanaColors.sand,
+                    borderRadius: BorderRadius.circular(14),
+                    child: ListTile(
+                      title: const Text(
+                        'When',
+                        style: TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                      subtitle:
+                          Text(DateFormat('EEE d MMM · HH:mm').format(when)),
+                      trailing: const Icon(Icons.schedule_rounded),
+                      onTap: () async {
+                        final date = await showDatePicker(
+                          context: ctx,
+                          firstDate: DateTime.now(),
+                          lastDate:
+                              DateTime.now().add(const Duration(days: 60)),
+                          initialDate: when,
+                        );
+                        if (date == null) return;
+                        if (!ctx.mounted) return;
+                        final time = await showTimePicker(
+                          context: ctx,
+                          initialTime: TimeOfDay.fromDateTime(when),
+                        );
+                        if (time == null) return;
+                        setModal(() {
+                          when = DateTime(
+                            date.year,
+                            date.month,
+                            date.day,
+                            time.hour,
+                            time.minute,
+                          );
+                        });
+                      },
+                    ),
+                  ),
+                ] else ...[
+                  const SizedBox(height: 12),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFECFDF5),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: const Text(
+                      'Nearby online pros can accept right away. You’ll see them move on the live map once they’re on the way.',
+                      style: TextStyle(
+                        color: Color(0xFF047857),
+                        fontSize: 13,
+                        height: 1.35,
+                      ),
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 12),
                 TextField(
                   controller: addressCtrl,
@@ -187,7 +239,8 @@ Future<BookingDraft?> showBookingSheet(
                       }
                       Navigator.of(ctx).pop(
                         BookingDraft(
-                          scheduledAt: when,
+                          asap: asap,
+                          scheduledAt: asap ? null : when,
                           address: addressCtrl.text.trim(),
                           lat: lat,
                           lng: lng,
@@ -197,7 +250,7 @@ Future<BookingDraft?> showBookingSheet(
                         ),
                       );
                     },
-                    child: const Text('Confirm booking'),
+                    child: Text(asap ? 'Request now' : 'Confirm booking'),
                   ),
                 ),
               ],
@@ -207,4 +260,55 @@ Future<BookingDraft?> showBookingSheet(
       );
     },
   );
+}
+
+class _WhenChip extends StatelessWidget {
+  const _WhenChip({
+    required this.label,
+    required this.subtitle,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final String subtitle;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: selected ? ZanaColors.ink : ZanaColors.sand,
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: TextStyle(
+                  fontWeight: FontWeight.w800,
+                  color: selected ? Colors.white : ZanaColors.ink,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                subtitle,
+                style: TextStyle(
+                  fontSize: 11,
+                  color: selected
+                      ? Colors.white.withValues(alpha: 0.75)
+                      : ZanaColors.muted,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }

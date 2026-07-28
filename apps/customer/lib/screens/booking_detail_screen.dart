@@ -231,7 +231,9 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
                 final canTrack = status == 'ON_THE_WAY' ||
                     status == 'IN_SERVICE' ||
                     status == 'ACCEPTED' ||
-                    status == 'CONFIRMED';
+                    status == 'CONFIRMED' ||
+                    status == 'REQUESTED';
+                final isAsap = b['scheduledAt'] == null;
                 final canRebook = status == 'COMPLETED' ||
                     status == 'RATED' ||
                     status == 'CANCELLED' ||
@@ -241,10 +243,83 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
                     ? DateTime.tryParse(b['scheduledAt'] as String)
                     : null;
                 final assigned = b['assignedStaff'] as Map<String, dynamic>?;
+                final hasReview = b['review'] != null;
 
                 return ListView(
                   padding: const EdgeInsets.all(20),
                   children: [
+                    if (canTrack) ...[
+                      Material(
+                        color: ZanaColors.ink,
+                        borderRadius: BorderRadius.circular(18),
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(18),
+                          onTap: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => TrackingScreen(
+                                  bookingId: widget.bookingId,
+                                  openReviewWhenDone: true,
+                                ),
+                              ),
+                            );
+                          },
+                          child: Padding(
+                            padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 44,
+                                  height: 44,
+                                  decoration: BoxDecoration(
+                                    color: ZanaColors.copper,
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: const Icon(
+                                    Icons.map_rounded,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        status == 'REQUESTED'
+                                            ? 'Waiting on live map'
+                                            : 'Live map & status',
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.w800,
+                                          fontSize: 16,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        isAsap
+                                            ? 'See who’s coming and how far they are'
+                                            : 'Track your booking in real time',
+                                        style: const TextStyle(
+                                          color: Color(0xFFD6D3D1),
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const Icon(
+                                  Icons.arrow_forward_rounded,
+                                  color: Colors.white,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 18),
+                    ],
                     Text(
                       service?['name'] as String? ?? 'Service',
                       style: Theme.of(context).textTheme.headlineSmall?.copyWith(
@@ -261,7 +336,15 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
                         'Stylist: ${assigned['name'] ?? assigned['phone']}',
                         style: const TextStyle(color: ZanaColors.muted),
                       ),
-                    if (scheduled != null)
+                    if (isAsap)
+                      const Text(
+                        'When: As soon as accepted',
+                        style: TextStyle(
+                          color: ZanaColors.copper,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      )
+                    else if (scheduled != null)
                       Text(
                         'When: ${DateFormat('EEE d MMM · HH:mm').format(scheduled.toLocal())}',
                         style: const TextStyle(color: ZanaColors.muted),
@@ -309,29 +392,11 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
                       ),
                     ],
                     const SizedBox(height: 24),
-                    if (canTrack)
-                      FilledButton.icon(
-                        style: FilledButton.styleFrom(
-                          backgroundColor: ZanaColors.charcoal,
-                        ),
-                        onPressed: () {
-                          Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) =>
-                                  TrackingScreen(bookingId: widget.bookingId),
-                            ),
-                          );
-                        },
-                        icon: const Icon(Icons.map),
-                        label: const Text('Live status & map'),
-                      ),
-                    if (canCancel) ...[
-                      const SizedBox(height: 8),
+                    if (canCancel)
                       OutlinedButton(
                         onPressed: busy ? null : _cancel,
                         child: const Text('Cancel booking'),
                       ),
-                    ],
                     if (canDispute) ...[
                       const SizedBox(height: 8),
                       TextButton(
@@ -355,49 +420,80 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
                         label: const Text('Book again'),
                       ),
                     ],
-                    if (canRate) ...[
+                    if (canRate && !hasReview) ...[
                       const SizedBox(height: 16),
-                      const Text('Rate your experience',
-                          style: TextStyle(fontWeight: FontWeight.w700)),
-                      const SizedBox(height: 8),
-                      Row(
-                        children: List.generate(5, (i) {
-                          final star = i + 1;
-                          return IconButton(
-                            onPressed: () => setState(() => rating = star),
-                            icon: Icon(
-                              star <= rating ? Icons.star : Icons.star_border,
-                              color: ZanaColors.copper,
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: ZanaColors.sand,
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'How was it?',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w800,
+                                fontSize: 18,
+                              ),
                             ),
-                          );
-                        }),
-                      ),
-                      TextField(
-                        controller: commentCtrl,
-                        maxLines: 3,
-                        decoration: const InputDecoration(
-                          hintText: 'Optional comment',
-                          border: OutlineInputBorder(),
+                            const SizedBox(height: 4),
+                            const Text(
+                              'Your review helps the next customer pick a great stylist.',
+                              style: TextStyle(
+                                color: ZanaColors.muted,
+                                fontSize: 13,
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                            Row(
+                              children: List.generate(5, (i) {
+                                final star = i + 1;
+                                return IconButton(
+                                  onPressed: () => setState(() => rating = star),
+                                  icon: Icon(
+                                    star <= rating
+                                        ? Icons.star
+                                        : Icons.star_border,
+                                    color: ZanaColors.copper,
+                                  ),
+                                );
+                              }),
+                            ),
+                            TextField(
+                              controller: commentCtrl,
+                              maxLines: 3,
+                              decoration: const InputDecoration(
+                                hintText: 'Optional comment',
+                                border: OutlineInputBorder(),
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            OutlinedButton.icon(
+                              onPressed: busy ? null : _pickReviewPhoto,
+                              icon: const Icon(Icons.photo_camera_outlined),
+                              label: Text(reviewPhotoUrl == null
+                                  ? 'Add photo'
+                                  : 'Photo attached'),
+                            ),
+                            const SizedBox(height: 12),
+                            SizedBox(
+                              width: double.infinity,
+                              child: FilledButton(
+                                style: FilledButton.styleFrom(
+                                  backgroundColor: ZanaColors.copper,
+                                ),
+                                onPressed: busy ? null : _rate,
+                                child: const Text('Submit review'),
+                              ),
+                            ),
+                          ],
                         ),
-                      ),
-                      const SizedBox(height: 8),
-                      OutlinedButton.icon(
-                        onPressed: busy ? null : _pickReviewPhoto,
-                        icon: const Icon(Icons.photo_camera_outlined),
-                        label: Text(reviewPhotoUrl == null
-                            ? 'Add photo'
-                            : 'Photo attached'),
-                      ),
-                      const SizedBox(height: 12),
-                      FilledButton(
-                        style: FilledButton.styleFrom(
-                          backgroundColor: ZanaColors.charcoal,
-                        ),
-                        onPressed: busy ? null : _rate,
-                        child: const Text('Submit review'),
                       ),
                     ],
-                    if (b['review'] != null) ...[
+                    if (hasReview) ...[
                       const SizedBox(height: 12),
                       Text(
                         'You rated ${(b['review'] as Map)['rating']}★',

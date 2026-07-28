@@ -28,6 +28,8 @@ export class ProvidersController {
     @Query('q') q?: string,
     @Query('lat') lat?: string,
     @Query('lng') lng?: string,
+    @Query('online') online?: string,
+    @Query('radiusKm') radiusKm?: string,
   ) {
     return this.providers.list({
       area,
@@ -35,6 +37,13 @@ export class ProvidersController {
       q,
       lat: lat != null ? Number(lat) : undefined,
       lng: lng != null ? Number(lng) : undefined,
+      online:
+        online === 'true' || online === '1'
+          ? true
+          : online === 'false' || online === '0'
+            ? false
+            : undefined,
+      radiusKm: radiusKm != null ? Number(radiusKm) : undefined,
     });
   }
 

@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:zana_customer/api.dart';
+import 'package:zana_customer/map_style.dart';
+import 'package:zana_customer/screens/book_now_sheet.dart';
 import 'package:zana_customer/screens/provider_screen.dart';
 import 'package:zana_customer/theme.dart';
 
@@ -32,6 +34,8 @@ class _NearbyMapScreenState extends State<NearbyMapScreen> {
   String? selectedId;
   String category = 'ALL';
   bool fitted = false;
+  bool onlineOnly = false;
+  ZanaMapMode mapMode = ZanaMapMode.hybrid;
 
   List<Map<String, dynamic>> get _items {
     return widget.providers
@@ -40,6 +44,7 @@ class _NearbyMapScreenState extends State<NearbyMapScreen> {
           final lat = p['lat'];
           final lng = p['lng'];
           if (lat == null || lng == null) return false;
+          if (onlineOnly && p['isOnline'] != true) return false;
           if (category == 'ALL') return true;
           final services = (p['services'] as List?) ?? const [];
           if (services.isEmpty) {
@@ -173,47 +178,38 @@ class _NearbyMapScreenState extends State<NearbyMapScreen> {
         ),
       ),
       children: [
-        TileLayer(
-          // Light, clean basemap that fits ZANA cream/copper brand.
-          urlTemplate:
-              'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
-          subdomains: const ['a', 'b', 'c', 'd'],
-          userAgentPackageName: 'zm.zana.zana_customer',
-          retinaMode: RetinaMode.isHighDensity(context),
-        ),
+        ...zanaMapTileLayers(context, mapMode),
         MarkerLayer(markers: markers),
-        RichAttributionWidget(
-          attributions: [
-            TextSourceAttribution(
-              'OpenStreetMap',
-              onTap: () {},
-            ),
-            const TextSourceAttribution('CARTO'),
-          ],
-        ),
+        ZanaMapAttribution(mode: mapMode),
       ],
     );
 
     final body = Stack(
       children: [
         Positioned.fill(child: map),
-        // Soft top brand wash
+        // Soft top brand wash (lighter on satellite so rooftops stay visible)
         Positioned(
           top: 0,
           left: 0,
           right: 0,
           child: IgnorePointer(
             child: Container(
-              height: 140,
+              height: mapMode == ZanaMapMode.street ? 140 : 100,
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
-                  colors: [
-                    ZanaColors.cream.withValues(alpha: 0.96),
-                    ZanaColors.cream.withValues(alpha: 0.55),
-                    ZanaColors.cream.withValues(alpha: 0),
-                  ],
+                  colors: mapMode == ZanaMapMode.street
+                      ? [
+                          ZanaColors.cream.withValues(alpha: 0.96),
+                          ZanaColors.cream.withValues(alpha: 0.55),
+                          ZanaColors.cream.withValues(alpha: 0),
+                        ]
+                      : [
+                          Colors.black.withValues(alpha: 0.45),
+                          Colors.black.withValues(alpha: 0.12),
+                          Colors.transparent,
+                        ],
                 ),
               ),
             ),
@@ -241,6 +237,11 @@ class _NearbyMapScreenState extends State<NearbyMapScreen> {
                       onTap: _recenter,
                     ),
                     const SizedBox(width: 8),
+                    ZanaMapModeToggle(
+                      mode: mapMode,
+                      onChanged: (m) => setState(() => mapMode = m),
+                    ),
+                    const SizedBox(width: 8),
                     _RoundMapButton(
                       icon: Icons.refresh_rounded,
                       tooltip: 'Refresh',
@@ -254,11 +255,20 @@ class _NearbyMapScreenState extends State<NearbyMapScreen> {
                 ),
                 const SizedBox(height: 10),
                 Text(
-                  '${items.length} pros nearby',
-                  style: const TextStyle(
-                    color: ZanaColors.muted,
+                  onlineOnly
+                      ? '${items.length} online nearby'
+                      : '${items.length} pros nearby',
+                  style: TextStyle(
+                    color: mapMode == ZanaMapMode.street
+                        ? ZanaColors.muted
+                        : Colors.white,
                     fontWeight: FontWeight.w600,
                     fontSize: 13,
+                    shadows: mapMode == ZanaMapMode.street
+                        ? null
+                        : const [
+                            Shadow(blurRadius: 8, color: Colors.black54),
+                          ],
                   ),
                 ),
                 const SizedBox(height: 10),
@@ -267,6 +277,22 @@ class _NearbyMapScreenState extends State<NearbyMapScreen> {
                   child: ListView(
                     scrollDirection: Axis.horizontal,
                     children: [
+                      Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: _MapChip(
+                          label: 'Available now',
+                          icon: Icons.bolt_rounded,
+                          selected: onlineOnly,
+                          onTap: () => setState(() {
+                            onlineOnly = !onlineOnly;
+                            selectedId = null;
+                            fitted = false;
+                            WidgetsBinding.instance.addPostFrameCallback(
+                              (_) => _fitToContent(),
+                            );
+                          }),
+                        ),
+                      ),
                       for (final entry in const [
                         ('ALL', 'Nearby', Icons.near_me_rounded),
                         ('BARBER', 'Barber', Icons.content_cut_rounded),
@@ -292,6 +318,28 @@ class _NearbyMapScreenState extends State<NearbyMapScreen> {
                           ),
                         ),
                     ],
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: FilledButton.icon(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: ZanaColors.copper,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 10,
+                      ),
+                    ),
+                    onPressed: () => showBookNowFlow(
+                      context,
+                      userLat: widget.userLat,
+                      userLng: widget.userLng,
+                      category: category,
+                    ),
+                    icon: const Icon(Icons.bolt_rounded, size: 18),
+                    label: const Text('Book now'),
                   ),
                 ),
               ],

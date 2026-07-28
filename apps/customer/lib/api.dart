@@ -45,6 +45,8 @@ class ZanaApi {
     String? q,
     double? lat,
     double? lng,
+    bool? online,
+    double? radiusKm,
   }) async {
     final uri = Uri.parse('$baseUrl/providers').replace(queryParameters: {
       if (area != null) 'area': area,
@@ -52,6 +54,8 @@ class ZanaApi {
       if (q != null && q.isNotEmpty) 'q': q,
       if (lat != null) 'lat': lat.toString(),
       if (lng != null) 'lng': lng.toString(),
+      if (online != null) 'online': online.toString(),
+      if (radiusKm != null) 'radiusKm': radiusKm.toString(),
     });
     final res = await http.get(uri, headers: _headers);
     if (res.statusCode >= 400) {

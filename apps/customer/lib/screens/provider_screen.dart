@@ -3,6 +3,7 @@ import 'package:zana_customer/api.dart';
 import 'package:zana_customer/screens/auth_sheet.dart';
 import 'package:zana_customer/screens/booking_detail_screen.dart';
 import 'package:zana_customer/screens/booking_sheet.dart';
+import 'package:zana_customer/screens/tracking_screen.dart';
 import 'package:zana_customer/theme.dart';
 
 class ProviderScreen extends StatefulWidget {
@@ -52,7 +53,7 @@ class _ProviderScreenState extends State<ProviderScreen> {
     }
   }
 
-  Future<void> _book(Map<String, dynamic> svc) async {
+  Future<void> _book(Map<String, dynamic> svc, {bool preferAsap = false}) async {
     if (api.token == null) {
       final ok = await showAuthSheet(context);
       if (!ok) return;
@@ -64,6 +65,7 @@ class _ProviderScreenState extends State<ProviderScreen> {
       serviceMode: svc['mode'] as String? ?? 'AT_SHOP',
       priceZmw: svc['priceZmw'] as int?,
       durationMin: svc['durationMin'] as int?,
+      preferAsap: preferAsap,
     );
     if (draft == null) return;
 
@@ -78,12 +80,23 @@ class _ProviderScreenState extends State<ProviderScreen> {
         notes: draft.notes,
       );
       if (!mounted) return;
-      await Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (_) =>
-              BookingDetailScreen(bookingId: booking['id'] as String),
-        ),
-      );
+      if (draft.asap) {
+        await Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => TrackingScreen(
+              bookingId: booking['id'] as String,
+              openReviewWhenDone: true,
+            ),
+          ),
+        );
+      } else {
+        await Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) =>
+                BookingDetailScreen(bookingId: booking['id'] as String),
+          ),
+        );
+      }
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -318,20 +331,39 @@ class _ProviderScreenState extends State<ProviderScreen> {
                                     color: ZanaColors.copper,
                                   ),
                                 ),
-                                const Text(
-                                  'Book',
+                                Text(
+                                  online ? 'Request now' : 'Book',
                                   style: TextStyle(
                                     fontSize: 12,
                                     fontWeight: FontWeight.w700,
-                                    color: ZanaColors.ink,
+                                    color: online
+                                        ? ZanaColors.copper
+                                        : ZanaColors.ink,
                                   ),
                                 ),
                               ],
                             ),
-                            onTap: () => _book(svc),
+                            onTap: () => _book(svc, preferAsap: online),
                           ),
                         );
                       }),
+                      if (online && services.isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        SizedBox(
+                          width: double.infinity,
+                          child: FilledButton.icon(
+                            style: FilledButton.styleFrom(
+                              backgroundColor: ZanaColors.copper,
+                            ),
+                            onPressed: () => _book(
+                              services.first as Map<String, dynamic>,
+                              preferAsap: true,
+                            ),
+                            icon: const Icon(Icons.bolt_rounded),
+                            label: const Text('Available now — request'),
+                          ),
+                        ),
+                      ],
                       const SizedBox(height: 18),
                       const Text(
                         'Reviews',
