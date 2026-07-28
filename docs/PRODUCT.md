@@ -54,6 +54,7 @@ REQUESTED → ACCEPTED → ON_THE_WAY | CONFIRMED → IN_SERVICE → COMPLETED �
 ## Brand (UI)
 
 - **Slogan:** Style at your fingertips  
+- **Logo:** Copper + black scissors/comb **Z** mark (`apps/web/public/brand/zana-logo.png`)  
 - Warm charcoal + copper/gold accent + soft cream  
 - Premium African salon & barbershop — not purple SaaS, not neon dark  
-- Strong ZANA mark (copper Z on charcoal) + wordmark; one job per screen  
+- Strong ZANA mark + wordmark; one job per screen  

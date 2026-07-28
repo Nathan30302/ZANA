@@ -27,15 +27,14 @@ export default function HomePage() {
       />
       <img
         aria-hidden
-        src="/brand/zana-mark.svg"
+        src="/brand/zana-logo.png"
         alt=""
         style={{
           position: 'absolute',
-          right: '-4%',
-          top: '18%',
-          width: 'min(48vw, 420px)',
-          opacity: 0.18,
-          filter: 'blur(0.2px)',
+          right: '-2%',
+          top: '14%',
+          width: 'min(46vw, 400px)',
+          opacity: 0.22,
           pointerEvents: 'none',
           animation: 'riseIn 1s ease 0.12s both',
         }}
@@ -64,7 +63,7 @@ export default function HomePage() {
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/brand/zana-mark.svg" alt="ZANA" width={44} height={44} />
+            <img src="/brand/zana-logo.png" alt="ZANA" width={48} height={48} />
             <span
               className="brand-wordmark"
               style={{

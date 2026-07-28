@@ -6,7 +6,8 @@ export const metadata: Metadata = {
   description:
     'Book salons, barbershops, and mobile stylists in Lusaka. Style at your fingertips.',
   icons: {
-    icon: '/brand/zana-mark.svg',
+    icon: [{ url: '/brand/zana-logo.png', type: 'image/png' }],
+    apple: [{ url: '/brand/zana-logo-180.png' }],
   },
 };
 

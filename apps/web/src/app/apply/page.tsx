@@ -159,7 +159,7 @@ export default function ApplyPage() {
     <main style={{ maxWidth: 560, margin: '0 auto', padding: '40px 20px' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/brand/zana-mark.svg" alt="ZANA" width={40} height={40} />
+        <img src="/brand/zana-logo.png" alt="ZANA" width={44} height={44} />
         <div>
           <div
             className="brand-wordmark"

@@ -8,7 +8,7 @@ class ZanaColors {
   static const cream = Color(0xFFFAF7F2);
   static const sand = Color(0xFFF3EDE4);
   static const paper = Color(0xFFFFFFFF);
-  static const copper = Color(0xFFB45309);
+  static const copper = Color(0xFFC2410C);
   static const copperBright = Color(0xFFD97706);
   static const copperSoft = Color(0xFFF59E0B);
   static const charcoal = Color(0xFF292524);
@@ -89,7 +89,7 @@ ThemeData buildZanaTheme({String title = 'ZANA'}) {
   );
 }
 
-/// Copper Z monogram on charcoal — scissor-blade silhouette.
+/// Exact ZANA scissors/comb mark (asset).
 class ZanaMark extends StatelessWidget {
   const ZanaMark({super.key, this.size = 40, this.rounded = true});
 
@@ -101,62 +101,44 @@ class ZanaMark extends StatelessWidget {
     return SizedBox(
       width: size,
       height: size,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: ZanaColors.ink,
-          borderRadius: BorderRadius.circular(rounded ? size * 0.26 : 0),
-          boxShadow: [
-            BoxShadow(
-              color: ZanaColors.copper.withValues(alpha: 0.22),
-              blurRadius: size * 0.35,
-              offset: Offset(0, size * 0.08),
-            ),
-          ],
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(rounded ? size * 0.18 : 0),
+        child: Image.asset(
+          'assets/brand/zana-logo.png',
+          width: size,
+          height: size,
+          fit: BoxFit.contain,
+          filterQuality: FilterQuality.high,
+          errorBuilder: (_, __, ___) => CustomPaint(
+            size: Size.square(size),
+            painter: _ZanaMarkFallbackPainter(),
+          ),
         ),
-        child: CustomPaint(painter: _ZanaMarkPainter()),
       ),
     );
   }
 }
 
-class _ZanaMarkPainter extends CustomPainter {
+class _ZanaMarkFallbackPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    final copper = Paint()
-      ..shader = const LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        colors: [
-          ZanaColors.copperSoft,
-          ZanaColors.copperBright,
-          ZanaColors.copper,
-        ],
-      ).createShader(Offset.zero & size);
-
-    final path = Path()
-      ..moveTo(size.width * 0.22, size.height * 0.28)
-      ..lineTo(size.width * 0.78, size.height * 0.28)
-      ..lineTo(size.width * 0.38, size.height * 0.68)
-      ..lineTo(size.width * 0.78, size.height * 0.68)
-      ..lineTo(size.width * 0.78, size.height * 0.78)
-      ..lineTo(size.width * 0.22, size.height * 0.78)
-      ..lineTo(size.width * 0.62, size.height * 0.38)
-      ..lineTo(size.width * 0.22, size.height * 0.38)
+    final copper = Paint()..color = const Color(0xFFC2410C);
+    final black = Paint()..color = const Color(0xFF111111);
+    // Simple Z fallback if asset missing
+    final top = Path()
+      ..moveTo(size.width * 0.18, size.height * 0.22)
+      ..lineTo(size.width * 0.82, size.height * 0.22)
+      ..lineTo(size.width * 0.36, size.height * 0.62)
+      ..lineTo(size.width * 0.18, size.height * 0.42)
       ..close();
-
-    canvas.drawPath(path, copper);
-
-    final pivot = Paint()..color = ZanaColors.cream.withValues(alpha: 0.9);
-    canvas.drawCircle(
-      Offset(size.width * 0.28, size.height * 0.33),
-      size.width * 0.035,
-      pivot,
-    );
-    canvas.drawCircle(
-      Offset(size.width * 0.72, size.height * 0.73),
-      size.width * 0.035,
-      pivot,
-    );
+    final bottom = Path()
+      ..moveTo(size.width * 0.82, size.height * 0.38)
+      ..lineTo(size.width * 0.82, size.height * 0.78)
+      ..lineTo(size.width * 0.18, size.height * 0.78)
+      ..lineTo(size.width * 0.64, size.height * 0.38)
+      ..close();
+    canvas.drawPath(top, copper);
+    canvas.drawPath(bottom, black);
   }
 
   @override
