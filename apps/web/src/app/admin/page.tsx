@@ -214,53 +214,65 @@ export default function AdminPage() {
     setPackages([]);
   }
 
+  function statusBadge(status: string) {
+    if (status === 'APPROVED' || status === 'COMPLETED' || status === 'RATED') {
+      return 'badge badge-ok';
+    }
+    if (status === 'REJECTED' || status === 'CANCELLED' || status === 'DECLINED') {
+      return 'badge badge-danger';
+    }
+    if (status === 'PENDING' || status === 'NEEDS_INFO' || status === 'REQUESTED') {
+      return 'badge badge-warn';
+    }
+    return 'badge';
+  }
+
   return (
-    <main style={{ maxWidth: 960, margin: '0 auto', padding: '40px 20px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+    <main className="shell">
+      <div className="topbar">
+        <div className="brand-row">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/brand/zana-logo.png" alt="ZANA" width={44} height={44} />
+          <img src="/brand/zana-logo.png" alt="ZANA" />
           <div>
-            <div
-              className="brand-wordmark"
-              style={{ fontWeight: 800, letterSpacing: '0.18em', fontSize: 18 }}
-            >
+            <div className="brand-wordmark" style={{ fontWeight: 800, letterSpacing: '0.18em', fontSize: 18 }}>
               ZANA Admin
             </div>
-            <div style={{ color: 'var(--muted)', fontSize: 13 }}>
-              Style at your fingertips · ops
-            </div>
+            <div className="brand-kicker">Style at your fingertips · ops</div>
           </div>
         </div>
         {token ? (
-          <button type="button" onClick={logout}>
+          <button type="button" className="btn-secondary btn-sm" onClick={logout}>
             Sign out
           </button>
         ) : null}
       </div>
 
-      {error ? <p style={{ color: '#b91c1c' }}>{error}</p> : null}
+      {error ? <p className="error">{error}</p> : null}
 
       {!token ? (
-        <form onSubmit={login} style={{ display: 'grid', gap: 12, maxWidth: 360 }}>
-          <p style={{ color: 'var(--muted)' }}>
-            Seed admin phone: <code>+260970000099</code> · OTP <code>123456</code>
+        <section className="panel" style={{ maxWidth: 420 }}>
+          <h1 style={{ margin: '0 0 8px', fontSize: 28 }}>Sign in</h1>
+          <p className="muted" style={{ marginTop: 0 }}>
+            Seed admin: <code>+260970000099</code> · OTP <code>123456</code>
           </p>
-          <input value={phone} onChange={(e) => setPhone(e.target.value)} />
-          <input value={code} onChange={(e) => setCode(e.target.value)} />
-          <button type="submit">Sign in</button>
-        </form>
+          <form onSubmit={login} className="stack" style={{ marginTop: 18 }}>
+            <label className="field">
+              Phone
+              <input value={phone} onChange={(e) => setPhone(e.target.value)} />
+            </label>
+            <label className="field">
+              OTP code
+              <input value={code} onChange={(e) => setCode(e.target.value)} />
+            </label>
+            <button type="submit" className="btn-primary">
+              Sign in
+            </button>
+          </form>
+        </section>
       ) : (
         <>
           {stats ? (
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(4, 1fr)',
-                gap: 12,
-                margin: '20px 0',
-              }}
-            >
+            <div className="stats">
               {(
                 [
                   ['Users', stats.users],
@@ -269,93 +281,62 @@ export default function AdminPage() {
                   ['Pending', stats.pendingApps],
                 ] as const
               ).map(([label, value]) => (
-                <div
-                  key={label}
-                  style={{
-                    background: 'var(--paper)',
-                    border: '1px solid var(--line)',
-                    borderRadius: 12,
-                    padding: 14,
-                  }}
-                >
-                  <div style={{ fontSize: 24, fontWeight: 700 }}>{value}</div>
-                  <div style={{ color: 'var(--muted)', fontSize: 13 }}>{label}</div>
+                <div className="stat" key={label}>
+                  <strong>{value}</strong>
+                  <span>{label}</span>
                 </div>
               ))}
             </div>
           ) : null}
 
-          <h2>Applications</h2>
+          <h2 className="section-title">Applications</h2>
           <form
             onSubmit={(e) => {
               e.preventDefault();
               void loadAll(token, { appQ: appQuery });
             }}
-            style={{ display: 'flex', gap: 8, marginBottom: 12 }}
+            className="toolbar"
           >
             <input
+              className="input"
               placeholder="Search name, area, phone"
               value={appQuery}
               onChange={(e) => setAppQuery(e.target.value)}
-              style={{ flex: 1 }}
             />
-            <button type="submit">Search</button>
+            <button type="submit" className="btn-primary btn-sm">
+              Search
+            </button>
           </form>
-          <div style={{ display: 'grid', gap: 10 }}>
+          <div className="list">
             {apps.length === 0 ? (
-              <p style={{ color: 'var(--muted)' }}>No applications yet.</p>
+              <p className="muted">No applications yet.</p>
             ) : (
               apps.map((app) => (
-                <div
-                  key={app.id}
-                  style={{
-                    background: 'var(--paper)',
-                    border: '1px solid var(--line)',
-                    borderRadius: 12,
-                    padding: 14,
-                    display: 'grid',
-                    gap: 10,
-                  }}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+                <div className="card" key={app.id}>
+                  <div className="card-head">
                     <div>
-                      <strong>{app.displayName}</strong> · {app.type} · {app.area}
-                      <div style={{ color: 'var(--muted)', fontSize: 13 }}>
-                        {app.user.phone} · {app.status}
+                      <strong>{app.displayName}</strong>
+                      <div className="muted" style={{ fontSize: 13, marginTop: 4 }}>
+                        {app.type} · {app.area} · {app.user.phone}
                       </div>
                       {app.adminNote ? (
-                        <div style={{ fontSize: 13, marginTop: 4 }}>Note: {app.adminNote}</div>
+                        <div style={{ fontSize: 13, marginTop: 6 }}>Note: {app.adminNote}</div>
                       ) : null}
                       {app.documentUrls && app.documentUrls.length > 0 ? (
-                        <div style={{ marginTop: 6, fontSize: 13 }}>
-                          Docs:{' '}
+                        <div className="row" style={{ marginTop: 8 }}>
                           {app.documentUrls.map((url, i) => (
-                            <span key={url}>
-                              {i > 0 ? ' · ' : ''}
-                              <a href={url} target="_blank" rel="noreferrer">
-                                file {i + 1}
-                              </a>
-                            </span>
+                            <a key={url} href={url} target="_blank" rel="noreferrer" className="badge">
+                              file {i + 1}
+                            </a>
                           ))}
                         </div>
                       ) : null}
                     </div>
-                    {app.status === 'PENDING' || app.status === 'NEEDS_INFO' ? (
-                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                        <button type="button" onClick={() => review(app.id, 'APPROVED')}>
-                          Approve
-                        </button>
-                        <button type="button" onClick={() => review(app.id, 'NEEDS_INFO')}>
-                          Needs info
-                        </button>
-                        <button type="button" onClick={() => review(app.id, 'REJECTED')}>
-                          Reject
-                        </button>
-                      </div>
-                    ) : null}
+                    <span className={statusBadge(app.status)}>{app.status}</span>
                   </div>
                   {(app.status === 'PENDING' || app.status === 'NEEDS_INFO') && (
                     <input
+                      className="input"
                       placeholder="Admin note (required for Needs info)"
                       value={noteDraft[app.id] ?? ''}
                       onChange={(e) =>
@@ -363,12 +344,25 @@ export default function AdminPage() {
                       }
                     />
                   )}
+                  {app.status === 'PENDING' || app.status === 'NEEDS_INFO' ? (
+                    <div className="row">
+                      <button type="button" className="btn-primary btn-sm" onClick={() => review(app.id, 'APPROVED')}>
+                        Approve
+                      </button>
+                      <button type="button" className="btn-secondary btn-sm" onClick={() => review(app.id, 'NEEDS_INFO')}>
+                        Needs info
+                      </button>
+                      <button type="button" className="btn-danger btn-sm" onClick={() => review(app.id, 'REJECTED')}>
+                        Reject
+                      </button>
+                    </div>
+                  ) : null}
                 </div>
               ))
             )}
           </div>
 
-          <h2 style={{ marginTop: 36 }}>Recent bookings</h2>
+          <h2 className="section-title">Recent bookings</h2>
           <form
             onSubmit={(e) => {
               e.preventDefault();
@@ -377,9 +371,10 @@ export default function AdminPage() {
                 bookingQ: bookingQuery,
               });
             }}
-            style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}
+            className="toolbar"
           >
             <select
+              className="select"
               value={bookingStatus}
               onChange={(e) => setBookingStatus(e.target.value)}
             >
@@ -402,45 +397,39 @@ export default function AdminPage() {
               ))}
             </select>
             <input
+              className="input"
               placeholder="Search service, pro, phone, dispute"
               value={bookingQuery}
               onChange={(e) => setBookingQuery(e.target.value)}
-              style={{ flex: 1, minWidth: 180 }}
             />
-            <button type="submit">Filter</button>
+            <button type="submit" className="btn-primary btn-sm">
+              Filter
+            </button>
           </form>
-          <div style={{ display: 'grid', gap: 10 }}>
+          <div className="list">
             {bookings.length === 0 ? (
-              <p style={{ color: 'var(--muted)' }}>No bookings match.</p>
+              <p className="muted">No bookings match.</p>
             ) : (
               bookings.map((b) => (
-                <div
-                  key={b.id}
-                  style={{
-                    background: 'var(--paper)',
-                    border: '1px solid var(--line)',
-                    borderRadius: 12,
-                    padding: 14,
-                    display: 'grid',
-                    gap: 8,
-                  }}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
+                <div className="card" key={b.id}>
+                  <div className="card-head">
                     <div>
-                      <strong>{b.service.name}</strong> · {b.status} · K{b.priceZmw}
-                      <div style={{ color: 'var(--muted)', fontSize: 13 }}>
-                        {b.provider.displayName} · {b.customer.name ?? b.customer.phone} ·{' '}
+                      <strong>{b.service.name}</strong>
+                      <div className="muted" style={{ fontSize: 13, marginTop: 4 }}>
+                        K{b.priceZmw} · {b.provider.displayName} · {b.customer.name ?? b.customer.phone}
+                      </div>
+                      <div className="muted" style={{ fontSize: 12 }}>
                         {new Date(b.createdAt).toLocaleString()}
                       </div>
                       {b.disputeNote ? (
-                        <div style={{ fontSize: 13, marginTop: 4 }}>
-                          Dispute: {b.disputeNote}
-                        </div>
+                        <div style={{ fontSize: 13, marginTop: 6 }}>Dispute: {b.disputeNote}</div>
                       ) : null}
                     </div>
+                    <span className={statusBadge(b.status)}>{b.status}</span>
                   </div>
-                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  <div className="row">
                     <input
+                      className="input"
                       placeholder="Dispute / ops note"
                       value={disputeDraft[b.id] ?? b.disputeNote ?? ''}
                       onChange={(e) =>
@@ -448,31 +437,35 @@ export default function AdminPage() {
                       }
                       style={{ flex: 1, minWidth: 200 }}
                     />
-                    <button type="button" onClick={() => saveDispute(b.id)}>
+                    <button type="button" className="btn-secondary btn-sm" onClick={() => saveDispute(b.id)}>
                       Save note
                     </button>
                   </div>
-                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  <div className="row">
                     <button
                       type="button"
+                      className="btn-danger btn-sm"
                       onClick={() => forceStatus(b.id, 'CANCELLED', true)}
                     >
                       Force cancel (+refund)
                     </button>
                     <button
                       type="button"
+                      className="btn-secondary btn-sm"
                       onClick={() => forceStatus(b.id, 'COMPLETED')}
                     >
                       Force complete
                     </button>
                     <button
                       type="button"
+                      className="btn-secondary btn-sm"
                       onClick={() => adjustCredits(b.provider.id, 1)}
                     >
                       +1 float
                     </button>
                     <button
                       type="button"
+                      className="btn-secondary btn-sm"
                       onClick={() => adjustCredits(b.provider.id, -1)}
                     >
                       −1 float
@@ -483,95 +476,96 @@ export default function AdminPage() {
             )}
           </div>
 
-          <h2 style={{ marginTop: 36 }}>Float packages</h2>
-          <div style={{ display: 'grid', gap: 10 }}>
+          <h2 className="section-title">Float packages</h2>
+          <div className="list">
             {packages.map((pkg) => (
-              <div
-                key={pkg.id}
-                style={{
-                  background: 'var(--paper)',
-                  border: '1px solid var(--line)',
-                  borderRadius: 12,
-                  padding: 14,
-                  display: 'flex',
-                  gap: 12,
-                  alignItems: 'center',
-                  flexWrap: 'wrap',
-                }}
-              >
-                <strong>
-                  {pkg.name} ({pkg.code})
-                </strong>
-                <span style={{ color: 'var(--muted)' }}>{pkg.credits} credits</span>
-                <label>
-                  K{' '}
-                  <input
-                    type="number"
-                    defaultValue={pkg.priceZmw}
-                    style={{ width: 90 }}
-                    onBlur={(e) => {
-                      const next = Number(e.target.value);
-                      if (!Number.isNaN(next) && next !== pkg.priceZmw) {
-                        void savePackagePrice(pkg, next);
-                      }
-                    }}
-                  />
-                </label>
-                <button type="button" onClick={() => togglePackage(pkg)}>
-                  {pkg.isActive ? 'Deactivate' : 'Activate'}
-                </button>
+              <div className="card" key={pkg.id}>
+                <div className="card-head">
+                  <div>
+                    <strong>
+                      {pkg.name} ({pkg.code})
+                    </strong>
+                    <div className="muted" style={{ fontSize: 13 }}>
+                      {pkg.credits} credits
+                    </div>
+                  </div>
+                  <span className={pkg.isActive ? 'badge badge-ok' : 'badge'}>
+                    {pkg.isActive ? 'Active' : 'Off'}
+                  </span>
+                </div>
+                <div className="row">
+                  <label className="field" style={{ minWidth: 120 }}>
+                    Price K
+                    <input
+                      type="number"
+                      defaultValue={pkg.priceZmw}
+                      onBlur={(e) => {
+                        const next = Number(e.target.value);
+                        if (!Number.isNaN(next) && next !== pkg.priceZmw) {
+                          void savePackagePrice(pkg, next);
+                        }
+                      }}
+                    />
+                  </label>
+                  <button type="button" className="btn-secondary btn-sm" onClick={() => togglePackage(pkg)}>
+                    {pkg.isActive ? 'Deactivate' : 'Activate'}
+                  </button>
+                </div>
               </div>
             ))}
           </div>
-          <form
-            onSubmit={createPackage}
-            style={{
-              marginTop: 16,
-              display: 'grid',
-              gap: 8,
-              gridTemplateColumns: 'repeat(4, 1fr) auto',
-              alignItems: 'end',
-            }}
-          >
-            <label>
-              Code
-              <input
-                value={newPkg.code}
-                onChange={(e) => setNewPkg({ ...newPkg, code: e.target.value })}
-                required
-              />
-            </label>
-            <label>
-              Name
-              <input
-                value={newPkg.name}
-                onChange={(e) => setNewPkg({ ...newPkg, name: e.target.value })}
-                required
-              />
-            </label>
-            <label>
-              Credits
-              <input
-                type="number"
-                value={newPkg.credits}
-                onChange={(e) =>
-                  setNewPkg({ ...newPkg, credits: Number(e.target.value) })
-                }
-                required
-              />
-            </label>
-            <label>
-              Price K
-              <input
-                type="number"
-                value={newPkg.priceZmw}
-                onChange={(e) =>
-                  setNewPkg({ ...newPkg, priceZmw: Number(e.target.value) })
-                }
-                required
-              />
-            </label>
-            <button type="submit">Add package</button>
+          <form onSubmit={createPackage} className="panel" style={{ marginTop: 16 }}>
+            <h3 style={{ margin: '0 0 12px' }}>Add package</h3>
+            <div
+              style={{
+                display: 'grid',
+                gap: 10,
+                gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',
+                alignItems: 'end',
+              }}
+            >
+              <label className="field">
+                Code
+                <input
+                  value={newPkg.code}
+                  onChange={(e) => setNewPkg({ ...newPkg, code: e.target.value })}
+                  required
+                />
+              </label>
+              <label className="field">
+                Name
+                <input
+                  value={newPkg.name}
+                  onChange={(e) => setNewPkg({ ...newPkg, name: e.target.value })}
+                  required
+                />
+              </label>
+              <label className="field">
+                Credits
+                <input
+                  type="number"
+                  value={newPkg.credits}
+                  onChange={(e) =>
+                    setNewPkg({ ...newPkg, credits: Number(e.target.value) })
+                  }
+                  required
+                />
+              </label>
+              <label className="field">
+                Price K
+                <input
+                  type="number"
+                  value={newPkg.priceZmw}
+                  onChange={(e) =>
+                    setNewPkg({ ...newPkg, priceZmw: Number(e.target.value) })
+                  }
+                  required
+                />
+              </label>
+              <button type="submit" className="btn-primary">
+                Add package
+              </button>
+            </div>
           </form>
         </>
       )}

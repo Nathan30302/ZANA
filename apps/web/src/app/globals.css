@@ -11,7 +11,11 @@
   --copper: #ea580c;
   --copper-soft: #f59e0b;
   --charcoal: #292524;
-  --radius: 14px;
+  --ok: #047857;
+  --ok-bg: #ecfdf5;
+  --danger: #b91c1c;
+  --radius: 16px;
+  --shadow: 0 18px 40px rgba(28, 25, 23, 0.08);
   --font-sans: "DM Sans", "Avenir Next", "Segoe UI", sans-serif;
   --font-display: "Syne", "Avenir Next", sans-serif;
 }
@@ -25,9 +29,12 @@ body {
   margin: 0;
   padding: 0;
   color: var(--ink);
-  background: var(--cream);
+  background:
+    radial-gradient(900px 420px at 10% -10%, rgba(194, 65, 12, 0.08), transparent 55%),
+    linear-gradient(180deg, #f6f1ea 0%, var(--cream) 42%, #f3eee6 100%);
   font-family: var(--font-sans);
   line-height: 1.5;
+  min-height: 100%;
 }
 
 a {
@@ -50,22 +57,127 @@ h3,
   letter-spacing: 0.02em;
 }
 
+.shell {
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 28px 20px 64px;
+  animation: riseIn 0.45s ease both;
+}
+
+.shell-narrow {
+  max-width: 560px;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 28px;
+}
+
+.brand-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.brand-row img {
+  width: 44px;
+  height: 44px;
+  object-fit: contain;
+}
+
+.brand-kicker {
+  color: var(--gold);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.panel {
+  background: var(--paper);
+  border: 1px solid rgba(28, 25, 23, 0.06);
+  border-radius: 20px;
+  padding: 20px;
+  box-shadow: var(--shadow);
+}
+
+.panel + .panel {
+  margin-top: 16px;
+}
+
+.section-title {
+  margin: 36px 0 14px;
+  font-size: 22px;
+  font-weight: 800;
+}
+
+.field {
+  display: grid;
+  gap: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.field input,
+.field select,
+.field textarea,
+.input,
+.select {
+  display: block;
+  width: 100%;
+  margin-top: 0;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--paper);
+  color: var(--ink);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.field input:focus,
+.field select:focus,
+.field textarea:focus,
+.input:focus,
+.select:focus {
+  outline: none;
+  border-color: var(--gold);
+  box-shadow: 0 0 0 3px rgba(194, 65, 12, 0.12);
+}
+
+.stack {
+  display: grid;
+  gap: 12px;
+}
+
+.row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.btn,
 .btn-primary,
-.btn-secondary {
+.btn-secondary,
+.btn-ghost,
+.btn-danger {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  padding: 14px 20px;
+  padding: 11px 16px;
   border-radius: 12px;
   font-weight: 600;
+  cursor: pointer;
+  border: 0;
   transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
 }
 
 .btn-primary {
   background: var(--charcoal);
   color: #fff;
-  border: 0;
 }
 
 .btn-primary:hover {
@@ -74,13 +186,142 @@ h3,
 }
 
 .btn-secondary {
+  background: var(--paper);
+  border: 1px solid var(--line);
+  color: var(--ink);
+}
+
+.btn-secondary:hover {
+  background: var(--sand);
+}
+
+.btn-ghost {
   background: transparent;
   border: 1px solid rgba(250, 247, 242, 0.28);
   color: #fff;
 }
 
-.btn-secondary:hover {
+.btn-ghost:hover {
   background: rgba(250, 247, 242, 0.08);
+}
+
+.btn-danger {
+  background: #fff1f2;
+  color: var(--danger);
+  border: 1px solid #fecdd3;
+}
+
+.btn-sm {
+  padding: 8px 12px;
+  border-radius: 10px;
+  font-size: 13px;
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin: 8px 0 8px;
+}
+
+.stat {
+  background: linear-gradient(180deg, #fff 0%, #fcfaf7 100%);
+  border: 1px solid rgba(28, 25, 23, 0.06);
+  border-radius: 16px;
+  padding: 16px;
+  box-shadow: 0 10px 24px rgba(28, 25, 23, 0.04);
+}
+
+.stat strong {
+  display: block;
+  font-family: var(--font-display);
+  font-size: 28px;
+  font-weight: 800;
+  line-height: 1;
+  margin-bottom: 6px;
+}
+
+.stat span {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  background: var(--sand);
+  color: var(--muted);
+}
+
+.badge-ok {
+  background: var(--ok-bg);
+  color: var(--ok);
+}
+
+.badge-warn {
+  background: #fff7ed;
+  color: #c2410c;
+}
+
+.badge-danger {
+  background: #fff1f2;
+  color: var(--danger);
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.error {
+  color: var(--danger);
+  white-space: pre-wrap;
+}
+
+.list {
+  display: grid;
+  gap: 12px;
+}
+
+.card {
+  background: var(--paper);
+  border: 1px solid rgba(28, 25, 23, 0.06);
+  border-radius: 18px;
+  padding: 16px;
+  display: grid;
+  gap: 12px;
+  box-shadow: 0 10px 28px rgba(28, 25, 23, 0.04);
+}
+
+.card-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: flex-start;
+}
+
+.toolbar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.toolbar .input,
+.toolbar .select {
+  flex: 1;
+  min-width: 160px;
+}
+
+@media (max-width: 720px) {
+  .stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @keyframes riseIn {
@@ -102,4 +343,11 @@ h3,
   50% {
     opacity: 0.75;
   }
+}
+
+/* Landing dark CTAs keep existing names */
+.btn-secondary.dark-ghost {
+  background: transparent;
+  border: 1px solid rgba(250, 247, 242, 0.28);
+  color: #fff;
 }

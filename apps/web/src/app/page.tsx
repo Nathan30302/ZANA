@@ -76,7 +76,7 @@ export default function HomePage() {
             </span>
           </div>
           <nav style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-            <Link href="/apply" className="btn-secondary" style={{ padding: '10px 14px' }}>
+            <Link href="/apply" className="btn-ghost" style={{ padding: '10px 14px' }}>
               Become a Pro
             </Link>
             <Link
@@ -143,7 +143,7 @@ export default function HomePage() {
             <Link href="/apply" className="btn-primary">
               Become a Professional
             </Link>
-            <a href="#how" className="btn-secondary">
+            <a href="#how" className="btn-ghost">
               How ZANA works
             </a>
           </div>
