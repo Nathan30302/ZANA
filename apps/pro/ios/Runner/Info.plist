@@ -29,7 +29,13 @@
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>ZANA Pro uses your location to share live tracking while on a job.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>ZANA Pro may share your location while you are on the way to a job.</string>
+	<string>ZANA Pro shares your location in the background while you are on the way to a customer.</string>
+	<key>NSLocationAlwaysUsageDescription</key>
+	<string>ZANA Pro shares your location in the background while you are on the way to a customer.</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>location</string>
+	</array>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>ZANA Pro needs photo access for portfolio and shop setup.</string>
 	<key>NSCameraUsageDescription</key>

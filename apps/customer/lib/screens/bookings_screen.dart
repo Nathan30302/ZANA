@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:zana_customer/api.dart';
+import 'package:zana_customer/push_refresh.dart';
 import 'package:zana_customer/screens/auth_sheet.dart';
 import 'package:zana_customer/screens/booking_detail_screen.dart';
 import 'package:zana_customer/theme.dart';
@@ -38,15 +39,19 @@ class _BookingsScreenState extends State<BookingsScreen>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    PushRefreshBus.instance.addListener(_onPush);
     _bootstrap();
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    PushRefreshBus.instance.removeListener(_onPush);
     _pollTimer?.cancel();
     super.dispose();
   }
+
+  void _onPush() => _refresh(silent: true);
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {

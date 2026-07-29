@@ -2,12 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:zana_customer/api.dart';
 import 'package:zana_customer/push.dart';
 import 'package:zana_customer/screens/shell_screen.dart';
+import 'package:zana_customer/status_watch.dart';
 import 'package:zana_customer/theme.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await api.restoreSession();
   await registerPushTokenIfPossible();
+  if (api.token != null) StatusWatch.instance.start();
   runApp(const ZanaApp());
 }
 

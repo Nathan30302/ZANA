@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:zana_pro/api.dart';
 import 'package:zana_pro/push.dart';
+import 'package:zana_pro/status_watch.dart';
 import 'package:zana_pro/theme.dart';
 
 Future<bool> showProAuthSheet(BuildContext context) async {
@@ -158,6 +159,7 @@ Future<bool> showProAuthSheet(BuildContext context) async {
                                       name: name,
                                     );
                                     await registerPushTokenIfPossible();
+                                    StatusWatch.instance.start();
                                     if (ctx.mounted) {
                                       Navigator.of(ctx).pop(true);
                                     }

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:wakelock_plus/wakelock_plus.dart';
 import 'package:zana_pro/api.dart';
 import 'package:zana_pro/push_refresh.dart';
 import 'package:zana_pro/screens/auth_sheet.dart';
@@ -11,6 +12,7 @@ import 'package:zana_pro/screens/job_detail_screen.dart';
 import 'package:zana_pro/screens/onboarding_screen.dart';
 import 'package:zana_pro/screens/schedule_screen.dart';
 import 'package:zana_pro/screens/staff_screen.dart';
+import 'package:zana_pro/status_watch.dart';
 import 'package:zana_pro/theme.dart';
 import 'package:zana_pro/widgets.dart';
 
@@ -39,6 +41,7 @@ class _ProHomeScreenState extends State<ProHomeScreen>
   bool _setupChecked = false;
   int tabIndex = 0;
   bool locationDenied = false;
+  StatusAlert? _lastAlert;
   late final AnimationController _pulse;
 
   @override
@@ -49,6 +52,8 @@ class _ProHomeScreenState extends State<ProHomeScreen>
       duration: const Duration(milliseconds: 1600),
     )..repeat(reverse: true);
     PushRefreshBus.instance.addListener(_onPushRefresh);
+    StatusWatch.instance.addListener(_onStatusAlert);
+    if (api.token != null) StatusWatch.instance.start();
     _bootstrap();
   }
 
@@ -58,12 +63,42 @@ class _ProHomeScreenState extends State<ProHomeScreen>
     _pollTimer?.cancel();
     _positionSub?.cancel();
     PushRefreshBus.instance.removeListener(_onPushRefresh);
+    StatusWatch.instance.removeListener(_onStatusAlert);
+    WakelockPlus.disable();
     _pulse.dispose();
     super.dispose();
   }
 
   void _onPushRefresh() {
     _refreshJobs(silent: true);
+  }
+
+  void _onStatusAlert() {
+    final alert = StatusWatch.instance.latest;
+    if (!mounted ||
+        alert == null ||
+        (_lastAlert != null &&
+            _lastAlert!.bookingId == alert.bookingId &&
+            _lastAlert!.status == alert.status)) {
+      return;
+    }
+    _lastAlert = alert;
+    _refreshJobs(silent: true);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('${alert.title}: ${alert.body}'),
+        action: SnackBarAction(
+          label: 'Open',
+          onPressed: () {
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => JobDetailScreen(bookingId: alert.bookingId),
+              ),
+            );
+          },
+        ),
+      ),
+    );
   }
 
   void _startJobPolling() {
@@ -193,6 +228,7 @@ class _ProHomeScreenState extends State<ProHomeScreen>
       _positionSub?.cancel();
       _positionSub = null;
       _trackingBookingId = null;
+      WakelockPlus.disable();
       return;
     }
 
@@ -204,6 +240,7 @@ class _ProHomeScreenState extends State<ProHomeScreen>
     _trackingBookingId = id;
     _locationTimer?.cancel();
     _positionSub?.cancel();
+    WakelockPlus.enable();
     _startPositionStream(id);
   }
 
@@ -222,6 +259,12 @@ class _ProHomeScreenState extends State<ProHomeScreen>
           perm == LocationPermission.deniedForever) {
         if (mounted) setState(() => locationDenied = true);
         return;
+      }
+      // Prefer always/while-in-use so tracking survives app switches on mobile.
+      if (perm == LocationPermission.whileInUse) {
+        try {
+          await Geolocator.requestPermission();
+        } catch (_) {}
       }
       if (mounted) setState(() => locationDenied = false);
 

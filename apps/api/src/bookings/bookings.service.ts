@@ -2,7 +2,10 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
+  OnModuleDestroy,
+  OnModuleInit,
 } from '@nestjs/common';
 import { BookingStatus, Prisma, ServiceMode } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
@@ -135,14 +138,28 @@ const bookingInclude = {
 } satisfies Prisma.BookingInclude;
 
 @Injectable()
-export class BookingsService {
+export class BookingsService implements OnModuleInit, OnModuleDestroy {
   /** Throttle location push noise per booking. */
   private readonly lastLocationNotify = new Map<string, number>();
+  private readonly logger = new Logger(BookingsService.name);
+  private expiryTimer?: NodeJS.Timeout;
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly notifications: NotificationsService,
   ) {}
+
+  onModuleInit() {
+    this.expiryTimer = setInterval(() => {
+      this.expireStaleRequested().catch((e) =>
+        this.logger.warn(`expireStaleRequested failed: ${e}`),
+      );
+    }, 60_000);
+  }
+
+  onModuleDestroy() {
+    if (this.expiryTimer) clearInterval(this.expiryTimer);
+  }
 
   private serialize(
     booking: BookingWithRelations,

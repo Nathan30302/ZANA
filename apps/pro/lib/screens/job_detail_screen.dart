@@ -1,8 +1,11 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:zana_pro/api.dart';
+import 'package:zana_pro/map_style.dart';
 import 'package:zana_pro/theme.dart';
 
 const _terminalStatuses = {
@@ -417,6 +420,23 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
                   title: 'Address',
                   lines: [b['customerAddress'] as String? ?? '—'],
                 ),
+                if ((b['customerLat'] as num?) != null &&
+                    (b['customerLng'] as num?) != null) ...[
+                  const SizedBox(height: 12),
+                  _JobMap(
+                    customer: LatLng(
+                      (b['customerLat'] as num).toDouble(),
+                      (b['customerLng'] as num).toDouble(),
+                    ),
+                    provider: (b['providerLat'] as num?) != null &&
+                            (b['providerLng'] as num?) != null
+                        ? LatLng(
+                            (b['providerLat'] as num).toDouble(),
+                            (b['providerLng'] as num).toDouble(),
+                          )
+                        : null,
+                  ),
+                ],
                 if (b['nearCustomer'] == true &&
                     (status == 'ON_THE_WAY' || status == 'ACCEPTED')) ...[
                   const SizedBox(height: 10),
@@ -597,6 +617,81 @@ class _InfoBlock extends StatelessWidget {
               ),
             ),
         ],
+      ),
+    );
+  }
+}
+
+class _JobMap extends StatelessWidget {
+  const _JobMap({required this.customer, this.provider});
+
+  final LatLng customer;
+  final LatLng? provider;
+
+  @override
+  Widget build(BuildContext context) {
+    final center = provider ?? customer;
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(16),
+      child: SizedBox(
+        height: 180,
+        child: FlutterMap(
+          options: MapOptions(
+            initialCenter: center,
+            initialZoom: 14,
+            interactionOptions: const InteractionOptions(
+              flags: InteractiveFlag.pinchZoom | InteractiveFlag.drag,
+            ),
+          ),
+          children: [
+            ...zanaMapTileLayers(context, ZanaMapMode.hybrid),
+            if (provider != null)
+              PolylineLayer(
+                polylines: [
+                  Polyline(
+                    points: [provider!, customer],
+                    color: ZanaColors.copper.withValues(alpha: 0.85),
+                    strokeWidth: 3.5,
+                  ),
+                ],
+              ),
+            MarkerLayer(
+              markers: [
+                Marker(
+                  point: customer,
+                  width: 40,
+                  height: 40,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: ZanaColors.ink, width: 2),
+                    ),
+                    child: const Icon(Icons.home_rounded, size: 18),
+                  ),
+                ),
+                if (provider != null)
+                  Marker(
+                    point: provider!,
+                    width: 40,
+                    height: 40,
+                    child: Container(
+                      decoration: const BoxDecoration(
+                        color: ZanaColors.copper,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.navigation_rounded,
+                        color: Colors.white,
+                        size: 18,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }

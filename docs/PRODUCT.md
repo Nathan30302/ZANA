@@ -28,6 +28,9 @@ REQUESTED → ACCEPTED → ON_THE_WAY | CONFIRMED → IN_SERVICE → COMPLETED �
 - Live map: satellite/hybrid imagery, road route + ETA, smooth pro motion toward the customer pin, status coaching, call/WhatsApp after accept, review prompt when done.
 - If a request **expires / declines**, customer gets **Find another pro** (excludes the timed-out pro).
 - Arrival assist: when the pro is within ~90 m on a comes-to-you trip, status can auto-mark arrived (`CONFIRMED`).
+- Saved **home pin** on device for one-tap comes-to-you booking.
+- In-app status alerts (poll-based) + **Live map** banner while a booking is active.
+- Pro job detail shows an in-app map; wake-lock + background location permissions while en route.
 
 ## Live tracking model (comes-to-you)
 
