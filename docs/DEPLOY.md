@@ -1,16 +1,26 @@
 # Deploy ZANA for a Lusaka pilot
 
-Payments stay stubbed. This guide gets **API + Postgres** online, optionally wires **Africa’s Talking SMS OTP**, and builds **internal APKs / TestFlight**.
+This guide gets **API + Postgres** online, wires **Africa’s Talking SMS OTP**,
+**MoMo/Airtel float payments**, **FCM push**, and builds **internal APKs / TestFlight**.
+
+## Checklist
+
+- [ ] Host API + Postgres (Compose or Fly)
+- [ ] Set `JWT_SECRET` + `PUBLIC_BASE_URL`
+- [ ] `OTP_PROVIDER=africas_talking` + AT credentials (or keep `dev` for internal QA)
+- [ ] `PAYMENT_PROVIDER=mobile_money` + MoMo/Airtel keys when going live
+- [ ] `FIREBASE_SERVER_KEY` + client FCM tokens for push
+- [ ] Build customer + Pro APKs with `--dart-define=API_URL=…`
+
+---
 
 ## 1. Host API + Postgres
 
 ### Option A — Docker Compose on a VPS
 
 ```bash
-# On the server
 git clone https://github.com/Nathan30302/ZANA.git && cd ZANA
 
-# Create env (never commit secrets)
 cat > .env.prod <<'EOF'
 POSTGRES_USER=zana
 POSTGRES_PASSWORD=pick-a-strong-password
@@ -22,6 +32,7 @@ OTP_PROVIDER=dev
 OTP_DEV_CODE=123456
 PAYMENT_PROVIDER=stub
 PAYMENT_SIMULATE=true
+PAYMENT_WEBHOOK_SECRET=pick-a-webhook-secret
 PORT=3000
 EOF
 
@@ -29,12 +40,11 @@ docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build
 curl -s https://api.yourdomain.com/v1/health
 ```
 
-Put TLS in front (Caddy / Nginx / Cloudflare). Point `PUBLIC_BASE_URL` at the public HTTPS origin so upload URLs work on phones.
+Put TLS in front (Caddy / Nginx / Cloudflare).
 
 ### Option B — Fly.io
 
 ```bash
-# once
 fly auth login
 fly apps create zana-api
 fly postgres create --name zana-db --region jnb
@@ -44,56 +54,94 @@ fly secrets set \
   JWT_SECRET='…' \
   PUBLIC_BASE_URL='https://zana-api.fly.dev' \
   CORS_ORIGINS='*' \
-  OTP_PROVIDER=dev \
-  OTP_DEV_CODE=123456 \
+  OTP_PROVIDER=africas_talking \
+  AT_USERNAME='…' \
+  AT_API_KEY='…' \
+  AT_SENDER_ID=ZANA \
+  AT_ENV=production \
   PAYMENT_PROVIDER=stub \
-  PAYMENT_SIMULATE=true
+  PAYMENT_SIMULATE=true \
+  PAYMENT_WEBHOOK_SECRET='…'
 
 fly deploy
 curl -s https://zana-api.fly.dev/v1/health
 ```
 
-`fly.toml` is in the repo root. Region `jnb` is Johannesburg (closest common Fly region to Zambia).
+`fly.toml` is in the repo root (region `jnb`).
 
-### Seed after first boot (optional)
+### Seed after first boot
 
 ```bash
-# Compose
 docker compose -f docker-compose.prod.yml exec api \
   npx prisma db seed --schema=prisma/schema.prisma
-
-# Or connect DATABASE_URL locally and: npm run prisma:seed -w apps/api
 ```
 
 ---
 
-## 2. Africa’s Talking SMS OTP (env-gated)
+## 2. Africa’s Talking SMS OTP
 
-Local default remains `OTP_PROVIDER=dev` + `OTP_DEV_CODE=123456`.
-
-For real phones:
+Local default: `OTP_PROVIDER=dev` + `OTP_DEV_CODE=123456`.
 
 ```bash
 OTP_PROVIDER=africas_talking
 AT_USERNAME=your_at_username
 AT_API_KEY=your_at_api_key
 AT_SENDER_ID=ZANA
-AT_ENV=sandbox          # or production
+AT_ENV=sandbox   # or production
 # leave OTP_DEV_CODE unset in production
 ```
 
-OTP codes are stored in Postgres (`OtpChallenge`, 10‑minute TTL) so multiple API instances share the same challenge.
-
-Sandbox tip: Africa’s Talking sandbox only delivers to numbers you whitelist in their console.
+OTP codes live in Postgres (`OtpChallenge`, 10‑minute TTL).
 
 ---
 
-## 3. Internal mobile builds
+## 3. Live MoMo / Airtel float payments
 
-Point apps at the **hosted** API (phones cannot use `localhost`):
+```bash
+PAYMENT_PROVIDER=mobile_money
+PAYMENT_SIMULATE=false
+PAYMENT_WEBHOOK_SECRET=long-random-string
+MOMO_SUBSCRIPTION_KEY=…
+MOMO_API_USER=…
+MOMO_API_KEY=…
+MOMO_ENV=sandbox
+AIRTEL_CLIENT_ID=…
+AIRTEL_CLIENT_SECRET=…
+AIRTEL_ENV=sandbox
+```
+
+Flow:
+1. Pro app `POST /v1/floats/purchase` → PENDING + phone prompt
+2. After approval, app polls / calls `POST /v1/floats/webhook/confirm` with `{ purchaseId }`
+3. Header `x-zana-webhook-secret: $PAYMENT_WEBHOOK_SECRET` required when secret is set
+4. API polls MoMo/Airtel status before crediting float
+
+---
+
+## 4. FCM push
+
+Server: set `FIREBASE_SERVER_KEY` (legacy HTTP). Without it, pushes log only.
+
+Clients register tokens after OTP login via `PATCH /v1/auth/me/fcm`.
+
+Pilot without full Firebase config:
+
+```bash
+flutter build apk --release \
+  --dart-define=API_URL=https://zana-api.fly.dev/v1 \
+  --dart-define=FCM_DEMO_TOKEN=optional-test-token
+```
+
+For production, add Firebase to each Flutter app and pass the real messaging token into `registerFcmToken`.
+
+---
+
+## 5. Internal mobile builds
 
 ```bash
 export API_URL="https://zana-api.fly.dev/v1"   # trailing /v1 required
+export ANDROID_HOME="$HOME/Android/Sdk"
+export PATH="$PATH:$ANDROID_HOME/platform-tools:$HOME/development/flutter/bin"
 chmod +x scripts/build-internal.sh
 ./scripts/build-internal.sh
 ```
@@ -102,38 +150,24 @@ Outputs:
 - `apps/customer/build/app/outputs/flutter-apk/app-release.apk`
 - `apps/pro/build/app/outputs/flutter-apk/app-release.apk`
 
-Sideload APKs for Android pilot testers.
-
 ### iOS / TestFlight
 
 ```bash
 export API_URL="https://zana-api.fly.dev/v1"
 cd apps/customer && flutter build ipa --release --dart-define="API_URL=$API_URL"
-# open Xcode → Product → Archive → Distribute → TestFlight
 cd ../pro && flutter build ipa --release --dart-define="API_URL=$API_URL"
 ```
 
-You need an Apple Developer account and signing identities for each app.
-
-### Same Wi‑Fi LAN smoke (no cloud)
-
-```bash
-# Mac LAN IP, API running on :3000
-export API_URL="http://192.168.1.20:3000/v1"
-./scripts/build-internal.sh
-```
-
-Android cleartext HTTP is enabled for pilot; prefer HTTPS in production.
-
 ---
 
-## Checklist before inviting testers
+## 6. Web (apply + admin)
 
-- [ ] `GET /v1/health` OK on public URL  
-- [ ] Strong `JWT_SECRET` set  
-- [ ] `PUBLIC_BASE_URL` is HTTPS and matches the phone-facing host  
-- [ ] OTP: either keep `dev` for closed demo, or AT sandbox with whitelisted numbers  
-- [ ] Customer + Pro APKs/IPAs built with the same `API_URL`  
-- [ ] Payments still stub (`PAYMENT_PROVIDER=stub`) until you choose to go live  
+Point Next at the hosted API:
 
-Web apply/admin: set `NEXT_PUBLIC_API_URL` to the same `/v1` base when you deploy `apps/web`.
+```bash
+# apps/web/.env.local
+NEXT_PUBLIC_API_URL=https://zana-api.fly.dev/v1
+npm run build -w apps/web && npm run start -w apps/web
+```
+
+Seed admin: `+260970000099` · OTP `123456` (dev OTP only).

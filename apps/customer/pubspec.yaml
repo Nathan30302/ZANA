@@ -1,5 +1,5 @@
 name: zana_customer
-description: ZANA customer app — book salons, barbers, and mobile stylists in Zambia.
+description: ZANA customer app — style at your fingertips. Book salons, barbers, and mobile stylists in Zambia.
 publish_to: "none"
 version: 0.1.0+1
 
@@ -26,3 +26,5 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/brand/zana-logo.png

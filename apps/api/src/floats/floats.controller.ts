@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Get,
@@ -29,6 +30,13 @@ export class FloatsController {
     return this.floats.balance(user.id);
   }
 
+  @Get('purchases')
+  async purchases(@Headers('authorization') authorization?: string) {
+    const user = await this.auth.userFromToken(authorization);
+    if (!user) throw new UnauthorizedException();
+    return this.floats.listPurchases(user.id);
+  }
+
   @Post('purchase')
   async purchase(
     @Headers('authorization') authorization: string | undefined,
@@ -49,9 +57,21 @@ export class FloatsController {
     });
   }
 
-  /** MoMo/Airtel callback stub — call after payer approves (or in tests). */
+  /** MoMo/Airtel callback / poll confirm.
+   * Protect with PAYMENT_WEBHOOK_SECRET header `x-zana-webhook-secret` when set.
+   */
   @Post('webhook/confirm')
-  confirm(@Body() body: { purchaseId: string }) {
+  confirm(
+    @Body() body: { purchaseId: string },
+    @Headers('x-zana-webhook-secret') secret?: string,
+  ) {
+    const expected = process.env.PAYMENT_WEBHOOK_SECRET;
+    if (expected && secret !== expected) {
+      throw new UnauthorizedException('Invalid webhook secret');
+    }
+    if (!body?.purchaseId) {
+      throw new BadRequestException('purchaseId required');
+    }
     return this.floats.confirmPurchase(body.purchaseId);
   }
 }

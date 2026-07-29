@@ -153,6 +153,15 @@ class ProApi {
     return jsonDecode(res.body) as List<dynamic>;
   }
 
+  Future<List<dynamic>> floatPurchases() async {
+    final res = await http.get(
+      Uri.parse('$baseUrl/floats/purchases'),
+      headers: _headers,
+    );
+    if (res.statusCode >= 400) throw Exception(res.body);
+    return jsonDecode(res.body) as List<dynamic>;
+  }
+
   Future<Map<String, dynamic>> purchase({
     required String packageId,
     String method = 'MTN_MOMO',

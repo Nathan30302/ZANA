@@ -1,6 +1,6 @@
 'use client';
 
-import { FormEvent, useEffect, useState, type CSSProperties, type ChangeEvent } from 'react';
+import { FormEvent, useEffect, useState, type ChangeEvent } from 'react';
 import { api } from '@/lib/api';
 
 type Step = 'otp' | 'form' | 'status';
@@ -156,106 +156,106 @@ export default function ApplyPage() {
   }
 
   return (
-    <main style={{ maxWidth: 560, margin: '0 auto', padding: '40px 20px' }}>
-      <p style={{ letterSpacing: '0.2em', fontSize: 12, color: 'var(--gold)' }}>
-        pro.zana.zm
-      </p>
-      <h1 style={{ marginTop: 8 }}>Become a Professional</h1>
-      <p style={{ color: 'var(--muted)' }}>
-        Apply once. ZANA reviews your docs, then you download ZANA Pro and buy
-        your first float.
+    <main className="shell shell-narrow">
+      <div className="brand-row" style={{ marginBottom: 10 }}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/brand/zana-logo.png" alt="ZANA" />
+        <div>
+          <div
+            className="brand-wordmark"
+            style={{ fontWeight: 800, letterSpacing: '0.18em', fontSize: 22 }}
+          >
+            ZANA
+          </div>
+          <div className="brand-kicker">Style at your fingertips</div>
+        </div>
+      </div>
+      <h1 style={{ marginTop: 14, fontSize: 34, lineHeight: 1.1 }}>Become a Professional</h1>
+      <p className="muted" style={{ marginTop: 8 }}>
+        Apply once. ZANA reviews your docs, then you open ZANA Pro and buy your first float.
       </p>
 
-      {error ? (
-        <p style={{ color: '#b91c1c', whiteSpace: 'pre-wrap' }}>{error}</p>
-      ) : null}
+      <div className="steps" aria-label="Application steps">
+        {(['otp', 'form', 'status'] as Step[]).map((s, i) => {
+          const order = step === 'otp' ? 0 : step === 'form' ? 1 : 2;
+          return <div key={s} className={`step-dot${i <= order ? ' on' : ''}`} />;
+        })}
+      </div>
+      <p className="muted" style={{ margin: '0 0 8px', fontSize: 13, fontWeight: 600 }}>
+        {step === 'otp' ? '1 · Verify phone' : step === 'form' ? '2 · Your shop' : '3 · Status'}
+      </p>
+
+      {error ? <p className="error">{error}</p> : null}
 
       {step === 'otp' ? (
-        <form onSubmit={verifyOtp} style={{ display: 'grid', gap: 12, marginTop: 24 }}>
-          <label>
+        <form onSubmit={verifyOtp} className="panel stack" style={{ marginTop: 16 }}>
+          <label className="field">
             Your name
-            <input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              style={inputStyle}
-              required
-            />
+            <input value={name} onChange={(e) => setName(e.target.value)} required />
           </label>
-          <label>
+          <label className="field">
             Phone (+260)
-            <input
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              style={inputStyle}
-              required
-            />
+            <input value={phone} onChange={(e) => setPhone(e.target.value)} required />
           </label>
-          <button type="button" onClick={requestOtp} style={secondaryBtn}>
+          <button type="button" onClick={requestOtp} className="btn-secondary">
             Send OTP
           </button>
-          <label>
+          <label className="field">
             OTP code
             <input
               value={code}
               onChange={(e) => setCode(e.target.value)}
-              style={inputStyle}
-              placeholder="123456 in dev"
+              placeholder="123456 in demo"
               required
             />
           </label>
-          <button type="submit" style={primaryBtn}>
+          <button type="submit" className="btn-copper">
             Continue
           </button>
         </form>
       ) : null}
 
       {step === 'form' ? (
-        <form
-          onSubmit={submitApplication}
-          style={{ display: 'grid', gap: 12, marginTop: 24 }}
-        >
+        <form onSubmit={submitApplication} className="panel stack" style={{ marginTop: 16 }}>
           {application?.status === 'NEEDS_INFO' ? (
             <div
               style={{
-                padding: 12,
-                borderRadius: 10,
-                background: 'var(--paper)',
-                border: '1px solid var(--line)',
+                padding: 14,
+                borderRadius: 14,
+                background: '#fff7ed',
+                border: '1px solid rgba(194,65,12,0.2)',
               }}
             >
               <strong>More info needed</strong>
-              <p style={{ margin: '6px 0 0', color: 'var(--muted)' }}>
+              <p className="muted" style={{ margin: '6px 0 0' }}>
                 {application.adminNote || 'Please update your application and resubmit.'}
               </p>
             </div>
           ) : null}
-          <label>
+          <label className="field">
             Type
             <select
               value={form.type}
               onChange={(e) => setForm({ ...form, type: e.target.value })}
-              style={inputStyle}
             >
               <option value="INDEPENDENT">Independent (mobile)</option>
               <option value="SALON">Salon</option>
               <option value="BARBERSHOP">Barbershop</option>
             </select>
           </label>
-          <label>
+          <label className="field">
             Display name
             <input
               value={form.displayName}
               onChange={(e) => setForm({ ...form, displayName: e.target.value })}
-              style={inputStyle}
               required
             />
           </label>
-          <label>
+          <label className="field">
             Area (Lusaka)
             <select
               value={form.area}
               onChange={(e) => setForm({ ...form, area: e.target.value })}
-              style={inputStyle}
             >
               {[
                 'Roma',
@@ -275,78 +275,72 @@ export default function ApplyPage() {
               ))}
             </select>
           </label>
-          <label>
+          <label className="field">
             Notes / portfolio links
             <textarea
               value={form.notes}
               onChange={(e) => setForm({ ...form, notes: e.target.value })}
-              style={{ ...inputStyle, minHeight: 100 }}
+              style={{ minHeight: 100 }}
             />
           </label>
-          <label>
+          <label className="field">
             ID / NRC / portfolio photos
-            <input
-              type="file"
-              accept="image/*"
-              multiple
-              onChange={onFiles}
-              style={{ ...inputStyle, padding: 8 }}
-            />
+            <input type="file" accept="image/*" multiple onChange={onFiles} />
           </label>
-          {uploading ? (
-            <p style={{ color: 'var(--muted)', margin: 0 }}>Uploading…</p>
-          ) : null}
+          {uploading ? <p className="muted" style={{ margin: 0 }}>Uploading…</p> : null}
           {documentUrls.length > 0 ? (
-            <ul style={{ margin: 0, paddingLeft: 18, color: 'var(--muted)', fontSize: 13 }}>
+            <div className="doc-grid">
               {documentUrls.map((url) => (
-                <li key={url}>
-                  <a href={url} target="_blank" rel="noreferrer">
-                    {url.split('/').pop()}
-                  </a>
-                </li>
+                <a key={url} href={url} target="_blank" rel="noreferrer">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img className="doc-thumb" src={url} alt="Uploaded document" />
+                </a>
               ))}
-            </ul>
+            </div>
           ) : null}
-          <button type="submit" style={primaryBtn} disabled={uploading}>
+          <button type="submit" className="btn-copper" disabled={uploading}>
             {application?.status === 'NEEDS_INFO' ? 'Resubmit for review' : 'Submit for review'}
           </button>
         </form>
       ) : null}
 
       {step === 'status' && application ? (
-        <div
-          style={{
-            marginTop: 24,
-            padding: 16,
-            background: 'var(--paper)',
-            border: '1px solid var(--line)',
-            borderRadius: 12,
-          }}
-        >
+        <div className="panel" style={{ marginTop: 16 }}>
           <h2 style={{ marginTop: 0 }}>Application status</h2>
           <p>
-            <strong>{application.displayName}</strong> · {application.status}
+            <strong>{application.displayName}</strong>{' '}
+            <span
+              className={`badge ${
+                application.status === 'APPROVED'
+                  ? 'badge-ok'
+                  : application.status === 'REJECTED'
+                    ? 'badge-danger'
+                    : 'badge-warn'
+              }`}
+            >
+              {application.status}
+            </span>
           </p>
           {application.adminNote ? (
-            <p style={{ color: 'var(--muted)' }}>Admin note: {application.adminNote}</p>
+            <p className="muted">Admin note: {application.adminNote}</p>
           ) : null}
           {application.status === 'APPROVED' ? (
-            <p style={{ color: 'var(--muted)' }}>
-              Download <strong>ZANA Pro</strong>, complete shop setup, buy a float, and go online.
+            <p className="muted">
+              Download <strong>ZANA Pro</strong>, finish shop setup, buy a float, and go online.
             </p>
           ) : null}
           {application.status === 'PENDING' ? (
-            <p style={{ color: 'var(--muted)' }}>
+            <p className="muted">
               Our team is reviewing your docs. We&apos;ll message you on WhatsApp/SMS.
             </p>
           ) : null}
           {application.status === 'REJECTED' ? (
-            <p style={{ color: '#b91c1c' }}>
+            <p className="error">
               This application was rejected. Contact support if you think this is a mistake.
             </p>
           ) : null}
           {application.status === 'NEEDS_INFO' ? (
-            <button type="button" style={primaryBtn} onClick={() => setStep('form')}>
+            <button type="button" className="btn-copper" onClick={() => setStep('form')}>
               Update and resubmit
             </button>
           ) : null}
@@ -355,30 +349,3 @@ export default function ApplyPage() {
     </main>
   );
 }
-
-const inputStyle: CSSProperties = {
-  display: 'block',
-  width: '100%',
-  marginTop: 6,
-  padding: '10px 12px',
-  borderRadius: 8,
-  border: '1px solid var(--line)',
-  background: 'var(--paper)',
-};
-
-const primaryBtn: CSSProperties = {
-  background: 'var(--charcoal)',
-  color: '#fff',
-  border: 0,
-  borderRadius: 10,
-  padding: '12px 16px',
-  cursor: 'pointer',
-};
-
-const secondaryBtn: CSSProperties = {
-  background: 'var(--paper)',
-  border: '1px solid var(--line)',
-  borderRadius: 10,
-  padding: '10px 16px',
-  cursor: 'pointer',
-};

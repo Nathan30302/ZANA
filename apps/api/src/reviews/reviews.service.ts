@@ -59,7 +59,7 @@ export class ReviewsService {
       });
 
       await tx.providerProfile.update({
-        where: { id: booking.providerId },
+        where: { id: booking.providerId! },
         data: {
           ratingAvg: agg._avg.rating ?? input.rating,
           ratingCount: agg._count.rating,

@@ -36,11 +36,18 @@ export class ProvidersService {
     q?: string;
     lat?: number;
     lng?: number;
+    online?: boolean;
+    radiusKm?: number;
   }) {
     const rows = await this.prisma.providerProfile.findMany({
       where: {
         isVerified: true,
         services: { some: { isActive: true } },
+        ...(params.online === true
+          ? { isOnline: true }
+          : params.online === false
+            ? { isOnline: false }
+            : {}),
         ...(params.area ? { area: params.area } : {}),
         ...(params.q
           ? {
@@ -63,6 +70,11 @@ export class ProvidersService {
 
     if (params.lat == null || params.lng == null) return rows;
 
+    const radius =
+      params.radiusKm != null && Number.isFinite(params.radiusKm)
+        ? params.radiusKm
+        : null;
+
     return rows
       .map((p) => {
         const distanceKm =
@@ -71,7 +83,13 @@ export class ProvidersService {
             : null;
         return { ...p, distanceKm };
       })
+      .filter((p) => {
+        if (radius == null) return true;
+        return p.distanceKm != null && p.distanceKm <= radius;
+      })
       .sort((a, b) => {
+        // Online first, then nearest.
+        if (a.isOnline !== b.isOnline) return a.isOnline ? -1 : 1;
         if (a.distanceKm == null && b.distanceKm == null) return 0;
         if (a.distanceKm == null) return 1;
         if (b.distanceKm == null) return -1;

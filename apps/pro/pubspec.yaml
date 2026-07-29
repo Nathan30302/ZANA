@@ -1,5 +1,5 @@
 name: zana_pro
-description: ZANA Pro — go online, accept jobs, manage floats.
+description: ZANA Pro — style at your fingertips for salons, barbers, and mobile stylists.
 publish_to: "none"
 version: 0.1.0+1
 
@@ -15,6 +15,10 @@ dependencies:
   shared_preferences: ^2.3.3
   image_picker: ^1.1.2
   intl: ^0.20.2
+  url_launcher: ^6.3.1
+  flutter_map: ^7.0.2
+  latlong2: ^0.9.1
+  wakelock_plus: ^1.2.8
 
 dev_dependencies:
   flutter_test:
@@ -23,3 +27,9 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/brand/zana-logo.png
+
+dependency_overrides:
+  jni: 1.0.2
+  jni_flutter: 1.0.2

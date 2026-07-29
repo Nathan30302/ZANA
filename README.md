@@ -1,6 +1,6 @@
 # ZANA
 
-Zambia’s beauty booking marketplace — salons, barbershops, and mobile stylists.
+**Style at your fingertips** — Zambia’s salon & barbershop booking marketplace.
 
 **Mental model:** Yango for hair. Dual apps, float-based monetization, Lusaka first.
 

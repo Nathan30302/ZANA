@@ -231,7 +231,7 @@ export class AdminService {
         status === BookingStatus.EXPIRED)
     ) {
       await this.prisma.providerProfile.update({
-        where: { id: booking.providerId },
+        where: { id: booking.providerId! },
         data: { creditBalance: { increment: 1 } },
       });
       creditBurned = false;

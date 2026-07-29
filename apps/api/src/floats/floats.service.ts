@@ -109,7 +109,32 @@ export class FloatsService {
     }
 
     if (purchase.providerRef) {
-      await this.payments.confirm(purchase.providerRef);
+      const result = await this.payments.confirm(purchase.providerRef);
+      if (result.status === 'PENDING') {
+        return {
+          purchase,
+          creditBalance: (
+            await this.prisma.providerProfile.findUnique({
+              where: { id: purchase.providerId },
+            })
+          )?.creditBalance ?? 0,
+          payment: { status: 'PENDING' },
+        };
+      }
+      if (result.status === 'FAILED') {
+        const failed = await this.prisma.floatPurchase.update({
+          where: { id: purchaseId },
+          data: { status: 'FAILED' },
+        });
+        const profile = await this.prisma.providerProfile.findUnique({
+          where: { id: purchase.providerId },
+        });
+        return {
+          purchase: failed,
+          creditBalance: profile?.creditBalance ?? 0,
+          payment: { status: 'FAILED' },
+        };
+      }
     }
 
     return this.prisma.$transaction(async (tx) => {
@@ -127,6 +152,7 @@ export class FloatsService {
         return {
           purchase: existing!,
           creditBalance: profile?.creditBalance ?? 0,
+          payment: { status: existing?.status ?? 'COMPLETED' },
         };
       }
       const updatedPurchase = await tx.floatPurchase.findUniqueOrThrow({
@@ -136,7 +162,11 @@ export class FloatsService {
         where: { id: purchase.providerId },
         data: { creditBalance: { increment: purchase.credits } },
       });
-      return { purchase: updatedPurchase, creditBalance: updated.creditBalance };
+      return {
+        purchase: updatedPurchase,
+        creditBalance: updated.creditBalance,
+        payment: { status: 'COMPLETED' },
+      };
     });
   }
 
@@ -148,6 +178,17 @@ export class FloatsService {
       displayName: profile.displayName,
       shared: profile.userId !== userId,
     };
+  }
+
+  async listPurchases(userId: string) {
+    const profile = await this.resolveShopProfile(userId);
+    if (!profile) throw new NotFoundException('Provider profile not found');
+    return this.prisma.floatPurchase.findMany({
+      where: { providerId: profile.id },
+      include: { package: true },
+      orderBy: { createdAt: 'desc' },
+      take: 20,
+    });
   }
 
   /** Owner shop, or first staff membership shop (shared team float). */

@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Get,
@@ -9,7 +10,7 @@ import {
   Query,
   UnauthorizedException,
 } from '@nestjs/common';
-import { BookingStatus } from '@prisma/client';
+import { BookingStatus, ServiceCategory, ServiceMode } from '@prisma/client';
 import { AuthService } from '../auth/auth.service';
 import { BookingsService } from './bookings.service';
 
@@ -25,8 +26,12 @@ export class BookingsController {
     @Headers('authorization') authorization: string | undefined,
     @Body()
     body: {
-      providerId: string;
-      serviceId: string;
+      providerId?: string;
+      serviceId?: string;
+      broadcast?: boolean;
+      category?: string;
+      mode?: string;
+      broadcastRadiusKm?: number;
       scheduledAt?: string;
       customerLat?: number;
       customerLng?: number;
@@ -36,7 +41,35 @@ export class BookingsController {
   ) {
     const user = await this.auth.userFromToken(authorization);
     if (!user) throw new UnauthorizedException();
-    return this.bookings.create(user.id, body);
+    if (body.broadcast) {
+      if (!body.category) {
+        throw new BadRequestException('category required for broadcast');
+      }
+      if (body.customerLat == null || body.customerLng == null) {
+        throw new BadRequestException('customerLat/customerLng required');
+      }
+      return this.bookings.createBroadcast(user.id, {
+        category: body.category as ServiceCategory,
+        mode: body.mode as ServiceMode | undefined,
+        customerLat: body.customerLat,
+        customerLng: body.customerLng,
+        customerAddress: body.customerAddress,
+        broadcastRadiusKm: body.broadcastRadiusKm,
+        notes: body.notes,
+      });
+    }
+    if (!body.providerId || !body.serviceId) {
+      throw new BadRequestException('providerId and serviceId required');
+    }
+    return this.bookings.create(user.id, {
+      providerId: body.providerId,
+      serviceId: body.serviceId,
+      scheduledAt: body.scheduledAt,
+      customerLat: body.customerLat,
+      customerLng: body.customerLng,
+      customerAddress: body.customerAddress,
+      notes: body.notes,
+    });
   }
 
   @Get()

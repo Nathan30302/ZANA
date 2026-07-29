@@ -5,6 +5,8 @@ import 'package:zana_customer/screens/bookings_screen.dart';
 import 'package:zana_customer/screens/favorites_screen.dart';
 import 'package:zana_customer/screens/home_screen.dart';
 import 'package:zana_customer/screens/nearby_map_screen.dart';
+import 'package:zana_customer/screens/tracking_screen.dart';
+import 'package:zana_customer/status_watch.dart';
 import 'package:zana_customer/theme.dart';
 
 /// Root shell: Discover + bottom nav for Map, Favorites, Bookings.
@@ -21,11 +23,49 @@ class _CustomerShellState extends State<CustomerShell> {
   double userLng = ZanaApi.lusakaLng;
   List<dynamic> mapProviders = [];
   bool mapLoading = false;
+  StatusAlert? _toast;
 
   @override
   void initState() {
     super.initState();
     _resolveLocation();
+    StatusWatch.instance.addListener(_onStatusWatch);
+    if (api.token != null) StatusWatch.instance.start();
+  }
+
+  @override
+  void dispose() {
+    StatusWatch.instance.removeListener(_onStatusWatch);
+    StatusWatch.instance.stop();
+    super.dispose();
+  }
+
+  void _onStatusWatch() {
+    if (!mounted) return;
+    final alert = StatusWatch.instance.latest;
+    setState(() {});
+    if (alert != null &&
+        (_toast == null ||
+            _toast!.bookingId != alert.bookingId ||
+            _toast!.status != alert.status)) {
+      _toast = alert;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${alert.title}: ${alert.body}'),
+          action: SnackBarAction(
+            label: 'Open',
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => TrackingScreen(bookingId: alert.bookingId),
+                ),
+              );
+            },
+          ),
+          duration: const Duration(seconds: 5),
+        ),
+      );
+    }
   }
 
   Future<void> _resolveLocation() async {
@@ -49,8 +89,8 @@ class _CustomerShellState extends State<CustomerShell> {
     } catch (_) {}
   }
 
-  Future<void> _ensureMapData() async {
-    if (mapProviders.isNotEmpty || mapLoading) return;
+  Future<void> _ensureMapData({bool force = false}) async {
+    if (!force && (mapProviders.isNotEmpty || mapLoading)) return;
     setState(() => mapLoading = true);
     try {
       final items = await api.listProviders(lat: userLat, lng: userLng);
@@ -68,57 +108,138 @@ class _CustomerShellState extends State<CustomerShell> {
   void _onTab(int i) {
     setState(() => index = i);
     if (i == 1) _ensureMapData();
+    if (api.token != null) StatusWatch.instance.start();
+  }
+
+  String _liveLabel(Map<String, dynamic> b) {
+    final status = b['status'] as String? ?? '';
+    final service = b['service'] as Map<String, dynamic>?;
+    final name = service?['name'] as String? ?? 'Booking';
+    switch (status) {
+      case 'REQUESTED':
+        return 'Waiting for $name';
+      case 'ON_THE_WAY':
+        return '$name · pro on the way';
+      case 'ACCEPTED':
+        return '$name · accepted';
+      case 'IN_SERVICE':
+        return '$name · in service';
+      default:
+        return name;
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final active = StatusWatch.instance.activeBooking;
+
     return Scaffold(
-      body: IndexedStack(
-        index: index,
+      body: Column(
         children: [
-          HomeScreen(
-            userLat: userLat,
-            userLng: userLng,
-            onProvidersLoaded: (items) {
-              mapProviders = items;
-            },
-            onLocationResolved: (lat, lng) {
-              setState(() {
-                userLat = lat;
-                userLng = lng;
-              });
-            },
-          ),
-          mapLoading && mapProviders.isEmpty
-              ? const Center(child: CircularProgressIndicator())
-              : NearbyMapScreen(
-                  providers: mapProviders,
+          if (active != null)
+            SafeArea(
+              bottom: false,
+              child: Material(
+                color: ZanaColors.ink,
+                child: InkWell(
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => TrackingScreen(
+                          bookingId: active['id'] as String,
+                        ),
+                      ),
+                    );
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
+                    child: Row(
+                      children: [
+                        const Icon(
+                          Icons.near_me_rounded,
+                          color: ZanaColors.copper,
+                          size: 18,
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            _liveLabel(active),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ),
+                        const Text(
+                          'Live map',
+                          style: TextStyle(
+                            color: ZanaColors.copper,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          Expanded(
+            child: IndexedStack(
+              index: index,
+              children: [
+                HomeScreen(
                   userLat: userLat,
                   userLng: userLng,
-                  embedded: true,
+                  onProvidersLoaded: (items) {
+                    mapProviders = items;
+                  },
+                  onLocationResolved: (lat, lng) {
+                    setState(() {
+                      userLat = lat;
+                      userLng = lng;
+                    });
+                  },
                 ),
-          const FavoritesScreen(embedded: true),
-          const BookingsScreen(embedded: true),
+                mapLoading && mapProviders.isEmpty
+                    ? const Center(
+                        child: CircularProgressIndicator(
+                          color: ZanaColors.copper,
+                        ),
+                      )
+                    : NearbyMapScreen(
+                        providers: mapProviders,
+                        userLat: userLat,
+                        userLng: userLng,
+                        embedded: true,
+                        onRefresh: () => _ensureMapData(force: true),
+                      ),
+                const FavoritesScreen(embedded: true),
+                const BookingsScreen(embedded: true),
+              ],
+            ),
+          ),
         ],
       ),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
-          color: ZanaColors.paper,
+          color: ZanaColors.paper.withValues(alpha: 0.96),
           border: Border(
             top: BorderSide(color: ZanaColors.ink.withValues(alpha: 0.06)),
           ),
           boxShadow: [
             BoxShadow(
-              color: ZanaColors.ink.withValues(alpha: 0.04),
-              blurRadius: 16,
-              offset: const Offset(0, -4),
+              color: ZanaColors.ink.withValues(alpha: 0.05),
+              blurRadius: 20,
+              offset: const Offset(0, -6),
             ),
           ],
         ),
         child: SafeArea(
           top: false,
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
             child: Row(
               children: [
                 _NavItem(
@@ -179,9 +300,16 @@ class _NavItem extends StatelessWidget {
     return Expanded(
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(14),
-        child: Padding(
+        borderRadius: BorderRadius.circular(16),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
           padding: const EdgeInsets.symmetric(vertical: 8),
+          decoration: BoxDecoration(
+            color: selected
+                ? ZanaColors.copper.withValues(alpha: 0.08)
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(16),
+          ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -193,7 +321,6 @@ class _NavItem extends StatelessWidget {
                   fontSize: 11,
                   fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
                   color: color,
-                  letterSpacing: 0.2,
                 ),
               ),
             ],

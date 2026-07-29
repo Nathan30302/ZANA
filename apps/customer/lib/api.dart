@@ -45,6 +45,8 @@ class ZanaApi {
     String? q,
     double? lat,
     double? lng,
+    bool? online,
+    double? radiusKm,
   }) async {
     final uri = Uri.parse('$baseUrl/providers').replace(queryParameters: {
       if (area != null) 'area': area,
@@ -52,6 +54,8 @@ class ZanaApi {
       if (q != null && q.isNotEmpty) 'q': q,
       if (lat != null) 'lat': lat.toString(),
       if (lng != null) 'lng': lng.toString(),
+      if (online != null) 'online': online.toString(),
+      if (radiusKm != null) 'radiusKm': radiusKm.toString(),
     });
     final res = await http.get(uri, headers: _headers);
     if (res.statusCode >= 400) {
@@ -132,6 +136,60 @@ class ZanaApi {
         if (customerLng != null) 'customerLng': customerLng,
         if (customerAddress != null) 'customerAddress': customerAddress,
         if (notes != null) 'notes': notes,
+      }),
+    );
+    if (res.statusCode >= 400) throw Exception(res.body);
+    return jsonDecode(res.body) as Map<String, dynamic>;
+  }
+
+  /// Open request to any nearby online pro in a category (first accept wins).
+  Future<Map<String, dynamic>> createBroadcastBooking({
+    required String category,
+    required double customerLat,
+    required double customerLng,
+    String? customerAddress,
+    String mode = 'COMES_TO_YOU',
+    double broadcastRadiusKm = 12,
+    String? notes,
+  }) async {
+    final res = await http.post(
+      Uri.parse('$baseUrl/bookings'),
+      headers: _headers,
+      body: jsonEncode({
+        'broadcast': true,
+        'category': category,
+        'mode': mode,
+        'customerLat': customerLat,
+        'customerLng': customerLng,
+        'broadcastRadiusKm': broadcastRadiusKm,
+        if (customerAddress != null) 'customerAddress': customerAddress,
+        if (notes != null) 'notes': notes,
+      }),
+    );
+    if (res.statusCode >= 400) throw Exception(res.body);
+    return jsonDecode(res.body) as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> me() async {
+    final res = await http.get(Uri.parse('$baseUrl/auth/me'), headers: _headers);
+    if (res.statusCode >= 400) throw Exception(res.body);
+    return jsonDecode(res.body) as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> updateProfile({
+    String? name,
+    double? homeLat,
+    double? homeLng,
+    String? homeAddress,
+  }) async {
+    final res = await http.patch(
+      Uri.parse('$baseUrl/auth/me'),
+      headers: _headers,
+      body: jsonEncode({
+        if (name != null) 'name': name,
+        if (homeLat != null) 'homeLat': homeLat,
+        if (homeLng != null) 'homeLng': homeLng,
+        if (homeAddress != null) 'homeAddress': homeAddress,
       }),
     );
     if (res.statusCode >= 400) throw Exception(res.body);
