@@ -319,14 +319,22 @@ class _TrackingScreenState extends State<TrackingScreen>
     }
   }
 
-  String _coach(String status, {String? proName, int? durationMin, bool near = false}) {
+  String _coach(
+    String status, {
+    String? proName,
+    int? durationMin,
+    bool near = false,
+    bool isBroadcast = false,
+  }) {
     final name = proName ?? 'Your stylist';
     if (near && (status == 'ON_THE_WAY' || status == 'ACCEPTED')) {
       return '$name is nearby — they should be at your pin any moment.';
     }
     switch (status) {
       case 'REQUESTED':
-        return 'Looking for $name nearby… hang tight while they accept.';
+        return isBroadcast
+            ? 'Open request sent to nearby online pros — first to accept gets the job.'
+            : 'Looking for $name nearby… hang tight while they accept.';
       case 'ACCEPTED':
         return '$name accepted. They’re getting ready — live location updates as they head out.';
       case 'ON_THE_WAY':
@@ -349,10 +357,10 @@ class _TrackingScreenState extends State<TrackingScreen>
     }
   }
 
-  String _statusTitle(String status) {
+  String _statusTitle(String status, {bool isBroadcast = false}) {
     switch (status) {
       case 'REQUESTED':
-        return 'Finding your pro';
+        return isBroadcast ? 'Finding any nearby pro' : 'Finding your pro';
       case 'ACCEPTED':
         return 'Pro accepted';
       case 'ON_THE_WAY':
@@ -680,7 +688,10 @@ class _TrackingScreenState extends State<TrackingScreen>
                               children: [
                                 Expanded(
                                   child: Text(
-                                    _statusTitle(status),
+                                    _statusTitle(
+                                      status,
+                                      isBroadcast: b?['isBroadcast'] == true,
+                                    ),
                                     style: const TextStyle(
                                       fontWeight: FontWeight.w800,
                                       fontSize: 22,
@@ -730,6 +741,7 @@ class _TrackingScreenState extends State<TrackingScreen>
                                 proName: proName,
                                 durationMin: durationMin,
                                 near: near,
+                                isBroadcast: b?['isBroadcast'] == true,
                               ),
                               style: const TextStyle(
                                 color: ZanaColors.muted,

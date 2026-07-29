@@ -21,6 +21,23 @@ export class AuthController {
     return { user };
   }
 
+  @Patch('me')
+  async updateMe(
+    @Headers('authorization') authorization: string | undefined,
+    @Body()
+    body: {
+      name?: string;
+      homeLat?: number;
+      homeLng?: number;
+      homeAddress?: string;
+    },
+  ) {
+    const user = await this.auth.userFromToken(authorization);
+    if (!user) throw new UnauthorizedException();
+    const updated = await this.auth.updateProfile(user.id, body);
+    return { user: updated };
+  }
+
   @Patch('me/fcm')
   async fcm(
     @Headers('authorization') authorization: string | undefined,

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:intl/intl.dart';
+import 'package:zana_customer/api.dart';
 import 'package:zana_customer/home_pin_store.dart';
 import 'package:zana_customer/theme.dart';
 
@@ -325,6 +326,13 @@ Future<BookingDraft?> showBookingSheet(
                               address: addressCtrl.text.trim(),
                             ),
                           );
+                          try {
+                            await api.updateProfile(
+                              homeLat: lat as double,
+                              homeLng: lng as double,
+                              homeAddress: addressCtrl.text.trim(),
+                            );
+                          } catch (_) {}
                         }
                         if (ctx.mounted) Navigator.of(ctx).pop(draft);
                       },

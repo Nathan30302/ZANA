@@ -42,14 +42,6 @@ Future<void> showBookNowFlow(
   }
 
   if (!context.mounted) return;
-  if (online.isEmpty) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('No online pros nearby right now. Try again soon.'),
-      ),
-    );
-    return;
-  }
 
   final picked = await showModalBottomSheet<Map<String, dynamic>>(
     context: context,
@@ -82,22 +74,125 @@ Future<void> showBookNowFlow(
               const Padding(
                 padding: EdgeInsets.fromLTRB(20, 4, 20, 4),
                 child: Text(
-                  'Available near you',
+                  'Book now',
                   style: TextStyle(
                     fontWeight: FontWeight.w800,
                     fontSize: 20,
                   ),
                 ),
               ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 4, 16, 10),
+                child: Material(
+                  color: ZanaColors.ink,
+                  borderRadius: BorderRadius.circular(16),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(16),
+                    onTap: () async {
+                      var cat = category;
+                      if (cat == null || cat == 'ALL') {
+                        const cats = [
+                          'BARBER',
+                          'SALON',
+                          'NAILS',
+                          'BRIDAL',
+                          'MOBILE',
+                        ];
+                        cat = await showModalBottomSheet<String>(
+                          context: ctx,
+                          backgroundColor: ZanaColors.paper,
+                          shape: const RoundedRectangleBorder(
+                            borderRadius: BorderRadius.vertical(
+                              top: Radius.circular(20),
+                            ),
+                          ),
+                          builder: (sctx) => SafeArea(
+                            child: ListView(
+                              shrinkWrap: true,
+                              padding: const EdgeInsets.all(16),
+                              children: [
+                                const Text(
+                                  'What do you need?',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 17,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                for (final c in cats)
+                                  ListTile(
+                                    title: Text(c.replaceAll('_', ' ')),
+                                    onTap: () => Navigator.pop(sctx, c),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        );
+                        if (cat == null) return;
+                      }
+                      if (!ctx.mounted) return;
+                      Navigator.pop(ctx, {'broadcast': true, 'category': cat});
+                    },
+                    child: const Padding(
+                      padding: EdgeInsets.fromLTRB(16, 14, 16, 14),
+                      child: Row(
+                        children: [
+                          Icon(Icons.bolt_rounded, color: ZanaColors.copper),
+                          SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Any nearby online pro',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 15,
+                                  ),
+                                ),
+                                SizedBox(height: 2),
+                                Text(
+                                  'Open request — first to accept gets the job',
+                                  style: TextStyle(
+                                    color: Colors.white70,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Icon(Icons.chevron_right_rounded, color: Colors.white54),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
               const Padding(
-                padding: EdgeInsets.fromLTRB(20, 0, 20, 12),
+                padding: EdgeInsets.fromLTRB(20, 4, 20, 8),
                 child: Text(
-                  'Online now — request and watch them on the live map.',
-                  style: TextStyle(color: ZanaColors.muted, fontSize: 13),
+                  'Or pick someone',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    color: ZanaColors.muted,
+                    fontSize: 13,
+                  ),
                 ),
               ),
               Expanded(
-                child: ListView.separated(
+                child: online.isEmpty
+                    ? const Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(24),
+                          child: Text(
+                            'No specific pros online in range — try an open request above.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(color: ZanaColors.muted),
+                          ),
+                        ),
+                      )
+                    : ListView.separated(
                   controller: scroll,
                   padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
                   itemCount: online.length,
@@ -110,6 +205,8 @@ Future<void> showBookNowFlow(
                     final km = (p['distanceKm'] as num?)?.toDouble();
                     final name = p['displayName'] as String? ?? 'Pro';
                     final cover = p['coverPhotoUrl'] as String?;
+                    final rating = (p['ratingAvg'] as num?)?.toDouble() ?? 0;
+                    final count = p['ratingCount'] as int? ?? 0;
                     return Material(
                       color: ZanaColors.sand,
                       borderRadius: BorderRadius.circular(16),
@@ -216,6 +313,8 @@ Future<void> showBookNowFlow(
                                         p['area'],
                                         if (km != null)
                                           '${km.toStringAsFixed(1)} km',
+                                        if (count > 0)
+                                          '${rating.toStringAsFixed(1)}★ ($count)',
                                         'Online',
                                       ].whereType<Object>().join(' · '),
                                       style: const TextStyle(
@@ -256,10 +355,6 @@ Future<void> showBookNowFlow(
 
   if (picked == null || !context.mounted) return;
 
-  final provider = picked['provider'] as Map<String, dynamic>;
-  final service = picked['service'] as Map<String, dynamic>;
-  final mode = service['mode'] as String? ?? 'AT_SHOP';
-
   double? lat = userLat;
   double? lng = userLng;
   try {
@@ -277,6 +372,45 @@ Future<void> showBookNowFlow(
       }
     }
   } catch (_) {}
+
+  if (picked['broadcast'] == true) {
+    if (!context.mounted) return;
+    final draft = await showBookingSheet(
+      context,
+      serviceName: '${(picked['category'] as String).replaceAll('_', ' ')} · open request',
+      serviceMode: 'COMES_TO_YOU',
+      preferAsap: true,
+    );
+    if (draft == null || !context.mounted) return;
+    try {
+      final booking = await api.createBroadcastBooking(
+        category: picked['category'] as String,
+        customerLat: draft.lat ?? lat ?? userLat,
+        customerLng: draft.lng ?? lng ?? userLng,
+        customerAddress: draft.address,
+        notes: draft.notes,
+      );
+      if (!context.mounted) return;
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => TrackingScreen(
+            bookingId: booking['id'] as String,
+            openReviewWhenDone: true,
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Request failed: $e')),
+      );
+    }
+    return;
+  }
+
+  final provider = picked['provider'] as Map<String, dynamic>;
+  final service = picked['service'] as Map<String, dynamic>;
+  final mode = service['mode'] as String? ?? 'AT_SHOP';
 
   if (!context.mounted) return;
   final draft = await showBookingSheet(

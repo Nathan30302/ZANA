@@ -59,6 +59,9 @@ model User {
   name         String?
   role         UserRole  @default(CUSTOMER)
   fcmToken     String?
+  homeLat      Float?
+  homeLng      Float?
+  homeAddress  String?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
@@ -174,8 +177,10 @@ model Service {
 model Booking {
   id                  String        @id @default(cuid())
   customerId          String
-  providerId          String
-  serviceId           String
+  /// Null while an open broadcast is waiting for the first nearby pro to claim.
+  providerId          String?
+  /// Null on open broadcasts until a pro accepts and a matching service is bound.
+  serviceId           String?
   status              BookingStatus @default(REQUESTED)
   scheduledAt         DateTime?
   customerLat         Float?
@@ -192,17 +197,23 @@ model Booking {
   cancelReason        String?
   disputeNote         String?
   assignedStaffUserId String?
+  /// Open-dispatch fields (set when providerId is null).
+  broadcastCategory   ServiceCategory?
+  broadcastMode       ServiceMode?
+  broadcastRadiusKm   Float?
+  claimedAt           DateTime?
   createdAt           DateTime      @default(now())
   updatedAt           DateTime      @updatedAt
 
-  customer      User            @relation("CustomerBookings", fields: [customerId], references: [id])
-  provider      ProviderProfile @relation("ProviderBookings", fields: [providerId], references: [id])
-  service       Service         @relation(fields: [serviceId], references: [id])
-  assignedStaff User?           @relation("AssignedStaffBookings", fields: [assignedStaffUserId], references: [id])
+  customer      User             @relation("CustomerBookings", fields: [customerId], references: [id])
+  provider      ProviderProfile? @relation("ProviderBookings", fields: [providerId], references: [id])
+  service       Service?         @relation(fields: [serviceId], references: [id])
+  assignedStaff User?            @relation("AssignedStaffBookings", fields: [assignedStaffUserId], references: [id])
   review        Review?
 
   @@index([providerId, scheduledAt])
   @@index([assignedStaffUserId])
+  @@index([status, broadcastCategory])
 }
 
 model Review {

@@ -52,12 +52,12 @@ This matches what customers already understand from ride apps, so the booking fe
 
 ## Dispatch model (MVP)
 
-Yango-style **nearby + online + float**, not open multi-driver bidding yet:
+Yango-style **nearby + online + float**:
 
 1. Customer sees who’s online near them (Discover / Map / Book now).
-2. They request a specific pro + service (now or scheduled).
-3. That pro accepts (needs float) or declines; customer tracks movement on the map.
-4. Later: optional open request broadcast to many online pros in radius.
+2. They can **pick a specific pro** or send an **open request** (“Any nearby online pro”) by category.
+3. Open requests fan out to eligible online pros in radius; **first accept wins** (claim + float burn).
+4. Customer tracks movement on the map once claimed.
 
 ## Float packages (MVP defaults)
 

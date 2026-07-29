@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Injectable,
   Logger,
@@ -7,7 +8,12 @@ import {
   OnModuleDestroy,
   OnModuleInit,
 } from '@nestjs/common';
-import { BookingStatus, Prisma, ServiceMode } from '@prisma/client';
+import {
+  BookingStatus,
+  Prisma,
+  ServiceCategory,
+  ServiceMode,
+} from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 
@@ -167,27 +173,34 @@ export class BookingsService implements OnModuleInit, OnModuleDestroy {
     asProviderSide = false,
     extras: { nearCustomer?: boolean; distanceMeters?: number | null } = {},
   ): Record<string, unknown> {
+    const isBroadcast = booking.providerId == null;
     const isCustomer = booking.customerId === viewerId;
     const isProvider =
       asProviderSide ||
-      booking.provider.userId === viewerId ||
+      booking.provider?.userId === viewerId ||
       booking.assignedStaffUserId === viewerId;
-    const revealed = ACCEPTED_OR_LATER.includes(booking.status);
+    const revealed =
+      !isBroadcast && ACCEPTED_OR_LATER.includes(booking.status);
 
     let customerAddress = booking.customerAddress;
-    if (isProvider && !revealed) {
+    if ((isProvider || isBroadcast) && !revealed) {
       customerAddress = customerAddress
         ? 'Address shared after you accept'
         : null;
     }
 
-    const realProviderPhone = booking.provider.user.phone;
+    const realProviderPhone = booking.provider?.user.phone ?? null;
     const contactPhone = revealed
       ? realProviderPhone
       : maskPhone(realProviderPhone);
 
     const { provider, customer, assignedStaff, ...rest } = booking;
-    const { user: _user, ...providerPublic } = provider;
+    const providerPublic = provider
+      ? (() => {
+          const { user: _user, ...pub } = provider;
+          return pub;
+        })()
+      : null;
 
     const expiresAt =
       booking.status === BookingStatus.REQUESTED
@@ -214,8 +227,22 @@ export class BookingsService implements OnModuleInit, OnModuleDestroy {
       nearCustomer = distanceMeters <= NEARBY_RADIUS_M;
     }
 
+    const servicePayload = booking.service
+      ? booking.service
+      : isBroadcast
+        ? {
+            id: null,
+            name: `${(booking.broadcastCategory ?? 'SERVICE').replaceAll('_', ' ')} (open request)`,
+            category: booking.broadcastCategory,
+            mode: booking.broadcastMode ?? ServiceMode.COMES_TO_YOU,
+            priceZmw: booking.priceZmw,
+            durationMin: 45,
+          }
+        : null;
+
     return {
       ...rest,
+      isBroadcast,
       customerAddress,
       contactPhone,
       expiresAt,
@@ -223,6 +250,7 @@ export class BookingsService implements OnModuleInit, OnModuleDestroy {
       distanceMeters:
         distanceMeters != null ? Math.round(distanceMeters) : null,
       provider: providerPublic,
+      service: servicePayload,
       assignedStaff: assignedStaff
         ? {
             id: assignedStaff.id,
@@ -233,7 +261,7 @@ export class BookingsService implements OnModuleInit, OnModuleDestroy {
                 : maskPhone(assignedStaff.phone),
           }
         : null,
-      customer: isProvider
+      customer: isProvider || (isBroadcast && asProviderSide)
         ? {
             id: customer.id,
             name: customer.name,
@@ -310,6 +338,113 @@ export class BookingsService implements OnModuleInit, OnModuleDestroy {
     return this.serialize(booking, customerId);
   }
 
+  async createBroadcast(
+    customerId: string,
+    input: {
+      category: ServiceCategory;
+      mode?: ServiceMode;
+      customerLat: number;
+      customerLng: number;
+      customerAddress?: string;
+      broadcastRadiusKm?: number;
+      notes?: string;
+    },
+  ) {
+    if (
+      input.customerLat == null ||
+      input.customerLng == null ||
+      !Number.isFinite(input.customerLat) ||
+      !Number.isFinite(input.customerLng)
+    ) {
+      throw new BadRequestException('customerLat and customerLng required');
+    }
+    const radiusKm = input.broadcastRadiusKm ?? 12;
+    const mode = input.mode ?? ServiceMode.COMES_TO_YOU;
+
+    const eligible = await this.prisma.providerProfile.findMany({
+      where: {
+        isVerified: true,
+        isOnline: true,
+        lat: { not: null },
+        lng: { not: null },
+        creditBalance: { gte: 1 },
+        services: {
+          some: {
+            isActive: true,
+            category: input.category,
+            mode,
+          },
+        },
+      },
+      include: {
+        user: { select: { id: true } },
+        services: {
+          where: { isActive: true, category: input.category, mode },
+          orderBy: { priceZmw: 'asc' },
+        },
+      },
+    });
+
+    const nearby = eligible
+      .map((p) => {
+        const distanceKm = haversineMeters(
+          input.customerLat,
+          input.customerLng,
+          p.lat!,
+          p.lng!,
+        ) / 1000;
+        return { ...p, distanceKm };
+      })
+      .filter((p) => p.distanceKm <= radiusKm)
+      .sort((a, b) => a.distanceKm - b.distanceKm);
+
+    if (nearby.length === 0) {
+      throw new BadRequestException(
+        'No online pros nearby for that service right now.',
+      );
+    }
+
+    const priceZmw = Math.min(
+      ...nearby.map((p) => p.services[0]?.priceZmw ?? Number.MAX_SAFE_INTEGER),
+    );
+
+    const booking = await this.prisma.booking.create({
+      data: {
+        customerId,
+        providerId: null,
+        serviceId: null,
+        scheduledAt: null,
+        customerLat: input.customerLat,
+        customerLng: input.customerLng,
+        customerAddress: input.customerAddress,
+        notes: input.notes,
+        priceZmw: Number.isFinite(priceZmw) ? priceZmw : 0,
+        contactPhone: null,
+        status: BookingStatus.REQUESTED,
+        broadcastCategory: input.category,
+        broadcastMode: mode,
+        broadcastRadiusKm: radiusKm,
+      },
+      include: bookingInclude,
+    });
+
+    await Promise.all(
+      nearby.slice(0, 25).map((p) =>
+        this.notifications.notifyUser(p.user.id, {
+          title: 'Open ZANA request nearby',
+          body: `${input.category.replaceAll('_', ' ')} · ${p.distanceKm.toFixed(1)} km — accept to claim`,
+          data: {
+            type: 'booking',
+            bookingId: booking.id,
+            broadcast: '1',
+          },
+        }),
+      ),
+    );
+
+    return this.serialize(booking, customerId);
+  }
+
   private async assertNoOverlap(
     providerId: string,
     scheduledAt: Date,
@@ -332,7 +467,7 @@ export class BookingsService implements OnModuleInit, OnModuleDestroy {
 
     for (const other of conflicts) {
       if (!other.scheduledAt) continue;
-      const otherDur = (other.service.durationMin || 30) * 60 * 1000;
+      const otherDur = (other.service?.durationMin || 30) * 60 * 1000;
       const a0 = scheduledAt.getTime();
       const a1 = a0 + windowMs;
       const b0 = other.scheduledAt.getTime();
@@ -371,7 +506,7 @@ export class BookingsService implements OnModuleInit, OnModuleDestroy {
       stale.map((b) =>
         this.notifications.notifyUser(b.customerId, {
           title: 'No pro available',
-          body: `${b.service.name} timed out — try another nearby pro.`,
+          body: `${b.service?.name ?? b.broadcastCategory ?? 'Request'} timed out — try another nearby pro.`,
           data: {
             type: 'booking',
             status: BookingStatus.EXPIRED,
@@ -384,19 +519,66 @@ export class BookingsService implements OnModuleInit, OnModuleDestroy {
 
   async listForUser(userId: string, role: 'customer' | 'provider') {
     await this.expireStaleRequested();
-    let where: Prisma.BookingWhereInput;
     if (role === 'customer') {
-      where = { customerId: userId };
-    } else {
-      const providerIds = await this.providerIdsForUser(userId);
-      where = { providerId: { in: providerIds } };
+      const rows = await this.prisma.booking.findMany({
+        where: { customerId: userId },
+        include: bookingInclude,
+        orderBy: { createdAt: 'desc' },
+      });
+      return rows.map((b) => this.serialize(b, userId, false));
     }
-    const rows = await this.prisma.booking.findMany({
-      where,
+
+    const providerIds = await this.providerIdsForUser(userId);
+    const owned = await this.prisma.providerProfile.findMany({
+      where: { id: { in: providerIds } },
+      include: {
+        services: { where: { isActive: true }, select: { category: true } },
+      },
+    });
+    const myCategories = [
+      ...new Set(owned.flatMap((p) => p.services.map((s) => s.category))),
+    ];
+    const onlineOwned = owned.filter((p) => p.isOnline && p.lat != null && p.lng != null);
+
+    const mine = await this.prisma.booking.findMany({
+      where: { providerId: { in: providerIds } },
       include: bookingInclude,
       orderBy: { createdAt: 'desc' },
     });
-    return rows.map((b) => this.serialize(b, userId, role === 'provider'));
+
+    let broadcasts: BookingWithRelations[] = [];
+    if (onlineOwned.length > 0 && myCategories.length > 0) {
+      const open = await this.prisma.booking.findMany({
+        where: {
+          providerId: null,
+          status: BookingStatus.REQUESTED,
+          broadcastCategory: { in: myCategories },
+          customerLat: { not: null },
+          customerLng: { not: null },
+        },
+        include: bookingInclude,
+        orderBy: { createdAt: 'desc' },
+        take: 40,
+      });
+      broadcasts = open.filter((b) =>
+        onlineOwned.some((p) => {
+          const radius = b.broadcastRadiusKm ?? 12;
+          const km =
+            haversineMeters(b.customerLat!, b.customerLng!, p.lat!, p.lng!) /
+            1000;
+          return (
+            km <= radius &&
+            p.services.some((s) => s.category === b.broadcastCategory)
+          );
+        }),
+      );
+    }
+
+    const byId = new Map<string, BookingWithRelations>();
+    for (const b of [...broadcasts, ...mine]) byId.set(b.id, b);
+    return [...byId.values()]
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+      .map((b) => this.serialize(b, userId, true));
   }
 
   private async providerIdsForUser(userId: string): Promise<string[]> {
@@ -454,11 +636,24 @@ export class BookingsService implements OnModuleInit, OnModuleDestroy {
     });
     if (!booking) throw new NotFoundException('Booking not found');
     const providerIds = await this.providerIdsForUser(userId);
-    const asProvider = providerIds.includes(booking.providerId);
-    if (booking.customerId !== userId && !asProvider) {
+    const asProvider =
+      booking.providerId != null && providerIds.includes(booking.providerId);
+    const asBroadcastViewer =
+      booking.providerId == null &&
+      booking.status === BookingStatus.REQUESTED &&
+      providerIds.length > 0;
+    if (
+      booking.customerId !== userId &&
+      !asProvider &&
+      !asBroadcastViewer
+    ) {
       throw new ForbiddenException();
     }
-    return this.serialize(booking, userId, asProvider);
+    return this.serialize(
+      booking,
+      userId,
+      asProvider || asBroadcastViewer,
+    );
   }
 
   async updateProviderLocation(
@@ -472,6 +667,7 @@ export class BookingsService implements OnModuleInit, OnModuleDestroy {
       include: bookingInclude,
     });
     if (!booking) throw new NotFoundException('Booking not found');
+    if (!booking.providerId) throw new ForbiddenException();
     const providerIds = await this.providerIdsForUser(providerUserId);
     if (!providerIds.includes(booking.providerId)) {
       throw new ForbiddenException();
@@ -506,23 +702,26 @@ export class BookingsService implements OnModuleInit, OnModuleDestroy {
     if (
       autoArrival &&
       updated.status === BookingStatus.ON_THE_WAY &&
-      updated.service.mode === ServiceMode.COMES_TO_YOU &&
+      updated.service?.mode === ServiceMode.COMES_TO_YOU &&
       distanceMeters != null &&
-      distanceMeters <= ARRIVAL_RADIUS_M
+      distanceMeters <= ARRIVAL_RADIUS_M &&
+      updated.provider
     ) {
       updated = await this.prisma.booking.update({
         where: { id: bookingId },
         data: { status: BookingStatus.CONFIRMED },
         include: bookingInclude,
       });
-      await this.notifications.notifyBookingParties({
-        customerId: updated.customerId,
-        providerUserId: updated.provider.userId,
-        status: BookingStatus.CONFIRMED,
-        serviceName: updated.service.name,
-        bookingId: updated.id,
-      });
-    } else if (nearCustomer) {
+      if (updated.provider) {
+        await this.notifications.notifyBookingParties({
+          customerId: updated.customerId,
+          providerUserId: updated.provider.userId,
+          status: BookingStatus.CONFIRMED,
+          serviceName: updated.service?.name ?? 'Booking',
+          bookingId: updated.id,
+        });
+      }
+    } else if (nearCustomer && updated.provider) {
       const last = this.lastLocationNotify.get(bookingId) ?? 0;
       if (Date.now() - last > 45_000) {
         this.lastLocationNotify.set(bookingId, Date.now());
@@ -597,7 +796,8 @@ export class BookingsService implements OnModuleInit, OnModuleDestroy {
     const providerIds = await this.providerIdsForUser(userId);
     const allowed =
       booking.customerId === userId ||
-      providerIds.includes(booking.providerId);
+      (booking.providerId != null &&
+        providerIds.includes(booking.providerId));
     if (!allowed) throw new ForbiddenException();
 
     const prefix =
@@ -615,7 +815,8 @@ export class BookingsService implements OnModuleInit, OnModuleDestroy {
     return this.serialize(
       updated,
       userId,
-      providerIds.includes(booking.providerId),
+      booking.providerId != null &&
+        providerIds.includes(booking.providerId),
     );
   }
 
@@ -623,7 +824,11 @@ export class BookingsService implements OnModuleInit, OnModuleDestroy {
     bookingId: string,
     actor: { id: string; isProvider: boolean },
     next: BookingStatus,
-    extras: { declineReason?: string; cancelReason?: string } = {},
+    extras: {
+      declineReason?: string;
+      cancelReason?: string;
+      serviceId?: string;
+    } = {},
   ) {
     const booking = await this.prisma.booking.findUnique({
       where: { id: bookingId },
@@ -639,8 +844,14 @@ export class BookingsService implements OnModuleInit, OnModuleDestroy {
 
     const isOwnerCustomer = booking.customerId === actor.id;
     const providerIds = await this.providerIdsForUser(actor.id);
-    const isOwnerProvider = providerIds.includes(booking.providerId);
-    if (!isOwnerCustomer && !isOwnerProvider) {
+    const isBroadcastOpen =
+      booking.providerId == null && booking.status === BookingStatus.REQUESTED;
+    const isOwnerProvider =
+      booking.providerId != null && providerIds.includes(booking.providerId);
+    const canClaimBroadcast =
+      isBroadcastOpen && providerIds.length > 0 && actor.isProvider;
+
+    if (!isOwnerCustomer && !isOwnerProvider && !canClaimBroadcast) {
       throw new ForbiddenException();
     }
 
@@ -659,7 +870,12 @@ export class BookingsService implements OnModuleInit, OnModuleDestroy {
       next === BookingStatus.IN_SERVICE ||
       next === BookingStatus.COMPLETED
     ) {
-      if (!isOwnerProvider) throw new ForbiddenException('Provider action only');
+      if (
+        !isOwnerProvider &&
+        !(canClaimBroadcast && next === BookingStatus.ACCEPTED)
+      ) {
+        throw new ForbiddenException('Provider action only');
+      }
     }
     if (
       next === BookingStatus.CANCELLED &&
@@ -672,13 +888,8 @@ export class BookingsService implements OnModuleInit, OnModuleDestroy {
       throw new ForbiddenException('Customer rates after completion');
     }
 
-    // At-shop: prefer CONFIRMED over ON_THE_WAY from ACCEPTED is fine both ways
-    if (
-      next === BookingStatus.ON_THE_WAY &&
-      booking.service.mode === ServiceMode.AT_SHOP &&
-      booking.status === BookingStatus.ACCEPTED
-    ) {
-      // Allow — some shops still travel to client; no hard block
+    if (isBroadcastOpen && next === BookingStatus.DECLINED) {
+      return this.serialize(booking, actor.id, true);
     }
 
     let updated: BookingWithRelations;
@@ -687,13 +898,78 @@ export class BookingsService implements OnModuleInit, OnModuleDestroy {
         ? { cancelReason: extras.cancelReason.trim() }
         : {};
 
-    if (next === BookingStatus.ACCEPTED && !booking.creditBurned) {
+    if (isBroadcastOpen && next === BookingStatus.ACCEPTED) {
+      const claimerId = providerIds[0];
+      const claimer = await this.prisma.providerProfile.findUnique({
+        where: { id: claimerId },
+        include: {
+          user: true,
+          services: {
+            where: {
+              isActive: true,
+              category: booking.broadcastCategory ?? undefined,
+              mode: booking.broadcastMode ?? ServiceMode.COMES_TO_YOU,
+            },
+            orderBy: { priceZmw: 'asc' },
+          },
+        },
+      });
+      if (!claimer) throw new ForbiddenException('Provider profile required');
+      if (claimer.creditBalance < 1) {
+        throw new BadRequestException('Insufficient float credits');
+      }
+      const service =
+        (extras.serviceId
+          ? claimer.services.find((s) => s.id === extras.serviceId)
+          : null) ?? claimer.services[0];
+      if (!service) {
+        throw new BadRequestException(
+          'No matching active service to claim this request',
+        );
+      }
+
+      updated = await this.prisma.$transaction(async (tx) => {
+        const claimed = await tx.booking.updateMany({
+          where: {
+            id: bookingId,
+            status: BookingStatus.REQUESTED,
+            providerId: null,
+          },
+          data: {
+            providerId: claimer.id,
+            serviceId: service.id,
+            status: BookingStatus.ACCEPTED,
+            creditBurned: true,
+            claimedAt: new Date(),
+            priceZmw: service.priceZmw,
+            providerLat: claimer.lat,
+            providerLng: claimer.lng,
+            providerLocationUpdatedAt: new Date(),
+            contactPhone: claimer.user.phone,
+          },
+        });
+        if (claimed.count === 0) {
+          throw new ConflictException('Already taken by another pro');
+        }
+        await tx.providerProfile.update({
+          where: { id: claimer.id },
+          data: { creditBalance: { decrement: 1 } },
+        });
+        return tx.booking.findUniqueOrThrow({
+          where: { id: bookingId },
+          include: bookingInclude,
+        });
+      });
+    } else if (next === BookingStatus.ACCEPTED && !booking.creditBurned) {
+      if (!booking.providerId || !booking.provider) {
+        throw new BadRequestException('Booking has no provider');
+      }
       if (booking.provider.creditBalance < 1) {
         throw new BadRequestException('Insufficient float credits');
       }
       updated = await this.prisma.$transaction(async (tx) => {
         await tx.providerProfile.update({
-          where: { id: booking.providerId },
+          where: { id: booking.providerId! },
           data: { creditBalance: { decrement: 1 } },
         });
         return tx.booking.update({
@@ -701,18 +977,21 @@ export class BookingsService implements OnModuleInit, OnModuleDestroy {
           data: {
             status: next,
             creditBurned: true,
-            providerLat: booking.provider.lat,
-            providerLng: booking.provider.lng,
+            providerLat: booking.provider!.lat,
+            providerLng: booking.provider!.lng,
             providerLocationUpdatedAt: new Date(),
-            contactPhone: booking.provider.user.phone,
+            contactPhone: booking.provider!.user.phone,
           },
           include: bookingInclude,
         });
       });
     } else if (next === BookingStatus.CANCELLED && booking.creditBurned) {
+      if (!booking.providerId) {
+        throw new BadRequestException('Booking has no provider');
+      }
       updated = await this.prisma.$transaction(async (tx) => {
         await tx.providerProfile.update({
-          where: { id: booking.providerId },
+          where: { id: booking.providerId! },
           data: { creditBalance: { increment: 1 } },
         });
         return tx.booking.update({
@@ -726,7 +1005,7 @@ export class BookingsService implements OnModuleInit, OnModuleDestroy {
         where: { id: bookingId },
         data: {
           status: next,
-          ...(next === BookingStatus.ACCEPTED
+          ...(next === BookingStatus.ACCEPTED && booking.provider
             ? { contactPhone: booking.provider.user.phone }
             : {}),
           ...(next === BookingStatus.DECLINED && extras.declineReason
@@ -738,14 +1017,23 @@ export class BookingsService implements OnModuleInit, OnModuleDestroy {
       });
     }
 
-    await this.notifications.notifyBookingParties({
-      customerId: booking.customerId,
-      providerUserId: booking.provider.userId,
-      status: next,
-      serviceName: booking.service.name,
-      bookingId: updated.id,
-    });
+    if (updated.provider) {
+      await this.notifications.notifyBookingParties({
+        customerId: updated.customerId,
+        providerUserId: updated.provider.userId,
+        status: next,
+        serviceName:
+          updated.service?.name ??
+          updated.broadcastCategory ??
+          'Booking',
+        bookingId: updated.id,
+      });
+    }
 
-    return this.serialize(updated, actor.id, isOwnerProvider);
+    return this.serialize(
+      updated,
+      actor.id,
+      isOwnerProvider || canClaimBroadcast,
+    );
   }
 }

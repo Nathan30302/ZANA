@@ -77,6 +77,36 @@ export class AuthService {
     });
   }
 
+  async updateProfile(
+    userId: string,
+    input: {
+      name?: string;
+      homeLat?: number;
+      homeLng?: number;
+      homeAddress?: string;
+    },
+  ) {
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        ...(input.name != null ? { name: input.name.trim() || null } : {}),
+        ...(input.homeLat != null ? { homeLat: input.homeLat } : {}),
+        ...(input.homeLng != null ? { homeLng: input.homeLng } : {}),
+        ...(input.homeAddress != null
+          ? { homeAddress: input.homeAddress.trim() || null }
+          : {}),
+      },
+      select: {
+        id: true,
+        phone: true,
+        name: true,
+        homeLat: true,
+        homeLng: true,
+        homeAddress: true,
+      },
+    });
+  }
+
   async userFromToken(token?: string) {
     if (!token) return null;
     const raw = token.replace(/^Bearer\s+/i, '');

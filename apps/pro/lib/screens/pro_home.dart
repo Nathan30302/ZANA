@@ -1102,11 +1102,12 @@ class _JobTile extends StatelessWidget {
     final address = job['customerAddress'] as String?;
     final assigned = job['assignedStaff'] as Map<String, dynamic>?;
     final isNew = status == 'REQUESTED';
+    final isBroadcast = job['isBroadcast'] == true;
 
     String? primaryLabel;
     VoidCallback? primaryAction;
     if (status == 'REQUESTED') {
-      primaryLabel = 'Accept';
+      primaryLabel = isBroadcast ? 'Claim job' : 'Accept';
       primaryAction = onAccept;
     } else if (status == 'ACCEPTED') {
       primaryLabel = mode == 'AT_SHOP' ? 'Arrived' : 'On the way';
@@ -1152,7 +1153,7 @@ class _JobTile extends StatelessWidget {
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
-                        _label(status),
+                        isBroadcast && isNew ? 'Open request' : _label(status),
                         style: TextStyle(
                           color: _badgeColor(status),
                           fontWeight: FontWeight.w800,
@@ -1179,6 +1180,17 @@ class _JobTile extends StatelessWidget {
                     fontSize: 17,
                   ),
                 ),
+                if (isBroadcast && isNew) ...[
+                  const SizedBox(height: 4),
+                  const Text(
+                    'First to accept claims this nearby customer',
+                    style: TextStyle(
+                      color: ZanaColors.copper,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 4),
                 Text(
                   [
