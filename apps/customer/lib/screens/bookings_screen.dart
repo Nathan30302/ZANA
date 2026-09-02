@@ -6,6 +6,7 @@ import 'package:zana_customer/api.dart';
 import 'package:zana_customer/screens/auth_sheet.dart';
 import 'package:zana_customer/screens/booking_detail_screen.dart';
 import 'package:zana_customer/theme.dart';
+import 'package:zana_customer/widgets/zana_ui.dart';
 
 class BookingsScreen extends StatefulWidget {
   const BookingsScreen({super.key, this.embedded = false});
@@ -26,10 +27,10 @@ class _BookingsScreenState extends State<BookingsScreen>
   bool _authPrompted = false;
 
   static const filters = [
-    'ALL',
-    'ACTIVE',
-    'COMPLETED',
-    'CANCELLED',
+    ('ALL', 'All'),
+    ('ACTIVE', 'Active'),
+    ('COMPLETED', 'Done'),
+    ('CANCELLED', 'Cancelled'),
   ];
 
   @override
@@ -139,30 +140,42 @@ class _BookingsScreenState extends State<BookingsScreen>
     }).toList();
   }
 
+  Color _statusColor(String? status) {
+    switch (status) {
+      case 'COMPLETED':
+      case 'RATED':
+        return ZanaColors.sage;
+      case 'CANCELLED':
+      case 'DECLINED':
+      case 'EXPIRED':
+        return ZanaColors.muted;
+      default:
+        return ZanaColors.copper;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final content = loading && items == null
-        ? const Center(child: CircularProgressIndicator())
+        ? const Center(
+            child: CircularProgressIndicator(color: ZanaColors.copper),
+          )
         : Column(
             children: [
               SizedBox(
                 height: 44,
                 child: ListView.separated(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
                   scrollDirection: Axis.horizontal,
                   itemCount: filters.length,
                   separatorBuilder: (_, __) => const SizedBox(width: 8),
                   itemBuilder: (context, i) {
-                    final f = filters[i];
-                    final selected = f == filter;
-                    return ChoiceChip(
-                      label: Text(f),
-                      selected: selected,
-                      onSelected: (_) => setState(() => filter = f),
-                      selectedColor: ZanaColors.charcoal,
-                      labelStyle: TextStyle(
-                        color: selected ? Colors.white : ZanaColors.ink,
-                      ),
+                    final (code, label) = filters[i];
+                    return ZanaChip(
+                      label: label,
+                      selected: code == filter,
+                      emphasis: true,
+                      onTap: () => setState(() => filter = code),
                     );
                   },
                 ),
@@ -172,39 +185,19 @@ class _BookingsScreenState extends State<BookingsScreen>
           );
 
     if (widget.embedded) {
-      return ColoredBox(
-        color: ZanaColors.cream,
+      return DecoratedBox(
+        decoration: const BoxDecoration(gradient: ZanaColors.surfaceGradient),
         child: SafeArea(
           bottom: false,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 16, 8, 8),
-                child: Row(
-                  children: [
-                    const Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Bookings',
-                            style: TextStyle(
-                              fontSize: 24,
-                              fontWeight: FontWeight.w800,
-                              color: ZanaColors.ink,
-                            ),
-                          ),
-                          SizedBox(height: 4),
-                          Text(
-                            'Track every appointment',
-                            style: TextStyle(color: ZanaColors.muted),
-                          ),
-                        ],
-                      ),
-                    ),
-                    if (api.token != null)
-                      IconButton(
+              ZanaScreenHeader(
+                overline: 'YOUR APPOINTMENTS',
+                title: 'Bookings',
+                subtitle: 'Track every appointment in one place',
+                trailing: api.token != null
+                    ? IconButton(
                         tooltip: 'Sign out',
                         onPressed: () async {
                           _pollTimer?.cancel();
@@ -216,9 +209,8 @@ class _BookingsScreenState extends State<BookingsScreen>
                           });
                         },
                         icon: const Icon(Icons.logout_rounded),
-                      ),
-                  ],
-                ),
+                      )
+                    : null,
               ),
               Expanded(child: content),
             ],
@@ -228,59 +220,28 @@ class _BookingsScreenState extends State<BookingsScreen>
     }
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('My bookings'),
-        actions: [
-          if (api.token != null)
-            IconButton(
-              tooltip: 'Sign out',
-              onPressed: () async {
-                _pollTimer?.cancel();
-                await api.logout();
-                if (!context.mounted) return;
-                Navigator.of(context).pop();
-              },
-              icon: const Icon(Icons.logout),
-            ),
-        ],
-      ),
+      appBar: AppBar(title: const Text('My bookings')),
       body: content,
     );
   }
 
   Widget _buildBody() {
     if (api.token == null) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text(
-                'Sign in to see your bookings.',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: ZanaColors.muted),
-              ),
-              if (widget.embedded) ...[
-                const SizedBox(height: 14),
-                FilledButton(
-                  style: FilledButton.styleFrom(
-                    backgroundColor: ZanaColors.charcoal,
-                  ),
-                  onPressed: () async {
-                    final ok = await showAuthSheet(context);
-                    if (ok) {
-                      _authPrompted = true;
-                      await _refresh(silent: false);
-                      _startPolling();
-                    }
-                  },
-                  child: const Text('Sign in'),
-                ),
-              ],
-            ],
-          ),
-        ),
+      return ZanaEmptyState(
+        icon: Icons.event_note_outlined,
+        title: 'Sign in required',
+        subtitle: 'Sign in to see and track your bookings.',
+        actionLabel: widget.embedded ? 'Sign in' : null,
+        onAction: widget.embedded
+            ? () async {
+                final ok = await showAuthSheet(context);
+                if (ok) {
+                  _authPrompted = true;
+                  await _refresh(silent: false);
+                  _startPolling();
+                }
+              }
+            : null,
       );
     }
     if (error != null && items == null) {
@@ -288,42 +249,30 @@ class _BookingsScreenState extends State<BookingsScreen>
     }
     final filtered = _applyFilter(items ?? []);
     if (filtered.isEmpty) {
-      return const Center(
-        child: Text(
-          'No bookings in this view.\nFind a pro on Discover.',
-          textAlign: TextAlign.center,
-          style: TextStyle(color: ZanaColors.muted),
-        ),
+      return ZanaEmptyState(
+        icon: Icons.calendar_today_outlined,
+        title: 'No bookings yet',
+        subtitle: 'Find a pro on Discover and book your first appointment.',
       );
     }
     return RefreshIndicator(
+      color: ZanaColors.copper,
       onRefresh: () => _refresh(silent: false),
       child: ListView.separated(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.fromLTRB(20, 8, 20, 100),
         itemCount: filtered.length,
-        separatorBuilder: (_, __) => const SizedBox(height: 8),
+        separatorBuilder: (_, __) => const SizedBox(height: 12),
         itemBuilder: (context, i) {
           final b = filtered[i] as Map<String, dynamic>;
           final service = b['service'] as Map<String, dynamic>?;
           final provider = b['provider'] as Map<String, dynamic>?;
           final created = DateTime.tryParse(b['createdAt'] as String? ?? '');
-          return Card(
+          final status = b['status'] as String?;
+
+          return Material(
             color: ZanaColors.paper,
-            elevation: 0,
-            child: ListTile(
-              title: Text(service?['name'] as String? ?? 'Service'),
-              subtitle: Text(
-                '${provider?['displayName'] ?? 'Pro'} · ${b['status']}'
-                '${created != null ? '\n${DateFormat('d MMM · HH:mm').format(created.toLocal())}' : ''}',
-              ),
-              isThreeLine: created != null,
-              trailing: Text(
-                'K${b['priceZmw']}',
-                style: const TextStyle(
-                  fontWeight: FontWeight.w700,
-                  color: ZanaColors.copper,
-                ),
-              ),
+            borderRadius: BorderRadius.circular(18),
+            child: InkWell(
               onTap: () async {
                 await Navigator.of(context).push(
                   MaterialPageRoute(
@@ -334,6 +283,91 @@ class _BookingsScreenState extends State<BookingsScreen>
                 );
                 _refresh(silent: true);
               },
+              borderRadius: BorderRadius.circular(18),
+              child: Ink(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(18),
+                  boxShadow: [ZanaDecorations.softShadow],
+                  border: Border.all(
+                    color: ZanaColors.ink.withValues(alpha: 0.05),
+                  ),
+                ),
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: ZanaColors.blush,
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: const Icon(
+                        Icons.spa_outlined,
+                        color: ZanaColors.copper,
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            service?['name'] as String? ?? 'Service',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w700,
+                              fontSize: 15,
+                            ),
+                          ),
+                          const SizedBox(height: 3),
+                          Text(
+                            provider?['displayName'] as String? ?? 'Pro',
+                            style: ZanaText.subtitle(context).copyWith(fontSize: 13),
+                          ),
+                          if (created != null) ...[
+                            const SizedBox(height: 2),
+                            Text(
+                              DateFormat('d MMM · HH:mm').format(created.toLocal()),
+                              style: ZanaText.subtitle(context).copyWith(fontSize: 12),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(
+                          'K${b['priceZmw']}',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w800,
+                            color: ZanaColors.copper,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 3,
+                          ),
+                          decoration: BoxDecoration(
+                            color: _statusColor(status).withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: Text(
+                            status ?? '',
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              color: _statusColor(status),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
             ),
           );
         },

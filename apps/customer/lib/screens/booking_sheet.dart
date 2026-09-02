@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:intl/intl.dart';
 import 'package:zana_customer/theme.dart';
+import 'package:zana_customer/widgets/zana_ui.dart';
 
 class BookingDraft {
   BookingDraft({
@@ -38,66 +39,100 @@ Future<BookingDraft?> showBookingSheet(
     isScrollControlled: true,
     backgroundColor: ZanaColors.paper,
     shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
     ),
     builder: (ctx) {
       return StatefulBuilder(
         builder: (ctx, setModal) {
           return Padding(
             padding: EdgeInsets.fromLTRB(
-              20,
-              20,
-              20,
-              20 + MediaQuery.of(ctx).viewInsets.bottom,
+              24,
+              12,
+              24,
+              24 + MediaQuery.of(ctx).viewInsets.bottom,
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                const ZanaSheetHandle(),
                 Text(
                   'Book $serviceName',
-                  style: Theme.of(ctx).textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.w800,
-                      ),
+                  style: ZanaText.display(ctx).copyWith(fontSize: 24),
                 ),
-                const SizedBox(height: 14),
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('When'),
-                  subtitle: Text(DateFormat('EEE d MMM · HH:mm').format(when)),
-                  trailing: const Icon(Icons.schedule),
-                  onTap: () async {
-                    final date = await showDatePicker(
-                      context: ctx,
-                      firstDate: DateTime.now(),
-                      lastDate: DateTime.now().add(const Duration(days: 60)),
-                      initialDate: when,
-                    );
-                    if (date == null) return;
-                    if (!ctx.mounted) return;
-                    final time = await showTimePicker(
-                      context: ctx,
-                      initialTime: TimeOfDay.fromDateTime(when),
-                    );
-                    if (time == null) return;
-                    setModal(() {
-                      when = DateTime(
-                        date.year,
-                        date.month,
-                        date.day,
-                        time.hour,
-                        time.minute,
+                const SizedBox(height: 6),
+                Text(
+                  'Choose a time and confirm your details.',
+                  style: ZanaText.subtitle(ctx),
+                ),
+                const SizedBox(height: 20),
+                Material(
+                  color: ZanaColors.blush,
+                  borderRadius: BorderRadius.circular(16),
+                  child: InkWell(
+                    onTap: () async {
+                      final date = await showDatePicker(
+                        context: ctx,
+                        firstDate: DateTime.now(),
+                        lastDate: DateTime.now().add(const Duration(days: 60)),
+                        initialDate: when,
                       );
-                    });
-                  },
+                      if (date == null) return;
+                      if (!ctx.mounted) return;
+                      final time = await showTimePicker(
+                        context: ctx,
+                        initialTime: TimeOfDay.fromDateTime(when),
+                      );
+                      if (time == null) return;
+                      setModal(() {
+                        when = DateTime(
+                          date.year,
+                          date.month,
+                          date.day,
+                          time.hour,
+                          time.minute,
+                        );
+                      });
+                    },
+                    borderRadius: BorderRadius.circular(16),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.schedule_rounded, color: ZanaColors.copper),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'When',
+                                  style: ZanaText.subtitle(ctx).copyWith(fontSize: 12),
+                                ),
+                                Text(
+                                  DateFormat('EEE d MMM · HH:mm').format(when),
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 15,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const Icon(Icons.chevron_right_rounded),
+                        ],
+                      ),
+                    ),
+                  ),
                 ),
+                const SizedBox(height: 12),
                 TextField(
                   controller: addressCtrl,
-                  decoration: InputDecoration(
-                    labelText: serviceMode == 'COMES_TO_YOU'
+                  decoration: ZanaDecorations.inputDecoration(
+                    hint: serviceMode == 'COMES_TO_YOU'
                         ? 'Home / workplace address'
                         : 'Location note',
-                    border: const OutlineInputBorder(),
+                    prefixIcon: Icons.place_outlined,
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -140,9 +175,9 @@ Future<BookingDraft?> showBookingSheet(
                   ),
                 TextField(
                   controller: notesCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'Notes (optional)',
-                    border: OutlineInputBorder(),
+                  decoration: ZanaDecorations.inputDecoration(
+                    hint: 'Notes (optional)',
+                    prefixIcon: Icons.notes_outlined,
                   ),
                 ),
                 if (error != null) ...[
@@ -153,9 +188,6 @@ Future<BookingDraft?> showBookingSheet(
                 SizedBox(
                   width: double.infinity,
                   child: FilledButton(
-                    style: FilledButton.styleFrom(
-                      backgroundColor: ZanaColors.charcoal,
-                    ),
                     onPressed: () {
                       if (addressCtrl.text.trim().isEmpty) {
                         setModal(() => error = 'Add an address');

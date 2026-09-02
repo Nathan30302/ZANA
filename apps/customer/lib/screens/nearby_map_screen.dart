@@ -4,6 +4,7 @@ import 'package:latlong2/latlong.dart';
 import 'package:zana_customer/api.dart';
 import 'package:zana_customer/screens/provider_screen.dart';
 import 'package:zana_customer/theme.dart';
+import 'package:zana_customer/widgets/zana_ui.dart';
 
 class NearbyMapScreen extends StatefulWidget {
   const NearbyMapScreen({
@@ -60,7 +61,7 @@ class _NearbyMapScreenState extends State<NearbyMapScreen> {
               );
             },
             child: const Icon(
-              Icons.location_on,
+              Icons.location_on_rounded,
               color: ZanaColors.copper,
               size: 40,
             ),
@@ -85,40 +86,30 @@ class _NearbyMapScreenState extends State<NearbyMapScreen> {
     );
 
     if (widget.embedded) {
-      return ColoredBox(
-        color: ZanaColors.cream,
+      return DecoratedBox(
+        decoration: const BoxDecoration(gradient: ZanaColors.surfaceGradient),
         child: SafeArea(
           bottom: false,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Padding(
-                padding: EdgeInsets.fromLTRB(20, 16, 20, 12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Map',
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.w800,
-                        color: ZanaColors.ink,
-                      ),
-                    ),
-                    SizedBox(height: 4),
-                    Text(
-                      'Tap a pin to open a pro',
-                      style: TextStyle(color: ZanaColors.muted),
-                    ),
-                  ],
-                ),
+              const ZanaScreenHeader(
+                overline: 'EXPLORE LUSAKA',
+                title: 'Map',
+                subtitle: 'Tap a pin to view and book a pro',
               ),
               Expanded(
-                child: ClipRRect(
-                  borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(20),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 100),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(22),
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        boxShadow: [ZanaDecorations.cardShadow],
+                      ),
+                      child: map,
+                    ),
                   ),
-                  child: map,
                 ),
               ),
             ],
