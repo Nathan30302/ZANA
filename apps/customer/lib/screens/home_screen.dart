@@ -3,8 +3,14 @@ import 'package:geolocator/geolocator.dart';
 import 'package:zana_customer/api.dart';
 import 'package:zana_customer/screens/provider_screen.dart';
 import 'package:zana_customer/theme.dart';
+import 'package:zana_customer/widgets/zana_ui.dart';
 
-const categories = ['ALL', 'BARBER', 'SALON', 'MOBILE'];
+const categories = [
+  ('ALL', 'Nearby', Icons.near_me_outlined),
+  ('BARBER', 'Barber', Icons.content_cut_rounded),
+  ('SALON', 'Salon', Icons.brush_rounded),
+  ('MOBILE', 'Mobile', Icons.directions_car_filled_outlined),
+];
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({
@@ -79,28 +85,13 @@ class _HomeScreenState extends State<HomeScreen> {
       }
       if (perm == LocationPermission.denied ||
           perm == LocationPermission.deniedForever) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Using Lusaka CBD — enable location for nearby pros'),
-            ),
-          );
-        }
         return;
       }
       final pos = await Geolocator.getCurrentPosition();
       userLat = pos.latitude;
       userLng = pos.longitude;
       widget.onLocationResolved?.call(userLat, userLng);
-    } catch (_) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Using Lusaka CBD — enable location for nearby pros'),
-          ),
-        );
-      }
-    }
+    } catch (_) {}
   }
 
   Future<List<dynamic>> _load() async {
@@ -119,116 +110,41 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() => future = _load());
   }
 
-  String _categoryLabel(String c) {
-    switch (c) {
-      case 'ALL':
-        return 'Nearby';
-      case 'BARBER':
-        return 'Barber';
-      case 'SALON':
-        return 'Salon';
-      case 'MOBILE':
-        return 'Mobile';
-      default:
-        return c;
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return DecoratedBox(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            Color(0xFFF3EDE4),
-            ZanaColors.cream,
-            ZanaColors.cream,
-          ],
-          stops: [0, 0.28, 1],
-        ),
-      ),
+      decoration: const BoxDecoration(gradient: ZanaColors.surfaceGradient),
       child: SafeArea(
         bottom: false,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 12, 12, 0),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'ZANA',
-                          style: Theme.of(context)
-                              .textTheme
-                              .headlineMedium
-                              ?.copyWith(
-                                fontWeight: FontWeight.w800,
-                                letterSpacing: 3,
-                                color: ZanaColors.copper,
-                                height: 1.05,
-                              ),
+            _HeroHeader(
+              onSignOut: api.token != null
+                  ? () async {
+                      await api.logout();
+                      if (!context.mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: const Text('Signed out'),
+                          behavior: SnackBarBehavior.floating,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                         ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Beauty & cuts around Lusaka',
-                          style:
-                              Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                    color: ZanaColors.muted,
-                                  ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  if (api.token != null)
-                    IconButton(
-                      tooltip: 'Sign out',
-                      onPressed: () async {
-                        await api.logout();
-                        if (!context.mounted) return;
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Signed out')),
-                        );
-                        setState(() {});
-                      },
-                      icon: const Icon(Icons.logout_rounded, size: 22),
-                      color: ZanaColors.muted,
-                    ),
-                ],
-              ),
+                      );
+                      setState(() {});
+                    }
+                  : null,
             ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 18, 20, 0),
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
               child: TextField(
                 controller: searchCtrl,
-                decoration: InputDecoration(
-                  hintText: 'Search salons, barbers, stylists',
-                  hintStyle: const TextStyle(color: ZanaColors.muted),
-                  filled: true,
-                  fillColor: ZanaColors.paper,
-                  contentPadding: const EdgeInsets.symmetric(vertical: 14),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    borderSide: BorderSide.none,
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    borderSide: BorderSide(
-                      color: ZanaColors.ink.withValues(alpha: 0.04),
-                    ),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    borderSide: const BorderSide(color: ZanaColors.copper),
-                  ),
-                  prefixIcon: const Icon(Icons.search_rounded),
-                  suffixIcon: query.isEmpty
+                decoration: ZanaDecorations.inputDecoration(
+                  hint: 'Search salons, barbers, stylists…',
+                  prefixIcon: Icons.search_rounded,
+                  suffix: query.isEmpty
                       ? null
                       : IconButton(
                           icon: const Icon(Icons.close_rounded, size: 18),
@@ -239,6 +155,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           },
                         ),
                 ),
+                onChanged: (v) => query = v.trim(),
                 onSubmitted: (v) {
                   query = v.trim();
                   _reload();
@@ -246,14 +163,14 @@ class _HomeScreenState extends State<HomeScreen> {
                 textInputAction: TextInputAction.search,
               ),
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: 16),
             SizedBox(
-              height: 38,
+              height: 42,
               child: ListView(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 scrollDirection: Axis.horizontal,
                 children: [
-                  _FilterChip(
+                  ZanaChip(
                     label: 'All areas',
                     selected: area == null,
                     onTap: () {
@@ -264,7 +181,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ...areas.map(
                     (a) => Padding(
                       padding: const EdgeInsets.only(left: 8),
-                      child: _FilterChip(
+                      child: ZanaChip(
                         label: a,
                         selected: area == a,
                         onTap: () {
@@ -277,37 +194,43 @@ class _HomeScreenState extends State<HomeScreen> {
                 ],
               ),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 12),
             SizedBox(
-              height: 40,
+              height: 44,
               child: ListView.separated(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 scrollDirection: Axis.horizontal,
                 itemCount: categories.length,
                 separatorBuilder: (_, __) => const SizedBox(width: 8),
                 itemBuilder: (context, i) {
-                  final c = categories[i];
-                  return _FilterChip(
-                    label: _categoryLabel(c),
-                    selected: c == category,
+                  final (code, label, icon) = categories[i];
+                  return ZanaChip(
+                    label: label,
+                    icon: icon,
+                    selected: code == category,
                     emphasis: true,
                     onTap: () {
-                      category = c;
+                      category = code;
                       _reload();
                     },
                   );
                 },
               ),
             ),
-            const SizedBox(height: 8),
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 8, 20, 4),
-              child: Text(
-                'Near you',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w700,
-                      color: ZanaColors.ink,
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
+              child: Row(
+                children: [
+                  Text('Curated for you', style: ZanaText.sectionTitle(context)),
+                  const Spacer(),
+                  Text(
+                    'Lusaka',
+                    style: ZanaText.subtitle(context).copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: ZanaColors.copper,
                     ),
+                  ),
+                ],
               ),
             ),
             Expanded(
@@ -315,37 +238,53 @@ class _HomeScreenState extends State<HomeScreen> {
                 future: future,
                 builder: (context, snap) {
                   if (snap.connectionState == ConnectionState.waiting) {
-                    return const Center(child: CircularProgressIndicator());
+                    return const ZanaShimmerList();
                   }
                   if (snap.hasError) {
-                    return Center(
-                      child: Padding(
-                        padding: const EdgeInsets.all(24),
-                        child: Text(
+                    return ZanaEmptyState(
+                      icon: Icons.wifi_off_rounded,
+                      title: 'Connection issue',
+                      subtitle:
                           'Could not reach ZANA.\nCheck your connection and try again.',
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(color: ZanaColors.muted),
-                        ),
-                      ),
+                      actionLabel: 'Retry',
+                      onAction: _reload,
                     );
                   }
                   final items = snap.data ?? [];
                   if (items.isEmpty) {
-                    return const Center(
-                      child: Text(
-                        'No pros match these filters.\nTry another area or category.',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(color: ZanaColors.muted),
-                      ),
+                    return ZanaEmptyState(
+                      icon: Icons.search_off_rounded,
+                      title: 'No matches',
+                      subtitle:
+                          'No pros match these filters.\nTry another area or category.',
+                      actionLabel: 'Clear filters',
+                      onAction: () {
+                        area = null;
+                        category = 'ALL';
+                        query = '';
+                        searchCtrl.clear();
+                        _reload();
+                      },
                     );
                   }
                   return ListView.separated(
-                    padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
+                    padding: const EdgeInsets.fromLTRB(20, 4, 20, 100),
                     itemCount: items.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 12),
+                    separatorBuilder: (_, __) => const SizedBox(height: 16),
                     itemBuilder: (context, i) {
                       final p = items[i] as Map<String, dynamic>;
-                      return _ProviderCard(provider: p);
+                      return ZanaProviderCard(
+                        provider: p,
+                        onTap: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => ProviderScreen(
+                                providerId: p['id'] as String,
+                              ),
+                            ),
+                          );
+                        },
+                      );
                     },
                   );
                 },
@@ -358,194 +297,96 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 }
 
-class _FilterChip extends StatelessWidget {
-  const _FilterChip({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-    this.emphasis = false,
-  });
+class _HeroHeader extends StatelessWidget {
+  const _HeroHeader({this.onSignOut});
 
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-  final bool emphasis;
+  final VoidCallback? onSignOut;
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: selected
-          ? (emphasis ? ZanaColors.charcoal : ZanaColors.copper)
-          : ZanaColors.paper,
-      borderRadius: BorderRadius.circular(999),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(999),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(999),
-            border: selected
-                ? null
-                : Border.all(color: ZanaColors.ink.withValues(alpha: 0.08)),
+    return Container(
+      margin: const EdgeInsets.fromLTRB(20, 8, 12, 20),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: ZanaColors.heroGradient,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: ZanaColors.espresso.withValues(alpha: 0.25),
+            blurRadius: 24,
+            offset: const Offset(0, 12),
           ),
-          child: Text(
-            label,
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: selected ? Colors.white : ZanaColors.ink,
-            ),
-          ),
-        ),
+        ],
       ),
-    );
-  }
-}
-
-class _ProviderCard extends StatelessWidget {
-  const _ProviderCard({required this.provider});
-
-  final Map<String, dynamic> provider;
-
-  @override
-  Widget build(BuildContext context) {
-    final km = (provider['distanceKm'] as num?)?.toDouble();
-    final cover = provider['coverPhotoUrl'] as String?;
-    final rating = (provider['ratingAvg'] as num?)?.toDouble() ?? 0;
-    final count = provider['ratingCount'] as int? ?? 0;
-    final online = provider['isOnline'] == true;
-    final name = provider['displayName'] as String? ?? 'Pro';
-
-    return Material(
-      color: ZanaColors.paper,
-      elevation: 0,
-      borderRadius: BorderRadius.circular(18),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: () {
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) =>
-                  ProviderScreen(providerId: provider['id'] as String),
-            ),
-          );
-        },
-        child: Row(
-          children: [
-            SizedBox(
-              width: 96,
-              height: 104,
-              child: cover != null
-                  ? Image.network(
-                      cover,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => _Initial(name: name),
-                    )
-                  : _Initial(name: name),
-            ),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            name,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w700,
-                              fontSize: 16,
-                              color: ZanaColors.ink,
-                            ),
-                          ),
-                        ),
-                        Text(
-                          count > 0 ? '${rating.toStringAsFixed(1)}★' : 'New',
-                          style: TextStyle(
-                            fontWeight: FontWeight.w700,
-                            fontSize: 13,
-                            color: count > 0
-                                ? ZanaColors.copper
-                                : ZanaColors.muted,
-                          ),
-                        ),
-                      ],
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'ZANA',
+                  style: ZanaText.display(context).copyWith(
+                    fontSize: 36,
+                    color: ZanaColors.gold,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Premium beauty & grooming\nacross Lusaka',
+                  style: ZanaText.subtitle(context).copyWith(
+                    color: Colors.white.withValues(alpha: 0.82),
+                    height: 1.45,
+                  ),
+                ),
+                const SizedBox(height: 14),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 7,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.15),
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '${provider['area']} · ${provider['type']}'
-                      '${km != null ? ' · ${km.toStringAsFixed(1)} km' : ''}',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: ZanaColors.muted,
-                        fontSize: 13,
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.location_on_rounded,
+                        size: 14,
+                        color: ZanaColors.gold.withValues(alpha: 0.9),
                       ),
-                    ),
-                    const SizedBox(height: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 3,
-                      ),
-                      decoration: BoxDecoration(
-                        color: online
-                            ? const Color(0xFFECFDF5)
-                            : ZanaColors.cream,
-                        borderRadius: BorderRadius.circular(999),
-                      ),
-                      child: Text(
-                        online ? 'Online now' : 'Offline',
+                      const SizedBox(width: 6),
+                      Text(
+                        'Verified pros · Instant booking',
                         style: TextStyle(
-                          color: online
-                              ? const Color(0xFF047857)
-                              : ZanaColors.muted,
-                          fontSize: 11,
+                          color: Colors.white.withValues(alpha: 0.9),
+                          fontSize: 12,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
+              ],
             ),
-            const Padding(
-              padding: EdgeInsets.only(right: 10),
-              child: Icon(
-                Icons.chevron_right_rounded,
-                color: ZanaColors.muted,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _Initial extends StatelessWidget {
-  const _Initial({required this.name});
-
-  final String name;
-
-  @override
-  Widget build(BuildContext context) {
-    return ColoredBox(
-      color: ZanaColors.cream,
-      child: Center(
-        child: Text(
-          name.isNotEmpty ? name.substring(0, 1).toUpperCase() : 'Z',
-          style: const TextStyle(
-            fontWeight: FontWeight.w800,
-            fontSize: 28,
-            color: ZanaColors.copper,
           ),
-        ),
+          if (onSignOut != null)
+            IconButton(
+              tooltip: 'Sign out',
+              onPressed: onSignOut,
+              icon: Icon(
+                Icons.logout_rounded,
+                size: 20,
+                color: Colors.white.withValues(alpha: 0.7),
+              ),
+            ),
+        ],
       ),
     );
   }

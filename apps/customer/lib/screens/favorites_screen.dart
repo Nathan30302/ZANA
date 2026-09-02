@@ -3,6 +3,7 @@ import 'package:zana_customer/api.dart';
 import 'package:zana_customer/screens/auth_sheet.dart';
 import 'package:zana_customer/screens/provider_screen.dart';
 import 'package:zana_customer/theme.dart';
+import 'package:zana_customer/widgets/zana_ui.dart';
 
 class FavoritesScreen extends StatefulWidget {
   const FavoritesScreen({super.key, this.embedded = false});
@@ -40,41 +41,27 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
   @override
   Widget build(BuildContext context) {
     final body = future == null
-        ? const Center(child: CircularProgressIndicator())
+        ? const Center(
+            child: CircularProgressIndicator(color: ZanaColors.copper),
+          )
         : FutureBuilder<List<dynamic>>(
             future: future,
             builder: (context, snap) {
               if (snap.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator());
+                return const ZanaShimmerList(count: 3);
               }
               if (api.token == null) {
-                return Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Text(
-                          'Sign in to save favorite pros.',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(color: ZanaColors.muted),
-                        ),
-                        if (widget.embedded) ...[
-                          const SizedBox(height: 14),
-                          FilledButton(
-                            style: FilledButton.styleFrom(
-                              backgroundColor: ZanaColors.charcoal,
-                            ),
-                            onPressed: () async {
-                              final ok = await showAuthSheet(context);
-                              if (ok) _load();
-                            },
-                            child: const Text('Sign in'),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
+                return ZanaEmptyState(
+                  icon: Icons.bookmark_outline_rounded,
+                  title: 'Save your favourites',
+                  subtitle: 'Sign in to keep track of pros you love.',
+                  actionLabel: widget.embedded ? 'Sign in' : null,
+                  onAction: widget.embedded
+                      ? () async {
+                          final ok = await showAuthSheet(context);
+                          if (ok) _load();
+                        }
+                      : null,
                 );
               }
               if (snap.hasError) {
@@ -82,55 +69,32 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
               }
               final items = snap.data ?? [];
               if (items.isEmpty) {
-                return const Center(
-                  child: Text(
-                    'No favorites yet.\nTap ♥ on a pro to save them.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: ZanaColors.muted),
-                  ),
+                return ZanaEmptyState(
+                  icon: Icons.favorite_border_rounded,
+                  title: 'No saved pros yet',
+                  subtitle: 'Tap the heart on any pro to save them here.',
                 );
               }
               return ListView.separated(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                padding: const EdgeInsets.fromLTRB(20, 8, 20, 100),
                 itemCount: items.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 8),
+                separatorBuilder: (_, __) => const SizedBox(height: 12),
                 itemBuilder: (context, i) {
                   final fav = items[i] as Map<String, dynamic>;
                   final p = fav['provider'] as Map<String, dynamic>?;
                   if (p == null) return const SizedBox.shrink();
-                  return Material(
-                    color: ZanaColors.paper,
-                    borderRadius: BorderRadius.circular(14),
-                    child: ListTile(
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      title: Text(
-                        p['displayName'] as String? ?? 'Pro',
-                        style: const TextStyle(fontWeight: FontWeight.w700),
-                      ),
-                      subtitle: Text('${p['area']} · ${p['type']}'),
-                      trailing: IconButton(
-                        icon: const Icon(
-                          Icons.favorite,
-                          color: ZanaColors.copper,
-                        ),
-                        onPressed: () async {
-                          await api.removeFavorite(p['id'] as String);
-                          _load();
-                        },
-                      ),
-                      onTap: () async {
-                        await Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => ProviderScreen(
-                              providerId: p['id'] as String,
-                            ),
+                  return ZanaProviderCard(
+                    provider: p,
+                    onTap: () async {
+                      await Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => ProviderScreen(
+                            providerId: p['id'] as String,
                           ),
-                        );
-                        _load();
-                      },
-                    ),
+                        ),
+                      );
+                      _load();
+                    },
                   );
                 },
               );
@@ -138,33 +102,17 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
           );
 
     if (widget.embedded) {
-      return ColoredBox(
-        color: ZanaColors.cream,
+      return DecoratedBox(
+        decoration: const BoxDecoration(gradient: ZanaColors.surfaceGradient),
         child: SafeArea(
           bottom: false,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Padding(
-                padding: EdgeInsets.fromLTRB(20, 16, 20, 8),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Saved',
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.w800,
-                        color: ZanaColors.ink,
-                      ),
-                    ),
-                    SizedBox(height: 4),
-                    Text(
-                      'Pros you love in Lusaka',
-                      style: TextStyle(color: ZanaColors.muted),
-                    ),
-                  ],
-                ),
+              const ZanaScreenHeader(
+                overline: 'YOUR COLLECTION',
+                title: 'Saved',
+                subtitle: 'Pros you love across Lusaka',
               ),
               Expanded(child: body),
             ],
