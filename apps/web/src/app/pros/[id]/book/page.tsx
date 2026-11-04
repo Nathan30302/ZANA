@@ -1,5 +1,6 @@
 "use client";
 
+import { RouteGuide } from "@/components/route-guide";
 import { Button, Card, Chip, Input, TextArea } from "@/components/ui";
 import { ZanaMap } from "@/components/zana-map";
 import { api } from "@/lib/api-client";
@@ -22,6 +23,9 @@ type Professional = {
   homeService: boolean;
   travelFeeZmw: number;
   address: string | null;
+  lat: number | null;
+  lng: number | null;
+  area: string | null;
   services: Service[];
 };
 
@@ -36,6 +40,8 @@ export default function BookFlowPage() {
   const [locationType, setLocationType] = useState<"AT_HOME" | "AT_SHOP">("AT_SHOP");
   const [address, setAddress] = useState("");
   const [pin, setPin] = useState({ lat: -15.4167, lng: 28.2833 });
+  const [me, setMe] = useState<{ lat: number; lng: number } | null>(null);
+  const [gpsNote, setGpsNote] = useState("");
   const [note, setNote] = useState("");
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -49,6 +55,26 @@ export default function BookFlowPage() {
       if (d.professional.homeService) setLocationType("AT_HOME");
     });
   }, [id]);
+
+  useEffect(() => {
+    if (!navigator.geolocation) {
+      setGpsNote("GPS is off. The pin starts in Lusaka until you move it.");
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const point = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+        setMe(point);
+        setPin(point);
+        setGpsNote("");
+        api<{ label: string }>(`/api/geo/reverse?lat=${point.lat}&lng=${point.lng}`)
+          .then((place) => setAddress(place.label))
+          .catch(() => undefined);
+      },
+      () => setGpsNote("Allow location so we can pin where you are. You can still drop the pin by hand."),
+      { enableHighAccuracy: true, timeout: 8000 },
+    );
+  }, []);
 
   const service = useMemo(
     () => pro?.services.find((s) => s.id === serviceId) || null,
@@ -84,8 +110,8 @@ export default function BookFlowPage() {
           scheduledAt,
           locationType,
           address: locationType === "AT_HOME" ? address : undefined,
-          customerLat: locationType === "AT_HOME" ? pin.lat : undefined,
-          customerLng: locationType === "AT_HOME" ? pin.lng : undefined,
+          customerLat: locationType === "AT_HOME" ? pin.lat : me?.lat,
+          customerLng: locationType === "AT_HOME" ? pin.lng : me?.lng,
           customerNote: note || undefined,
         },
       });
@@ -125,7 +151,10 @@ export default function BookFlowPage() {
               {locationType === "AT_HOME" ? `At home · ${address}` : `At shop · ${pro.address}`}
             </div>
           </Card>
-          <Button className="w-full" onClick={() => router.push(`/bookings/${doneId}`)}>
+          <Button className="w-full" onClick={() => router.push(`/bookings/${doneId}/track`)}>
+            {locationType === "AT_HOME" ? "See their route to you" : "Route to the salon"}
+          </Button>
+          <Button variant="secondary" className="w-full" onClick={() => router.push(`/bookings/${doneId}`)}>
             View booking
           </Button>
           <Button variant="secondary" className="w-full" onClick={() => router.push("/bookings")}>
@@ -229,22 +258,44 @@ export default function BookFlowPage() {
               <div className="mt-1 text-xs text-stone-500">{pro.address || "Pro location"}</div>
             </button>
           </div>
+          {gpsNote ? <p className="text-xs text-amber-800">{gpsNote}</p> : null}
+          {locationType === "AT_SHOP" && pro.lat != null && pro.lng != null ? (
+            <RouteGuide
+              from={me}
+              to={{ lat: pro.lat, lng: pro.lng }}
+              fromLabel="You"
+              toLabel="Shop"
+              heading={`Route to ${pro.displayName}`}
+              useMyLocation
+            />
+          ) : null}
           {locationType === "AT_HOME" ? (
-            <div className="space-y-2">
+            <div className="space-y-3">
               <p className="text-sm text-stone-500">
-                Drop the pin on your building. The map uses OpenStreetMap, the same kind of map as Maps.me.
+                Your GPS pin is where they should come. Move it if the building is next door.
               </p>
+              <button
+                type="button"
+                className="text-sm font-semibold text-rose-800"
+                onClick={() => {
+                  if (!me) return;
+                  setPin(me);
+                  api<{ label: string }>(`/api/geo/reverse?lat=${me.lat}&lng=${me.lng}`)
+                    .then((place) => setAddress(place.label))
+                    .catch(() => undefined);
+                }}
+              >
+                Use my current GPS
+              </button>
               <ZanaMap
                 center={pin}
                 zoom={15}
-                height={280}
+                height={240}
                 pick={pin}
                 onPick={async (lat, lng) => {
                   setPin({ lat, lng });
                   try {
-                    const place = await api<{ label: string }>(
-                      `/api/geo/reverse?lat=${lat}&lng=${lng}`,
-                    );
+                    const place = await api<{ label: string }>(`/api/geo/reverse?lat=${lat}&lng=${lng}`);
                     setAddress(place.label);
                   } catch {
                     setAddress(`${lat.toFixed(5)}, ${lng.toFixed(5)}`);
@@ -257,6 +308,15 @@ export default function BookFlowPage() {
                 value={address}
                 onChange={(e) => setAddress(e.target.value)}
               />
+              {pro.lat != null && pro.lng != null ? (
+                <RouteGuide
+                  from={{ lat: pro.lat, lng: pro.lng }}
+                  to={pin}
+                  fromLabel="Pro"
+                  toLabel="You"
+                  heading="How long for them to reach you"
+                />
+              ) : null}
             </div>
           ) : null}
           <TextArea

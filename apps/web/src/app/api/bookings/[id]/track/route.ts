@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
+import { LocationType } from "@prisma/client";
 import { getSession } from "@/lib/auth";
+import { fetchDrivingRoute } from "@/lib/directions";
 import { driveMinutes, haversineKm } from "@/lib/utils";
 import { prisma } from "@/lib/prisma";
 
@@ -36,27 +38,19 @@ export async function GET(_: Request, ctx: { params: Promise<{ id: string }> }) 
     lng: (fresh ? booking.professional.liveLng : null) ?? booking.professional.lng ?? 28.3,
   };
 
-  const straightKm = haversineKm(proPin, customer);
-  let route: { coordinates: [number, number][]; distanceKm: number; durationMin: number } | null = null;
-  try {
-    const url = `https://router.project-osrm.org/route/v1/driving/${proPin.lng},${proPin.lat};${customer.lng},${customer.lat}?overview=full&geometries=geojson`;
-    const res = await fetch(url);
-    if (res.ok) {
-      const data = await res.json();
-      const r = data.routes?.[0];
-      if (r) {
-        route = {
-          coordinates: (r.geometry.coordinates as [number, number][]).map(([lng, lat]) => [lat, lng]),
-          distanceKm: r.distance / 1000,
-          durationMin: Math.max(1, Math.round(r.duration / 60)),
-        };
-      }
-    }
-  } catch {
-    route = null;
-  }
+  const shop = {
+    lat: booking.professional.lat ?? -15.42,
+    lng: booking.professional.lng ?? 28.3,
+    address: booking.professional.address,
+  };
+  const toShop = booking.locationType === LocationType.AT_SHOP;
+  const origin = toShop ? customer : proPin;
+  const destination = toShop ? { lat: shop.lat, lng: shop.lng } : customer;
+  const straightKm = haversineKm(origin, destination);
+  const driven = await fetchDrivingRoute(origin, destination).catch(() => null);
 
   return NextResponse.json({
+    mode: toShop ? "TO_SHOP" : "TO_YOU",
     booking: {
       id: booking.id,
       status: booking.status,
@@ -67,13 +61,18 @@ export async function GET(_: Request, ctx: { params: Promise<{ id: string }> }) 
         id: booking.professional.id,
         name: booking.professional.displayName,
         phone: booking.professional.user.phone,
+        address: shop.address,
       },
     },
     customer,
     pro: proPin,
+    shop,
+    origin,
+    destination,
     live: Boolean(fresh),
-    distanceKm: route?.distanceKm ?? straightKm,
-    etaMin: route?.durationMin ?? driveMinutes(straightKm),
-    route: route?.coordinates ?? [],
+    distanceKm: driven?.distanceKm ?? straightKm,
+    etaMin: driven?.durationMin ?? driveMinutes(straightKm),
+    route: driven?.coordinates ?? [],
+    steps: driven?.steps ?? [],
   });
 }

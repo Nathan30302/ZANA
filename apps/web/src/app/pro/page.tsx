@@ -211,8 +211,8 @@ export default function ProHomePage() {
                     <Button variant="secondary" className="flex-1" onClick={shareGps}>
                       Share GPS
                     </Button>
-                    <Link href={`/bookings/${b.id}/track`} className="w-full text-center text-sm font-semibold text-rose-800">
-                      Open customer map
+                    <Link href={`/bookings/${b.id}/track?as=pro`} className="w-full text-center text-sm font-semibold text-rose-800">
+                      Directions to customer
                     </Link>
                   </div>
                 ) : null}
