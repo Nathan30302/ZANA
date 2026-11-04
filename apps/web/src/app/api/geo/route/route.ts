@@ -10,9 +10,11 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "coordinates required" }, { status: 400 });
   }
 
+  const profile = req.nextUrl.searchParams.get("profile") === "foot" ? "foot" : "driving";
   const route = await fetchDrivingRoute(
     { lat: fromLat, lng: fromLng },
     { lat: toLat, lng: toLng },
+    profile,
   );
   return NextResponse.json(route);
 }

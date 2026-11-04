@@ -47,17 +47,23 @@ export function stepsFromOsrm(legs: { steps?: OsrmStep[] }[] | undefined): Direc
 export async function fetchDrivingRoute(
   from: { lat: number; lng: number },
   to: { lat: number; lng: number },
+  profile: "driving" | "foot" = "driving",
 ) {
-  const url = `https://router.project-osrm.org/route/v1/driving/${from.lng},${from.lat};${to.lng},${to.lat}?overview=full&geometries=geojson&steps=true`;
+  const url = `https://router.project-osrm.org/route/v1/${profile}/${from.lng},${from.lat};${to.lng},${to.lat}?overview=full&geometries=geojson&steps=true`;
   const res = await fetch(url);
   if (!res.ok) return emptyRoute();
   const data = await res.json();
   const route = data.routes?.[0];
   if (!route) return emptyRoute();
+  const distanceKm = route.distance / 1000;
+  const durationMin =
+    profile === "foot"
+      ? Math.max(1, Math.round((distanceKm / 5) * 60))
+      : Math.max(1, Math.round(route.duration / 60));
   return {
     coordinates: (route.geometry?.coordinates || []).map(([lng, lat]: [number, number]) => [lat, lng] as [number, number]),
-    distanceKm: route.distance / 1000,
-    durationMin: Math.max(1, Math.round(route.duration / 60)),
+    distanceKm,
+    durationMin,
     steps: stepsFromOsrm(route.legs),
   };
 }

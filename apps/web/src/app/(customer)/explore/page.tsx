@@ -89,7 +89,7 @@ function ExploreInner() {
               }))}
           />
           <p className="text-xs text-stone-500">
-            OpenStreetMap pins across Lusaka. Tap a name to open the profile. Distance is from the city centre.
+            Pinch or use Buildings · where I am to see house shapes. Tap a name to open the profile.
           </p>
           <div className="space-y-3">
             {pros.slice(0, 4).map((pro) => (

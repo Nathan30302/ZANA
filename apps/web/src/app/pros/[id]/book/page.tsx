@@ -289,8 +289,9 @@ export default function BookFlowPage() {
               </button>
               <ZanaMap
                 center={pin}
-                zoom={15}
-                height={240}
+                zoom={17}
+                height={280}
+                you={me}
                 pick={pin}
                 onPick={async (lat, lng) => {
                   setPin({ lat, lng });

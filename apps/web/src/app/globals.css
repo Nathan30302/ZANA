@@ -72,3 +72,16 @@ body {
 .animate-pulse-soft {
   animation: pulse-soft 2.4s ease-in-out infinite;
 }
+
+.maplibregl-map {
+  font-family: inherit;
+}
+
+.zana-you-dot {
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  background: #2563eb;
+  border: 3px solid #fff;
+  box-shadow: 0 0 0 6px rgba(37, 99, 235, 0.25);
+}
