@@ -1,10 +1,11 @@
-# ZANA brand
+# Zana brand
 
-Copper / orange + black **Z** mark (scissors / comb motif).
+- Slogan: **Beauty on your fingertips**
+- Mark: stylized orange + black **Z** with comb detail
 
 | File | Use |
 |---|---|
-| `zana-logo.png` | Primary mark (512×512, transparent) |
-| `zana-logo-180.png` | Favicon / Apple touch icon (180×180) |
+| `zana-logo.png` | Primary mark |
+| `zana-logo-180.png` | App icon / favicon |
 
-Slogan: **Style at your fingertips**
+UI direction: soft cream backgrounds, rose/burgundy accents, premium mobile-first layouts.

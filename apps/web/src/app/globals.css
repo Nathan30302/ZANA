@@ -1,0 +1,74 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --zana-rose: #9f1239;
+  --zana-rose-soft: #fff1f2;
+  --zana-burgundy: #881337;
+  --zana-ink: #1c1917;
+  --zana-muted: #78716c;
+  --zana-cream: #fffaf8;
+  --zana-line: #f1e7e4;
+  --zana-orange: #ea580c;
+}
+
+html,
+body {
+  min-height: 100%;
+  background: var(--zana-cream);
+  color: var(--zana-ink);
+}
+
+body {
+  font-family: var(--font-outfit), system-ui, sans-serif;
+}
+
+.font-display {
+  font-family: var(--font-fraunces), Georgia, serif;
+}
+
+.mobile-shell {
+  max-width: 480px;
+  margin: 0 auto;
+  min-height: 100dvh;
+  background: #fffaf8;
+  position: relative;
+  box-shadow: 0 0 0 1px rgba(28, 25, 23, 0.04);
+}
+
+.desktop-shell {
+  max-width: 1100px;
+  margin: 0 auto;
+  min-height: 100dvh;
+  padding: 24px;
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-up {
+  animation: fade-up 0.45s ease-out both;
+}
+
+@keyframes pulse-soft {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.03);
+  }
+}
+
+.animate-pulse-soft {
+  animation: pulse-soft 2.4s ease-in-out infinite;
+}

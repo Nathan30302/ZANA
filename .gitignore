@@ -6,6 +6,7 @@ node_modules/
 .env
 .env.*
 !.env.example
+!**/.env.example
 
 # Build
 dist/
@@ -15,7 +16,7 @@ out/
 coverage/
 *.tsbuildinfo
 
-# Flutter
+# Flutter / mobile leftovers
 .dart_tool/
 .flutter-plugins
 .flutter-plugins-dependencies
@@ -33,3 +34,7 @@ coverage/
 *.log
 .turbo/
 .vercel/
+
+# Prisma
+*.db
+*.db-journal
