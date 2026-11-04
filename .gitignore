@@ -16,16 +16,10 @@ coverage/
 *.tsbuildinfo
 
 # Flutter
-apps/customer/.dart_tool/
-apps/customer/.flutter-plugins
-apps/customer/.flutter-plugins-dependencies
-apps/customer/.packages
-apps/customer/build/
-apps/pro/.dart_tool/
-apps/pro/.flutter-plugins
-apps/pro/.flutter-plugins-dependencies
-apps/pro/.packages
-apps/pro/build/
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
 **/ios/Pods/
 **/ios/.symlinks/
 **/android/.gradle/
@@ -39,10 +33,3 @@ apps/pro/build/
 *.log
 .turbo/
 .vercel/
-
-# Prisma
-apps/api/prisma/*.db
-apps/api/prisma/*.db-journal
-
-# Local uploads
-apps/api/uploads/
