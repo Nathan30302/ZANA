@@ -71,7 +71,7 @@ export default function BookingDetailPage() {
         {["REQUESTED", "ACCEPTED", "IN_PROGRESS"].includes(booking.status) ? (
           <Link href={`/bookings/${booking.id}/track`}>
             <Button className="w-full">
-              {booking.locationType === "AT_HOME" ? "See their route to you" : "Route to the salon"}
+              Route me
             </Button>
           </Link>
         ) : null}

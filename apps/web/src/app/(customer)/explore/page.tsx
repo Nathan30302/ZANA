@@ -89,7 +89,7 @@ function ExploreInner() {
               }))}
           />
           <p className="text-xs text-stone-500">
-            Pinch or use Buildings · where I am to see house shapes. Tap a name to open the profile.
+            Zambia map. Pinch in to see building shapes. Tap a name to open the place.
           </p>
           <div className="space-y-3">
             {pros.slice(0, 4).map((pro) => (

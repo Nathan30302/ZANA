@@ -38,3 +38,8 @@ coverage/
 # Prisma
 *.db
 *.db-journal
+
+# Zambia map download (scripts/download-zambia-map.sh)
+/data/zambia*
+apps/web/data/*
+!apps/web/data/.gitkeep

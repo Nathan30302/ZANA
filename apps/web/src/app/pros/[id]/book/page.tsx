@@ -1,6 +1,6 @@
 "use client";
 
-import { RouteGuide } from "@/components/route-guide";
+import { PlaceMap, RouteButton } from "@/components/map-screen";
 import { Button, Card, Chip, Input, TextArea } from "@/components/ui";
 import { ZanaMap } from "@/components/zana-map";
 import { api } from "@/lib/api-client";
@@ -37,7 +37,7 @@ export default function BookFlowPage() {
   const [date, setDate] = useState(format(addDays(new Date(), 1), "yyyy-MM-dd"));
   const [slots, setSlots] = useState<string[]>([]);
   const [time, setTime] = useState("");
-  const [locationType, setLocationType] = useState<"AT_HOME" | "AT_SHOP">("AT_SHOP");
+  const [travel, setTravel] = useState<"AT_HOME" | "AT_SHOP" | null>(null);
   const [address, setAddress] = useState("");
   const [pin, setPin] = useState({ lat: -15.4167, lng: 28.2833 });
   const [me, setMe] = useState<{ lat: number; lng: number } | null>(null);
@@ -52,7 +52,6 @@ export default function BookFlowPage() {
     api<{ professional: Professional }>(`/api/professionals/${id}`).then((d) => {
       setPro(d.professional);
       if (d.professional.services[0]) setServiceId(d.professional.services[0].id);
-      if (d.professional.homeService) setLocationType("AT_HOME");
     });
   }, [id]);
 
@@ -91,12 +90,11 @@ export default function BookFlowPage() {
     );
   }, [id, date, serviceId]);
 
-  const travel =
-    locationType === "AT_HOME" && pro ? pro.travelFeeZmw : 0;
-  const total = (service?.priceZmw || 0) + travel;
+  const travelFee = travel === "AT_HOME" && pro ? pro.travelFeeZmw : 0;
+  const total = (service?.priceZmw || 0) + travelFee;
 
   async function confirm() {
-    if (!service || !time) return;
+    if (!service || !time || !travel) return;
     setLoading(true);
     setError("");
     try {
@@ -108,10 +106,10 @@ export default function BookFlowPage() {
           professionalId: id,
           serviceId,
           scheduledAt,
-          locationType,
-          address: locationType === "AT_HOME" ? address : undefined,
-          customerLat: locationType === "AT_HOME" ? pin.lat : me?.lat,
-          customerLng: locationType === "AT_HOME" ? pin.lng : me?.lng,
+          locationType: travel,
+          address: travel === "AT_HOME" ? address : undefined,
+          customerLat: travel === "AT_HOME" ? pin.lat : me?.lat,
+          customerLng: travel === "AT_HOME" ? pin.lng : me?.lng,
           customerNote: note || undefined,
         },
       });
@@ -148,11 +146,11 @@ export default function BookFlowPage() {
               <strong>{formatZmw(total)}</strong>
             </div>
             <div className="mt-2 text-stone-500">
-              {locationType === "AT_HOME" ? `At home · ${address}` : `At shop · ${pro.address}`}
+              {travel === "AT_HOME" ? `At home · ${address}` : `At shop · ${pro.address}`}
             </div>
           </Card>
           <Button className="w-full" onClick={() => router.push(`/bookings/${doneId}/track`)}>
-            {locationType === "AT_HOME" ? "See their route to you" : "Route to the salon"}
+            Route me
           </Button>
           <Button variant="secondary" className="w-full" onClick={() => router.push(`/bookings/${doneId}`)}>
             View booking
@@ -236,43 +234,46 @@ export default function BookFlowPage() {
 
       {step === 3 ? (
         <div className="mt-6 space-y-4">
-          <h2 className="font-semibold">Where should we meet?</h2>
+          <h2 className="font-semibold">Where the place is</h2>
+          {pro.lat != null && pro.lng != null ? (
+            <PlaceMap
+              place={{ lat: pro.lat, lng: pro.lng, label: pro.displayName }}
+              you={me}
+            />
+          ) : (
+            <p className="text-sm text-stone-500">{pro.address || pro.area || "Lusaka"}</p>
+          )}
+
+          <h2 className="font-semibold">Who is traveling?</h2>
           <div className="grid grid-cols-2 gap-3">
             <button
-              disabled={!pro.homeService || !service.homeEligible}
-              onClick={() => setLocationType("AT_HOME")}
+              type="button"
+              onClick={() => setTravel("AT_SHOP")}
               className={`rounded-3xl border p-4 text-left ${
-                locationType === "AT_HOME" ? "border-rose-800 bg-rose-50" : "border-stone-200"
-              } disabled:opacity-40`}
-            >
-              <div className="font-semibold">At Home</div>
-              <div className="mt-1 text-xs text-stone-500">+ travel fee</div>
-            </button>
-            <button
-              onClick={() => setLocationType("AT_SHOP")}
-              className={`rounded-3xl border p-4 text-left ${
-                locationType === "AT_SHOP" ? "border-rose-800 bg-rose-50" : "border-stone-200"
+                travel === "AT_SHOP" ? "border-rose-800 bg-rose-50" : "border-stone-200"
               }`}
             >
-              <div className="font-semibold">At Shop</div>
-              <div className="mt-1 text-xs text-stone-500">{pro.address || "Pro location"}</div>
+              <div className="font-semibold">I&apos;m going there</div>
+              <div className="mt-1 text-xs text-stone-500">{pro.address || "At the shop"}</div>
+            </button>
+            <button
+              type="button"
+              disabled={!pro.homeService || !service.homeEligible}
+              onClick={() => setTravel("AT_HOME")}
+              className={`rounded-3xl border p-4 text-left ${
+                travel === "AT_HOME" ? "border-rose-800 bg-rose-50" : "border-stone-200"
+              } disabled:opacity-40`}
+            >
+              <div className="font-semibold">They&apos;re coming to me</div>
+              <div className="mt-1 text-xs text-stone-500">+ travel fee</div>
             </button>
           </div>
           {gpsNote ? <p className="text-xs text-amber-800">{gpsNote}</p> : null}
-          {locationType === "AT_SHOP" && pro.lat != null && pro.lng != null ? (
-            <RouteGuide
-              from={me}
-              to={{ lat: pro.lat, lng: pro.lng }}
-              fromLabel="You"
-              toLabel="Shop"
-              heading={`Route to ${pro.displayName}`}
-              useMyLocation
-            />
-          ) : null}
-          {locationType === "AT_HOME" ? (
+
+          {travel === "AT_HOME" ? (
             <div className="space-y-3">
               <p className="text-sm text-stone-500">
-                Your GPS pin is where they should come. Move it if the building is next door.
+                Drop the pin on your building. That is where they should come.
               </p>
               <button
                 type="button"
@@ -309,17 +310,32 @@ export default function BookFlowPage() {
                 value={address}
                 onChange={(e) => setAddress(e.target.value)}
               />
-              {pro.lat != null && pro.lng != null ? (
-                <RouteGuide
-                  from={{ lat: pro.lat, lng: pro.lng }}
-                  to={pin}
-                  fromLabel="Pro"
-                  toLabel="You"
-                  heading="How long for them to reach you"
-                />
-              ) : null}
             </div>
           ) : null}
+
+          {travel === "AT_SHOP" && pro.lat != null && pro.lng != null ? (
+            <RouteButton
+              title={pro.displayName}
+              place={{ lat: pro.lat, lng: pro.lng }}
+              placeLabel="Shop"
+              followUser
+              showRoute
+              routeFrom="gps"
+            />
+          ) : null}
+          {travel === "AT_HOME" && pro.lat != null && pro.lng != null ? (
+            <RouteButton
+              title="Coming to you"
+              place={pin}
+              placeLabel="You"
+              origin={{ lat: pro.lat, lng: pro.lng }}
+              originLabel={pro.displayName.split(" ")[0]}
+              followUser
+              showRoute
+              routeFrom="point"
+            />
+          ) : null}
+
           <TextArea
             rows={2}
             placeholder="Notes for your pro (optional)"
@@ -328,7 +344,7 @@ export default function BookFlowPage() {
           />
           <Button
             className="w-full"
-            disabled={locationType === "AT_HOME" && !address.trim()}
+            disabled={!travel || (travel === "AT_HOME" && !address.trim())}
             onClick={() => setStep(4)}
           >
             Continue
@@ -346,7 +362,7 @@ export default function BookFlowPage() {
             </div>
             <div className="flex justify-between text-stone-500">
               <span>Travel fee</span>
-              <span>{formatZmw(travel)}</span>
+              <span>{formatZmw(travelFee)}</span>
             </div>
             <div className="flex justify-between border-t border-stone-100 pt-2 text-base font-semibold">
               <span>Total</span>
@@ -354,7 +370,7 @@ export default function BookFlowPage() {
             </div>
             <div className="pt-2 text-stone-500">
               {format(new Date(date), "EEE d MMM")} · {time} ·{" "}
-              {locationType === "AT_HOME" ? "At Home" : "At Shop"}
+              {travel === "AT_HOME" ? "They're coming to me" : "I'm going there"}
             </div>
           </Card>
           {error ? <p className="text-sm text-red-600">{error}</p> : null}

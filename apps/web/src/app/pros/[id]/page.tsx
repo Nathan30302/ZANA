@@ -1,6 +1,6 @@
 "use client";
 
-import { RouteGuide } from "@/components/route-guide";
+import { PlaceMap } from "@/components/map-screen";
 import { Badge, Button, Card, StarRow } from "@/components/ui";
 import { api } from "@/lib/api-client";
 import { formatZmw, whatsappHref } from "@/lib/utils";
@@ -131,14 +131,8 @@ export default function ProProfilePage() {
 
         {pro.lat != null && pro.lng != null ? (
           <div className="space-y-2">
-            <p className="text-sm text-stone-500">{pro.address || `${pro.area || "Lusaka"}`}</p>
-            <RouteGuide
-              to={{ lat: pro.lat, lng: pro.lng }}
-              toLabel={pro.displayName.split(" ")[0]}
-              fromLabel="You"
-              heading="Route to this place"
-              useMyLocation
-            />
+            <p className="text-sm text-stone-500">{pro.address || pro.area || "Lusaka"}</p>
+            <PlaceMap place={{ lat: pro.lat, lng: pro.lng, label: pro.displayName }} />
           </div>
         ) : null}
 

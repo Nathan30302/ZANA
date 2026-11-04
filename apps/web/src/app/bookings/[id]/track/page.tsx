@@ -1,7 +1,6 @@
 "use client";
 
-import { RouteGuide } from "@/components/route-guide";
-import { Badge } from "@/components/ui";
+import { MapScreen } from "@/components/map-screen";
 import { api } from "@/lib/api-client";
 import { whatsappHref } from "@/lib/utils";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
@@ -19,8 +18,6 @@ type Track = {
   pro: { lat: number; lng: number };
   shop: { lat: number; lng: number; address: string | null };
   live: boolean;
-  distanceKm: number;
-  etaMin: number;
 };
 
 function TrackInner() {
@@ -47,91 +44,86 @@ function TrackInner() {
     };
   }, [id, router]);
 
-  if (!track) return <div className="p-6 text-sm text-stone-500">Loading the route…</div>;
+  if (!track) {
+    return <div className="mobile-shell p-6 text-sm text-stone-500">Opening the map…</div>;
+  }
 
   const toShop = track.mode === "TO_SHOP";
-  const heading = toShop
-    ? `Route to ${track.booking.professional.name}`
+  const title = toShop
+    ? track.booking.professional.name
     : asPro
-      ? "Route to the customer"
-      : "Coming to you";
+      ? "Customer"
+      : track.booking.professional.name;
+
+  if (toShop) {
+    return (
+      <MapScreen
+        title={title}
+        place={track.shop}
+        placeLabel="Shop"
+        followUser
+        showRoute
+        routeFrom="gps"
+        onClose={() => router.back()}
+        footer={
+          <a
+            className="inline-flex w-full items-center justify-center rounded-2xl bg-emerald-600 py-3 text-sm font-semibold text-white"
+            href={whatsappHref(track.booking.professional.phone, "Hi, I'm on the way.")}
+            target="_blank"
+            rel="noreferrer"
+          >
+            WhatsApp {track.booking.professional.name}
+          </a>
+        }
+      />
+    );
+  }
+
+  if (asPro) {
+    return (
+      <MapScreen
+        title={title}
+        place={track.customer}
+        placeLabel="Customer"
+        followUser
+        showRoute
+        routeFrom="gps"
+        onClose={() => router.back()}
+        onLive={(point) => {
+          api("/api/pro/location", { method: "POST", json: point }).catch(() => undefined);
+        }}
+      />
+    );
+  }
 
   return (
-    <div className="space-y-4">
-      <button onClick={() => router.back()} className="text-sm font-semibold text-stone-600">
-        Back
-      </button>
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <h1 className="font-display text-3xl">{heading}</h1>
-          <p className="text-sm text-stone-500">
-            {track.booking.service}
-            {track.booking.address ? ` · ${track.booking.address}` : ""}
-          </p>
-        </div>
-        <Badge tone={track.live ? "green" : "orange"}>
-          {toShop ? "To the shop" : track.live ? "Live" : `${track.etaMin} min`}
-        </Badge>
-      </div>
-
-      {toShop ? (
-        <RouteGuide
-          to={{ lat: track.shop.lat, lng: track.shop.lng }}
-          fromLabel="You"
-          toLabel="Shop"
-          heading="Directions"
-          useMyLocation
-        />
-      ) : asPro ? (
-        <RouteGuide
-          to={track.customer}
-          fromLabel="You"
-          toLabel="Customer"
-          heading="Directions"
-          useMyLocation
-          onLivePosition={(point) => {
-            api("/api/pro/location", { method: "POST", json: point }).catch(() => undefined);
-          }}
-        />
-      ) : (
-        <RouteGuide
-          from={track.pro}
-          to={track.customer}
-          fromLabel={track.booking.professional.name.split(" ")[0]}
-          toLabel="You"
-          heading={track.live ? "Live route" : "Route from their place"}
-        />
-      )}
-
-      <p className="text-xs text-stone-500">
-        {toShop
-          ? "Follow the turns to the salon. Your blue-black pin is your GPS."
-          : asPro
-            ? "Your GPS is the start. The customer pin is where you are going. Distance updates as you move."
-            : track.live
-              ? "The professional is sharing GPS. Distance and turns update as they get closer."
-              : "This is the drive from their shop to your pin. It switches to live when they start the trip."}
-      </p>
-      {!asPro ? (
+    <MapScreen
+      title={title}
+      place={track.customer}
+      placeLabel="You"
+      origin={track.pro}
+      originLabel={track.booking.professional.name.split(" ")[0]}
+      showRoute
+      routeFrom="point"
+      onClose={() => router.back()}
+      footer={
         <a
           className="inline-flex w-full items-center justify-center rounded-2xl bg-emerald-600 py-3 text-sm font-semibold text-white"
-          href={whatsappHref(track.booking.professional.phone, `Hi, I'm looking at the route on Zana.`)}
+          href={whatsappHref(track.booking.professional.phone, "Hi, I'm looking at the map on Zana.")}
           target="_blank"
           rel="noreferrer"
         >
           WhatsApp {track.booking.professional.name}
         </a>
-      ) : null}
-    </div>
+      }
+    />
   );
 }
 
 export default function TrackPage() {
   return (
-    <div className="mobile-shell px-4 py-5">
-      <Suspense fallback={<div className="text-sm text-stone-500">Loading the route…</div>}>
-        <TrackInner />
-      </Suspense>
-    </div>
+    <Suspense fallback={<div className="mobile-shell p-6 text-sm text-stone-500">Opening the map…</div>}>
+      <TrackInner />
+    </Suspense>
   );
 }

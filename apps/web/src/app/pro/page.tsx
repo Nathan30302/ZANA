@@ -212,7 +212,7 @@ export default function ProHomePage() {
                       Share GPS
                     </Button>
                     <Link href={`/bookings/${b.id}/track?as=pro`} className="w-full text-center text-sm font-semibold text-rose-800">
-                      Directions to customer
+                      Route me
                     </Link>
                   </div>
                 ) : null}

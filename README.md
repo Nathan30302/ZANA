@@ -51,6 +51,16 @@ Open [http://localhost:3000](http://localhost:3000).
 
 From repo root you can also run `npm run dev` (workspace).
 
+### 3. Zambia map
+
+The map is one download of Zambia (streets and building shapes), not a live world-tile feed. Build it once:
+
+```bash
+bash scripts/download-zambia-map.sh
+```
+
+That writes `data/zambia.mbtiles` (outside the Next.js app so the build does not try to bundle it). In the app, a place shows where it is. **Open map** fills the screen with your arrow. Choose **I'm going there** or **They're coming to me**, then tap **Route me** for car or walk. The map on screen is that Zambia download.
+
 ## Demo accounts (OTP always `123456`)
 
 | Role | Phone |
@@ -62,7 +72,7 @@ From repo root you can also run `npm run dev` (workspace).
 
 ## Core flows that work
 
-1. **Customer:** browse → open pro → Chat or WhatsApp → Book Now (drop a home pin on the OpenStreetMap) → confirm → live map with distance and ETA  
+1. **Customer:** browse → open pro (map shows where the place is) → Open map for the full screen and your arrow → Book Now → choose **I'm going there** or **They're coming to me** → **Route me** for car or walk → confirm  
 2. **Professional:** login → dashboard accept/start/complete → calendar → float top-up → manage services  
 3. **Admin:** review applications → approve/reject → adjust commission %  
 

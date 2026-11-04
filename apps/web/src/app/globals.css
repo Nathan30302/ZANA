@@ -85,3 +85,53 @@ body {
   border: 3px solid #fff;
   box-shadow: 0 0 0 6px rgba(37, 99, 235, 0.25);
 }
+
+.zana-arrow {
+  width: 34px;
+  height: 34px;
+  filter: drop-shadow(0 2px 3px rgba(28, 25, 23, 0.35));
+}
+
+.zana-pin {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  background: transparent;
+  border: 0;
+  padding: 0;
+}
+
+.zana-pin span {
+  color: #fff;
+  font: 700 11px/1.2 system-ui, sans-serif;
+  padding: 4px 8px;
+  border-radius: 999px;
+  box-shadow: 0 6px 16px rgba(28, 25, 23, 0.25);
+  white-space: nowrap;
+}
+
+.zana-pin i {
+  width: 16px;
+  height: 16px;
+  border: 2px solid #fff;
+  border-radius: 50% 50% 50% 0;
+  transform: rotate(-45deg);
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.28);
+}
+
+.zana-pick {
+  width: 22px;
+  height: 22px;
+}
+
+.zana-pick i {
+  display: block;
+  width: 22px;
+  height: 22px;
+  background: #9f1239;
+  border: 3px solid #fff;
+  border-radius: 50% 50% 50% 0;
+  transform: rotate(-45deg);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+}
