@@ -12,6 +12,8 @@ const createSchema = z.object({
   locationType: z.enum(["AT_HOME", "AT_SHOP"]),
   address: z.string().optional(),
   customerNote: z.string().optional(),
+  customerLat: z.number().optional(),
+  customerLng: z.number().optional(),
 });
 
 export async function GET(req: NextRequest) {
@@ -103,6 +105,14 @@ export async function POST(req: Request) {
       status: BookingStatus.REQUESTED,
       locationType,
       address: locationType === LocationType.AT_HOME ? parsed.data.address : pro.address,
+      customerLat:
+        locationType === LocationType.AT_HOME
+          ? parsed.data.customerLat ?? null
+          : pro.lat,
+      customerLng:
+        locationType === LocationType.AT_HOME
+          ? parsed.data.customerLng ?? null
+          : pro.lng,
       scheduledAt: new Date(parsed.data.scheduledAt),
       servicePriceZmw: service.priceZmw,
       travelFeeZmw: totals.travelFeeZmw,

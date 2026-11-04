@@ -2,6 +2,7 @@
 
 import { ProCard, ProCardData } from "@/components/pro-card";
 import { Chip, Input, SectionTitle } from "@/components/ui";
+import { ZanaMap } from "@/components/zana-map";
 import { api } from "@/lib/api-client";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
@@ -72,26 +73,23 @@ function ExploreInner() {
           ))}
         </div>
       ) : (
-        <div className="space-y-3 rounded-[28px] bg-white p-4 ring-1 ring-stone-100">
-          <div className="relative h-64 overflow-hidden rounded-2xl bg-[linear-gradient(135deg,#fecdd3,#ffedd5)]">
-            <div className="absolute inset-0 opacity-40 [background-image:radial-gradient(#9f1239_1px,transparent_1px)] [background-size:18px_18px]" />
-            {pros.slice(0, 8).map((pro, i) => (
-              <a
-                key={pro.id}
-                href={`/pros/${pro.id}`}
-                className="absolute rounded-full bg-rose-800 px-2.5 py-1 text-[10px] font-bold text-white shadow"
-                style={{
-                  left: `${12 + ((i * 17) % 70)}%`,
-                  top: `${18 + ((i * 23) % 60)}%`,
-                }}
-                title={pro.displayName}
-              >
-                {pro.displayName.split(" ")[0]}
-              </a>
-            ))}
-          </div>
-          <p className="text-sm text-stone-500">
-            Map pins for Lusaka demo — tap a name to open the profile. List view shows full cards.
+        <div className="space-y-3">
+          <ZanaMap
+            center={{ lat: -15.41, lng: 28.32 }}
+            zoom={12}
+            height={380}
+            pins={pros
+              .filter((p) => p.lat != null && p.lng != null)
+              .map((p) => ({
+                id: p.id,
+                lat: p.lat as number,
+                lng: p.lng as number,
+                label: `${p.displayName.split(" ")[0]} · ${p.distanceKm?.toFixed(1) ?? "–"} km`,
+                href: `/pros/${p.id}`,
+              }))}
+          />
+          <p className="text-xs text-stone-500">
+            OpenStreetMap pins across Lusaka. Tap a name to open the profile. Distance is from the city centre.
           </p>
           <div className="space-y-3">
             {pros.slice(0, 4).map((pro) => (

@@ -64,6 +64,8 @@ model User {
   reviewsReceived Review[] @relation("ReviewsReceived")
   notesAboutCustomers CustomerNote[] @relation("ProNotes")
   floatTxns     FloatTransaction[]
+  customerChats Conversation[] @relation("CustomerChats")
+  proChats      Conversation[] @relation("ProChats")
 }
 
 model OtpChallenge {
@@ -95,6 +97,9 @@ model ProfessionalProfile {
   homeService     Boolean   @default(true)
   travelFeeZmw    Int       @default(50)
   floatBalanceZmw Int       @default(0)
+  liveLat         Float?
+  liveLng         Float?
+  liveUpdatedAt   DateTime?
   ratingAvg       Float     @default(0)
   ratingCount     Int       @default(0)
   rejectionReason String?
@@ -165,6 +170,8 @@ model Booking {
   status         BookingStatus @default(REQUESTED)
   locationType   LocationType  @default(AT_SHOP)
   address        String?
+  customerLat    Float?
+  customerLng    Float?
   scheduledAt    DateTime
   servicePriceZmw Int
   travelFeeZmw   Int           @default(0)
@@ -177,6 +184,30 @@ model Booking {
 
   @@index([customerId, status])
   @@index([professionalId, scheduledAt])
+}
+
+model Conversation {
+  id         String   @id @default(cuid())
+  customerId String
+  customer   User     @relation("CustomerChats", fields: [customerId], references: [id], onDelete: Cascade)
+  proUserId  String
+  proUser    User     @relation("ProChats", fields: [proUserId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  messages   Message[]
+
+  @@unique([customerId, proUserId])
+}
+
+model Message {
+  id             String       @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  senderId       String
+  body           String
+  createdAt      DateTime     @default(now())
+
+  @@index([conversationId, createdAt])
 }
 
 model Review {

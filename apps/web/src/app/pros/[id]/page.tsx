@@ -2,7 +2,7 @@
 
 import { Badge, Button, Card, StarRow } from "@/components/ui";
 import { api } from "@/lib/api-client";
-import { formatZmw } from "@/lib/utils";
+import { formatZmw, whatsappHref } from "@/lib/utils";
 import { ArrowLeft, Heart, Home, MapPin } from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
@@ -30,6 +30,9 @@ type Professional = {
   address: string | null;
   coverUrl: string | null;
   category: string;
+  lat: number | null;
+  lng: number | null;
+  user: { phone: string; name: string | null };
   services: Service[];
   portfolio: { id: string; url: string; caption: string | null }[];
   bookings: {
@@ -43,10 +46,26 @@ export default function ProProfilePage() {
   const router = useRouter();
   const [pro, setPro] = useState<Professional | null>(null);
   const [fav, setFav] = useState(false);
+  const [chatBusy, setChatBusy] = useState(false);
 
   useEffect(() => {
     api<{ professional: Professional }>(`/api/professionals/${id}`).then((d) => setPro(d.professional));
   }, [id]);
+
+  async function openChat() {
+    setChatBusy(true);
+    try {
+      const data = await api<{ conversation: { id: string } }>("/api/conversations", {
+        method: "POST",
+        json: { professionalId: id },
+      });
+      router.push(`/messages/${data.conversation.id}`);
+    } catch {
+      router.push("/login");
+    } finally {
+      setChatBusy(false);
+    }
+  }
 
   async function toggleFav() {
     try {
@@ -167,9 +186,22 @@ export default function ProProfilePage() {
       </div>
 
       <div className="fixed bottom-0 left-1/2 z-40 w-full max-w-[480px] -translate-x-1/2 border-t border-stone-200 bg-white/95 p-4 backdrop-blur">
-        <Link href={`/pros/${pro.id}/book`}>
-          <Button className="w-full">Book Now</Button>
-        </Link>
+        <div className="flex gap-2">
+          <Button variant="secondary" className="flex-1" disabled={chatBusy} onClick={openChat}>
+            Chat
+          </Button>
+          <a
+            className="inline-flex flex-1 items-center justify-center rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white"
+            href={whatsappHref(pro.user.phone, `Hi ${pro.displayName}, I found you on Zana.`)}
+            target="_blank"
+            rel="noreferrer"
+          >
+            WhatsApp
+          </a>
+          <Link href={`/pros/${pro.id}/book`} className="flex-[1.3]">
+            <Button className="w-full">Book Now</Button>
+          </Link>
+        </div>
       </div>
     </div>
   );

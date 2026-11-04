@@ -91,6 +91,9 @@ export default function ProfilePage() {
       </Card>
 
       <Card className="space-y-2 text-sm">
+        <Link href="/messages" className="block font-semibold text-rose-800">
+          Messages
+        </Link>
         <Link href="/pro/login" className="block font-semibold text-rose-800">
           Switch to Professional app →
         </Link>

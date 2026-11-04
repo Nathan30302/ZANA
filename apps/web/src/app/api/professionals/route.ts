@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ProStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { haversineKm } from "@/lib/utils";
+import { driveMinutes, haversineKm } from "@/lib/utils";
 
 export async function GET(req: NextRequest) {
   const { searchParams } = req.nextUrl;
@@ -51,7 +51,13 @@ export async function GET(req: NextRequest) {
         : null;
     const minPrice = p.services[0]?.priceZmw ?? 0;
     const maxPrice = p.services[p.services.length - 1]?.priceZmw ?? minPrice;
-    return { ...p, distanceKm, minPrice, maxPrice };
+    return {
+      ...p,
+      distanceKm,
+      etaMin: distanceKm != null ? driveMinutes(distanceKm) : null,
+      minPrice,
+      maxPrice,
+    };
   });
 
   if (sort === "distance") {

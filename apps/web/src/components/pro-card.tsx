@@ -13,7 +13,10 @@ export type ProCardData = {
   ratingCount: number;
   homeService: boolean;
   area: string | null;
+  lat?: number | null;
+  lng?: number | null;
   distanceKm?: number | null;
+  etaMin?: number | null;
   minPrice?: number;
   maxPrice?: number;
 };
@@ -53,8 +56,10 @@ export function ProCard({ pro }: { pro: ProCardData }) {
           <StarRow rating={pro.ratingAvg || 0} />
         </div>
         <div className="flex items-center justify-between text-sm">
-          <span className="text-stone-500">
-            {pro.distanceKm != null ? `${pro.distanceKm.toFixed(1)} km` : "Lusaka"}
+          <span className="font-medium text-rose-800">
+            {pro.distanceKm != null
+              ? `${pro.distanceKm.toFixed(1)} km${pro.etaMin ? ` · ${pro.etaMin} min` : ""}`
+              : "Lusaka"}
           </span>
           <span className="font-semibold text-stone-900">
             {pro.minPrice != null ? `from ${formatZmw(pro.minPrice)}` : "View prices"}

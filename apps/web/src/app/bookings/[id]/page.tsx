@@ -68,6 +68,12 @@ export default function BookingDetailPage() {
       </Card>
 
       <div className="flex flex-col gap-2">
+        {booking.locationType === "AT_HOME" &&
+        ["REQUESTED", "ACCEPTED", "IN_PROGRESS"].includes(booking.status) ? (
+          <Link href={`/bookings/${booking.id}/track`}>
+            <Button className="w-full">Live map</Button>
+          </Link>
+        ) : null}
         <Link href={`/pros/${booking.professional.id}`}>
           <Button variant="secondary" className="w-full">
             View professional

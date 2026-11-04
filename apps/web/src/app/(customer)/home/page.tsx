@@ -42,10 +42,18 @@ export default function HomePage() {
     <div className="space-y-6 px-4 pb-6 pt-5">
       <div className="flex items-start justify-between gap-3">
         <BrandWordmark subtitle="Beauty on your fingertips" />
-        <div className="rounded-full bg-white px-3 py-2 text-xs font-medium text-stone-600 ring-1 ring-stone-200">
-          <span className="inline-flex items-center gap-1">
-            <MapPin size={14} className="text-rose-800" /> Lusaka
-          </span>
+        <div className="flex items-center gap-2">
+          <Link
+            href="/messages"
+            className="rounded-full bg-white px-3 py-2 text-xs font-semibold text-rose-800 ring-1 ring-stone-200"
+          >
+            Messages
+          </Link>
+          <div className="rounded-full bg-white px-3 py-2 text-xs font-medium text-stone-600 ring-1 ring-stone-200">
+            <span className="inline-flex items-center gap-1">
+              <MapPin size={14} className="text-rose-800" /> Lusaka
+            </span>
+          </div>
         </div>
       </div>
 

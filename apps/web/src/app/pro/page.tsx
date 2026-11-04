@@ -6,7 +6,7 @@ import { formatZmw } from "@/lib/utils";
 import { format, isSameDay } from "date-fns";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 type Pro = {
   id: string;
@@ -14,16 +14,22 @@ type Pro = {
   status: string;
   verified: boolean;
   floatBalanceZmw: number;
+  lat: number | null;
+  lng: number | null;
 };
 
 type Booking = {
   id: string;
   status: string;
   scheduledAt: string;
+  locationType: string;
+  address: string | null;
+  customerLat: number | null;
+  customerLng: number | null;
   servicePriceZmw: number;
   travelFeeZmw: number;
   service: { name: string };
-  customer: { name: string | null; phone: string };
+  customer: { id: string; name: string | null; phone: string };
 };
 
 export default function ProHomePage() {
@@ -31,6 +37,8 @@ export default function ProHomePage() {
   const [userName, setUserName] = useState("");
   const [pro, setPro] = useState<Pro | null>(null);
   const [bookings, setBookings] = useState<Booking[]>([]);
+  const [tripNote, setTripNote] = useState("");
+  const sim = useRef(0);
 
   useEffect(() => {
     (async () => {
@@ -76,6 +84,47 @@ export default function ProHomePage() {
     .filter((b) => b.status === "COMPLETED")
     .reduce((sum, b) => sum + b.servicePriceZmw + b.travelFeeZmw, 0);
 
+  async function messageCustomer(customerId: string) {
+    const data = await api<{ conversation: { id: string } }>("/api/conversations", {
+      method: "POST",
+      json: { customerId },
+    });
+    router.push(`/messages/${data.conversation.id}`);
+  }
+
+  async function shareGps() {
+    if (!navigator.geolocation) {
+      setTripNote("This browser has no GPS. Use the demo trip instead.");
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(async (pos) => {
+      await api("/api/pro/location", {
+        method: "POST",
+        json: { lat: pos.coords.latitude, lng: pos.coords.longitude },
+      });
+      setTripNote("Live location shared.");
+    });
+  }
+
+  async function simulateTrip(b: Booking) {
+    if (pro?.lat == null || pro.lng == null || b.customerLat == null || b.customerLng == null) {
+      setTripNote("Need a home pin on the booking before a live trip.");
+      return;
+    }
+    const token = ++sim.current;
+    setTripNote("Driving toward the customer…");
+    const route = await api<{ coordinates: [number, number][] }>(
+      `/api/geo/route?fromLat=${pro.lat}&fromLng=${pro.lng}&toLat=${b.customerLat}&toLng=${b.customerLng}`,
+    );
+    const points = route.coordinates.filter((_, i) => i % 6 === 0);
+    for (const [lat, lng] of points) {
+      if (sim.current !== token) return;
+      await api("/api/pro/location", { method: "POST", json: { lat, lng } });
+      await new Promise((r) => setTimeout(r, 2500));
+    }
+    if (sim.current === token) setTripNote("Arrived near the customer.");
+  }
+
   async function updateStatus(id: string, status: string) {
     await api(`/api/bookings/${id}`, { method: "PATCH", json: { status } });
     const b = await api<{ bookings: Booking[] }>("/api/bookings?scope=pro");
@@ -93,8 +142,15 @@ export default function ProHomePage() {
           <div className="text-sm text-stone-500">Good day,</div>
           <h1 className="font-display text-3xl">{userName}</h1>
         </div>
-        <LogoMark size={44} />
+        <div className="flex items-center gap-2">
+          <Link href="/messages" className="text-sm font-semibold text-rose-800">
+            Messages
+          </Link>
+          <LogoMark size={44} />
+        </div>
       </div>
+
+      {tripNote ? <p className="text-sm font-medium text-rose-800">{tripNote}</p> : null}
 
       {pro.status !== "APPROVED" ? (
         <Card className="bg-amber-50 ring-amber-100">
@@ -147,6 +203,26 @@ export default function ProHomePage() {
                   </div>
                   <Badge>{b.status}</Badge>
                 </div>
+                {b.locationType === "AT_HOME" && ["ACCEPTED", "IN_PROGRESS"].includes(b.status) ? (
+                  <div className="flex flex-wrap gap-2">
+                    <Button className="flex-1" onClick={() => simulateTrip(b)}>
+                      Start live trip
+                    </Button>
+                    <Button variant="secondary" className="flex-1" onClick={shareGps}>
+                      Share GPS
+                    </Button>
+                    <Link href={`/bookings/${b.id}/track`} className="w-full text-center text-sm font-semibold text-rose-800">
+                      Open customer map
+                    </Link>
+                  </div>
+                ) : null}
+                <button
+                  type="button"
+                  className="text-sm font-semibold text-rose-800"
+                  onClick={() => messageCustomer(b.customer.id)}
+                >
+                  Message {b.customer.name || "customer"}
+                </button>
                 <div className="flex flex-wrap gap-2">
                   {b.status === "REQUESTED" ? (
                     <>

@@ -62,7 +62,7 @@ From repo root you can also run `npm run dev` (workspace).
 
 ## Core flows that work
 
-1. **Customer:** browse → open pro → Book Now → service → date/slots → At Home / At Shop → confirm → bookings → review  
+1. **Customer:** browse → open pro → Chat or WhatsApp → Book Now (drop a home pin on the OpenStreetMap) → confirm → live map with distance and ETA  
 2. **Professional:** login → dashboard accept/start/complete → calendar → float top-up → manage services  
 3. **Admin:** review applications → approve/reject → adjust commission %  
 

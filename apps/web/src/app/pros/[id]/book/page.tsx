@@ -1,6 +1,7 @@
 "use client";
 
 import { Button, Card, Chip, Input, TextArea } from "@/components/ui";
+import { ZanaMap } from "@/components/zana-map";
 import { api } from "@/lib/api-client";
 import { formatZmw } from "@/lib/utils";
 import { addDays, format, setHours, setMinutes } from "date-fns";
@@ -34,6 +35,7 @@ export default function BookFlowPage() {
   const [time, setTime] = useState("");
   const [locationType, setLocationType] = useState<"AT_HOME" | "AT_SHOP">("AT_SHOP");
   const [address, setAddress] = useState("");
+  const [pin, setPin] = useState({ lat: -15.4167, lng: 28.2833 });
   const [note, setNote] = useState("");
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -82,6 +84,8 @@ export default function BookFlowPage() {
           scheduledAt,
           locationType,
           address: locationType === "AT_HOME" ? address : undefined,
+          customerLat: locationType === "AT_HOME" ? pin.lat : undefined,
+          customerLng: locationType === "AT_HOME" ? pin.lng : undefined,
           customerNote: note || undefined,
         },
       });
@@ -226,12 +230,34 @@ export default function BookFlowPage() {
             </button>
           </div>
           {locationType === "AT_HOME" ? (
-            <TextArea
-              rows={3}
-              placeholder="Your address in Lusaka"
-              value={address}
-              onChange={(e) => setAddress(e.target.value)}
-            />
+            <div className="space-y-2">
+              <p className="text-sm text-stone-500">
+                Drop the pin on your building. The map uses OpenStreetMap, the same kind of map as Maps.me.
+              </p>
+              <ZanaMap
+                center={pin}
+                zoom={15}
+                height={280}
+                pick={pin}
+                onPick={async (lat, lng) => {
+                  setPin({ lat, lng });
+                  try {
+                    const place = await api<{ label: string }>(
+                      `/api/geo/reverse?lat=${lat}&lng=${lng}`,
+                    );
+                    setAddress(place.label);
+                  } catch {
+                    setAddress(`${lat.toFixed(5)}, ${lng.toFixed(5)}`);
+                  }
+                }}
+              />
+              <TextArea
+                rows={2}
+                placeholder="Building, road, area"
+                value={address}
+                onChange={(e) => setAddress(e.target.value)}
+              />
+            </div>
           ) : null}
           <TextArea
             rows={2}

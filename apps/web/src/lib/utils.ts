@@ -29,3 +29,13 @@ export function haversineKm(a: { lat: number; lng: number }, b: { lat: number; l
     Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
   return R * 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x));
 }
+
+/** Rough Lusaka drive time from distance (about 22 km/h in traffic). */
+export function driveMinutes(distanceKm: number) {
+  return Math.max(3, Math.round((distanceKm / 22) * 60));
+}
+
+export function whatsappHref(phone: string, text: string) {
+  const digits = phone.replace(/\D/g, "");
+  return `https://wa.me/${digits}?text=${encodeURIComponent(text)}`;
+}
