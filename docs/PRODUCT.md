@@ -2,6 +2,8 @@
 
 Working rules for engineering. Source of truth alongside the Product Blueprint PDF.
 
+**Rebuild:** See [`docs/BUILD_PLAN.md`](./BUILD_PLAN.md) for the phase-by-phase clean-slate plan (one barbershop pilot first). Do not add features outside the current phase.
+
 ## Roles
 
 | Role | Surface | Notes |
