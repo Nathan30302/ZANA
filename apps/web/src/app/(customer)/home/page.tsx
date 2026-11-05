@@ -1,11 +1,21 @@
 "use client";
 
 import { ProCard, ProCardData } from "@/components/pro-card";
-import { Badge, BrandWordmark, Chip, Input, SectionTitle } from "@/components/ui";
+import { Badge, BrandWordmark, Chip, EmptyState, Input, SectionTitle } from "@/components/ui";
 import { api } from "@/lib/api-client";
+import { useHere } from "@/lib/use-here";
+import { formatLusaka } from "@/lib/utils";
 import { MapPin, Search } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+
+type NextBooking = {
+  id: string;
+  status: string;
+  scheduledAt: string;
+  service: { name: string };
+  professional: { displayName: string };
+};
 
 const CATEGORIES = ["All", "Haircut", "Fade", "Braids", "Nails", "Makeup", "Salon", "Home Service"];
 
@@ -13,7 +23,26 @@ export default function HomePage() {
   const [pros, setPros] = useState<ProCardData[]>([]);
   const [category, setCategory] = useState("All");
   const [q, setQ] = useState("");
+  const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(true);
+  const [next, setNext] = useState<NextBooking | null>(null);
+  const { here, fromGps } = useHere();
+
+  useEffect(() => {
+    const handle = window.setTimeout(() => setQuery(q.trim()), 300);
+    return () => window.clearTimeout(handle);
+  }, [q]);
+
+  useEffect(() => {
+    api<{ bookings: NextBooking[] }>("/api/bookings?scope=customer")
+      .then((data) => {
+        const upcoming = data.bookings
+          .filter((b) => ["REQUESTED", "ACCEPTED", "IN_PROGRESS"].includes(b.status))
+          .sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime());
+        setNext(upcoming[0] || null);
+      })
+      .catch(() => setNext(null));
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -22,9 +51,9 @@ export default function HomePage() {
       try {
         const params = new URLSearchParams();
         if (category !== "All") params.set("category", category);
-        if (q.trim()) params.set("q", q.trim());
-        params.set("lat", "-15.4167");
-        params.set("lng", "28.2833");
+        if (query) params.set("q", query);
+        params.set("lat", String(here.lat));
+        params.set("lng", String(here.lng));
         const data = await api<{ professionals: ProCardData[] }>(`/api/professionals?${params}`);
         if (!cancelled) setPros(data.professionals);
       } finally {
@@ -34,7 +63,7 @@ export default function HomePage() {
     return () => {
       cancelled = true;
     };
-  }, [category, q]);
+  }, [category, query, here]);
 
   const top = useMemo(() => pros.slice(0, 6), [pros]);
 
@@ -51,7 +80,7 @@ export default function HomePage() {
           </Link>
           <div className="rounded-full bg-white px-3 py-2 text-xs font-medium text-stone-600 ring-1 ring-stone-200">
             <span className="inline-flex items-center gap-1">
-              <MapPin size={14} className="text-rose-800" /> Lusaka
+              <MapPin size={14} className="text-rose-800" /> {fromGps ? "Near you" : "Lusaka"}
             </span>
           </div>
         </div>
@@ -74,6 +103,22 @@ export default function HomePage() {
           </Chip>
         ))}
       </div>
+
+      {!fromGps ? (
+        <p className="text-xs text-stone-500">
+          Allow location and distances start from where you are. For now they start in central Lusaka.
+        </p>
+      ) : null}
+
+      {next ? (
+        <Link href={`/bookings/${next.id}`} className="block rounded-[28px] bg-white p-4 ring-1 ring-stone-200">
+          <div className="text-[11px] font-semibold uppercase tracking-wide text-rose-800">Next booking</div>
+          <div className="mt-1 font-semibold text-stone-900">{next.service.name}</div>
+          <div className="text-sm text-stone-500">
+            {next.professional.displayName} · {formatLusaka(new Date(next.scheduledAt))}
+          </div>
+        </Link>
+      ) : null}
 
       <Link
         href="/explore?homeService=1"
@@ -101,6 +146,8 @@ export default function HomePage() {
               <div key={i} className="h-56 animate-pulse rounded-3xl bg-stone-100" />
             ))}
           </div>
+        ) : top.length === 0 ? (
+          <EmptyState title="Nothing matches" body="Try another name, or switch the category back to All." />
         ) : (
           <div className="space-y-4">
             {top.map((pro) => (

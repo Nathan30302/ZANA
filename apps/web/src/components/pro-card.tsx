@@ -1,6 +1,7 @@
 "use client";
 
 import { Badge, Card, StarRow } from "@/components/ui";
+import { formatDistance } from "@/lib/use-here";
 import { formatZmw } from "@/lib/utils";
 
 export type ProCardData = {
@@ -58,7 +59,7 @@ export function ProCard({ pro }: { pro: ProCardData }) {
         <div className="flex items-center justify-between text-sm">
           <span className="font-medium text-rose-800">
             {pro.distanceKm != null
-              ? `${pro.distanceKm.toFixed(1)} km${pro.etaMin ? ` · ${pro.etaMin} min` : ""}`
+              ? `${formatDistance(pro.distanceKm)}${pro.etaMin ? ` · ${pro.etaMin} min` : ""}`
               : "Lusaka"}
           </span>
           <span className="font-semibold text-stone-900">

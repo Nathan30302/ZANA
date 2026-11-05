@@ -2,8 +2,7 @@
 
 import { Badge, Card, EmptyState, SectionTitle } from "@/components/ui";
 import { api } from "@/lib/api-client";
-import { formatZmw } from "@/lib/utils";
-import { format } from "date-fns";
+import { formatLusaka, formatZmw } from "@/lib/utils";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
@@ -81,7 +80,7 @@ export default function BookingsPage() {
                 <Badge tone={b.status === "COMPLETED" ? "green" : "rose"}>{b.status}</Badge>
               </div>
               <div className="text-sm text-stone-600">
-                {format(new Date(b.scheduledAt), "EEE d MMM · HH:mm")} ·{" "}
+                {formatLusaka(new Date(b.scheduledAt))} ·{" "}
                 {b.locationType === "AT_HOME" ? "At Home" : "At Shop"}
               </div>
               <div className="flex items-center justify-between">

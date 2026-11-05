@@ -49,9 +49,16 @@ export default function BookFlowPage() {
   const [doneId, setDoneId] = useState<string | null>(null);
 
   useEffect(() => {
+    const requested = new URLSearchParams(window.location.search).get("service");
     api<{ professional: Professional }>(`/api/professionals/${id}`).then((d) => {
       setPro(d.professional);
-      if (d.professional.services[0]) setServiceId(d.professional.services[0].id);
+      const match = d.professional.services.find((s) => s.id === requested);
+      if (match) {
+        setServiceId(match.id);
+        setStep(2);
+      } else if (d.professional.services[0]) {
+        setServiceId(d.professional.services[0].id);
+      }
     });
   }, [id]);
 

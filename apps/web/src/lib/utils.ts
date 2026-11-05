@@ -9,6 +9,21 @@ export function formatZmw(amount: number) {
   return `K${amount.toLocaleString("en-ZM")}`;
 }
 
+/** Appointment times are in Lusaka, even if the phone is set somewhere else. */
+export function formatLusaka(date: Date) {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Africa/Lusaka",
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(date);
+  const get = (type: string) => parts.find((part) => part.type === type)?.value ?? "";
+  return `${get("weekday")} ${get("day")} ${get("month")} · ${get("hour")}:${get("minute")}`;
+}
+
 export function normalizePhone(input: string) {
   const digits = input.replace(/[^\d+]/g, "");
   if (digits.startsWith("+260")) return digits;

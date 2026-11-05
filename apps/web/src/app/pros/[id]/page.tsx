@@ -3,7 +3,8 @@
 import { PlaceMap } from "@/components/map-screen";
 import { Badge, Button, Card, StarRow } from "@/components/ui";
 import { api } from "@/lib/api-client";
-import { formatZmw, whatsappHref } from "@/lib/utils";
+import { formatDistance, useHere } from "@/lib/use-here";
+import { driveMinutes, formatZmw, haversineKm, whatsappHref } from "@/lib/utils";
 import { ArrowLeft, Heart, Home, MapPin } from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
@@ -48,9 +49,13 @@ export default function ProProfilePage() {
   const [pro, setPro] = useState<Professional | null>(null);
   const [fav, setFav] = useState(false);
   const [chatBusy, setChatBusy] = useState(false);
+  const { here, fromGps } = useHere();
 
   useEffect(() => {
     api<{ professional: Professional }>(`/api/professionals/${id}`).then((d) => setPro(d.professional));
+    api<{ favorites: { id: string }[] }>("/api/favorites")
+      .then((d) => setFav(d.favorites.some((f) => f.id === id)))
+      .catch(() => setFav(false));
   }, [id]);
 
   async function openChat() {
@@ -85,6 +90,11 @@ export default function ProProfilePage() {
   if (!pro) {
     return <div className="mobile-shell p-6 text-sm text-stone-500">Loading profile…</div>;
   }
+
+  const awayKm =
+    fromGps && pro.lat != null && pro.lng != null
+      ? haversineKm(here, { lat: pro.lat, lng: pro.lng })
+      : null;
 
   return (
     <div className="mobile-shell pb-28">
@@ -132,6 +142,11 @@ export default function ProProfilePage() {
         {pro.lat != null && pro.lng != null ? (
           <div className="space-y-2">
             <p className="text-sm text-stone-500">{pro.address || pro.area || "Lusaka"}</p>
+            {awayKm != null ? (
+              <p className="text-sm font-medium text-stone-800">
+                {formatDistance(awayKm)} from you · about {driveMinutes(awayKm)} min by car
+              </p>
+            ) : null}
             <PlaceMap place={{ lat: pro.lat, lng: pro.lng, label: pro.displayName }} />
           </div>
         ) : null}
@@ -140,7 +155,7 @@ export default function ProProfilePage() {
           <h2 className="font-display mb-3 text-xl">Services</h2>
           <div className="space-y-2">
             {pro.services.map((s) => (
-              <Card key={s.id} className="flex items-center justify-between gap-3">
+              <Card key={s.id} href={`/pros/${pro.id}/book?service=${s.id}`} className="flex items-center justify-between gap-3">
                 <div>
                   <div className="font-semibold">{s.name}</div>
                   <div className="text-sm text-stone-500">
@@ -148,7 +163,10 @@ export default function ProProfilePage() {
                     {s.homeEligible ? " · Home eligible" : ""}
                   </div>
                 </div>
-                <div className="font-semibold">{formatZmw(s.priceZmw)}</div>
+                <div className="text-right">
+                  <div className="font-semibold">{formatZmw(s.priceZmw)}</div>
+                  <div className="text-xs font-semibold text-rose-800">Book</div>
+                </div>
               </Card>
             ))}
           </div>

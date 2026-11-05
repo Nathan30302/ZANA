@@ -2,8 +2,7 @@
 
 import { Badge, Button, Card } from "@/components/ui";
 import { api } from "@/lib/api-client";
-import { formatZmw } from "@/lib/utils";
-import { format } from "date-fns";
+import { formatLusaka, formatZmw } from "@/lib/utils";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -57,7 +56,7 @@ export default function BookingDetailPage() {
       </div>
 
       <Card className="space-y-2 text-sm">
-        <div>{format(new Date(booking.scheduledAt), "EEEE d MMMM · HH:mm")}</div>
+        <div>{formatLusaka(new Date(booking.scheduledAt))}</div>
         <div>
           {booking.locationType === "AT_HOME" ? "At Home" : "At Shop"} · {booking.address}
         </div>
