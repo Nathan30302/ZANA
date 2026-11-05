@@ -84,6 +84,16 @@ body {
   font-family: inherit;
 }
 
+.maplibregl-ctrl-scale {
+  margin-top: 6px;
+  border: 0;
+  border-bottom: 2px solid #3a291c;
+  background: rgba(255, 250, 248, 0.92);
+  color: #1c1917;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
 .zana-you-dot {
   width: 16px;
   height: 16px;

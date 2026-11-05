@@ -128,6 +128,16 @@ function useMyGps(active: boolean) {
   return { gps: stableGps.current, gpsNote, setGpsNote, onLive };
 }
 
+function turnGlyph(instruction: string) {
+  const text = instruction.toLowerCase();
+  if (text.includes("arrived")) return "●";
+  if (text.includes("roundabout")) return "↻";
+  if (text.includes("u-turn") || text.includes("uturn")) return "↩";
+  if (text.includes("left")) return "←";
+  if (text.includes("right")) return "→";
+  return "↑";
+}
+
 function askCompass() {
   const orientation = DeviceOrientationEvent as unknown as { requestPermission?: () => Promise<string> };
   orientation.requestPermission?.().catch(() => undefined);
@@ -195,21 +205,24 @@ export function PlaceMap({
       <div className="relative">
         <ZanaMap
           center={place}
-          zoom={16}
-          height={300}
+          zoom={16.7}
+          height={340}
+          spotlight={place}
           you={onMap && (away ?? 99) < 2 ? onMap : null}
           pins={[{ id: "place", lat: place.lat, lng: place.lng, label: place.label }]}
         />
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className="absolute bottom-3 left-3 z-10 rounded-full bg-stone-900 px-4 py-2 text-sm font-semibold text-white shadow"
+          className="absolute left-3 top-3 z-10 rounded-full bg-stone-900 px-4 py-2 text-sm font-semibold text-white shadow"
         >
           Open map
         </button>
       </div>
       <p className="text-sm text-stone-600">
-        {away != null ? `${formatAway(away)}. The route stays hidden until you tap Route me.` : mine.gpsNote || "Where the place is."}
+        {away != null
+          ? `${formatAway(away)}. Pinch in for building names. The route stays hidden until you tap Route me.`
+          : mine.gpsNote || "Pinch in to read building names. The route stays hidden until you tap Route me."}
       </p>
       <ZambiaNote />
     </div>
@@ -250,6 +263,7 @@ export function MapScreen({
   const [seeRoute, setSeeRoute] = useState(false);
   const [camera, setCamera] = useState<"place" | "you" | "both" | "follow">(showRoute && followUser ? "follow" : "place");
   const [cameraTick, setCameraTick] = useState(0);
+  const [building, setBuilding] = useState<string | null>(null);
   const fitted = useRef(false);
 
   const fromPoint = showRoute ? (routeFrom === "gps" ? gps : origin) : null;
@@ -329,13 +343,15 @@ export function MapScreen({
   const line = useMemo(() => (showRoute ? route?.coordinates || [] : []), [showRoute, route]);
 
   return (
-    <div className="fixed inset-0 z-[70] mx-auto flex max-w-[480px] flex-col bg-[#efeae2]">
+    <div className="fixed inset-0 z-[70] mx-auto flex max-w-[480px] flex-col bg-[#e9e2d6]">
       <div className="absolute inset-0">
         <ZanaMap
           center={place}
-          zoom={16}
+          zoom={17}
           height="full"
           you={you}
+          spotlight={place}
+          onInspect={setBuilding}
           follow={camera === "follow" && !seeRoute}
           camera={camera === "place" ? undefined : camera}
           cameraTick={cameraTick}
@@ -355,6 +371,7 @@ export function MapScreen({
         </button>
         <div className="pointer-events-auto mt-2 max-w-[220px] rounded-2xl bg-white/95 px-3 py-2 shadow">
           <div className="truncate text-sm font-semibold text-stone-900">{title}</div>
+          {building ? <div className="truncate text-xs font-semibold text-rose-800">{building}</div> : null}
           <div className="text-xs text-stone-500">
             {showRoute
               ? `${route?.distanceKm != null ? `${route.distanceKm.toFixed(1)} km` : "…"} · ${formatMins(route?.durationMin ?? null)}`
@@ -424,11 +441,14 @@ export function MapScreen({
           </div>
         )}
         {showRoute && current ? (
-          <div className="pointer-events-auto rounded-3xl bg-rose-800 px-4 py-3 text-white shadow">
-            <div className="text-[11px] uppercase tracking-wide text-rose-100">Next</div>
-            <div className="text-base font-semibold">{current.instruction}</div>
-            <div className="text-sm text-rose-100">
-              {metresLeft < 1000 ? `${metresLeft} m` : `${(metresLeft / 1000).toFixed(1)} km`}
+          <div className="pointer-events-auto flex items-center gap-3 rounded-3xl bg-rose-800 px-4 py-3 text-white shadow">
+            <div className="font-display text-3xl leading-none">{turnGlyph(current.instruction)}</div>
+            <div className="min-w-0">
+              <div className="text-[11px] uppercase tracking-wide text-rose-100">Next</div>
+              <div className="text-base font-semibold">{current.instruction}</div>
+              <div className="text-sm text-rose-100">
+                {metresLeft < 1000 ? `${metresLeft} m` : `${(metresLeft / 1000).toFixed(1)} km`}
+              </div>
             </div>
           </div>
         ) : null}

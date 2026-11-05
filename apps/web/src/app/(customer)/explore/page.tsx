@@ -110,7 +110,7 @@ function ExploreInner() {
             <ZanaMap
               key={`${here.lat.toFixed(2)},${here.lng.toFixed(2)}`}
               center={here}
-              zoom={fromGps ? 14 : 12}
+              zoom={fromGps ? 15.5 : 12}
               height={380}
               you={fromGps ? here : null}
               pins={pros

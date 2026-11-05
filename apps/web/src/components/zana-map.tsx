@@ -31,6 +31,10 @@ type Props = {
   /** One-shot camera move. `follow` keeps tracking after that. */
   camera?: "you" | "both" | "follow";
   cameraTick?: number;
+  /** Outline the building under this point once the tiles are drawn. */
+  spotlight?: { lat: number; lng: number } | null;
+  /** Fired when someone taps a named building. */
+  onInspect?: (name: string | null) => void;
 };
 
 function ringPolygon(lat: number, lng: number, radiusM: number) {
@@ -74,6 +78,8 @@ export function ZanaMap({
   frameRoute = false,
   camera,
   cameraTick = 0,
+  spotlight,
+  onInspect,
 }: Props) {
   const el = useRef<HTMLDivElement>(null);
   const mapRef = useRef<import("maplibre-gl").Map | null>(null);
@@ -92,8 +98,13 @@ export function ZanaMap({
   const [ready, setReady] = useState(false);
   const [mapReady, setMapReady] = useState<boolean | null>(null);
   const [pausedUi, setPausedUi] = useState(false);
+  const [inspected, setInspected] = useState<string | null>(null);
+  const onInspectRef = useRef(onInspect);
+  const spotlightRef = useRef(spotlight);
   onPickRef.current = onPick;
   followRef.current = follow;
+  onInspectRef.current = onInspect;
+  spotlightRef.current = spotlight;
 
   useEffect(() => {
     let stop = false;
@@ -132,6 +143,7 @@ export function ZanaMap({
         attributionControl: { compact: true },
       });
       map.addControl(new maplibregl.NavigationControl({ showCompass: true, visualizePitch: false }), "top-right");
+      map.addControl(new maplibregl.ScaleControl({ maxWidth: 72, unit: "metric" }), "top-right");
       map.on("dragstart", () => {
         if (!followRef.current) return;
         paused.current = true;
@@ -140,6 +152,56 @@ export function ZanaMap({
       map.on("load", () => {
         if (!map) return;
         map.resize();
+        map.addSource("focus-building", {
+          type: "geojson",
+          data: { type: "FeatureCollection", features: [] },
+        });
+        map.addLayer({
+          id: "focus-building-fill",
+          type: "fill",
+          source: "focus-building",
+          paint: { "fill-color": "#9f1239", "fill-opacity": 0.28 },
+        });
+        map.addLayer({
+          id: "focus-building-line",
+          type: "line",
+          source: "focus-building",
+          paint: { "line-color": "#9f1239", "line-width": 3 },
+        });
+        map.addSource("inspected-building", {
+          type: "geojson",
+          data: { type: "FeatureCollection", features: [] },
+        });
+        map.addLayer({
+          id: "inspected-building-fill",
+          type: "fill",
+          source: "inspected-building",
+          paint: { "fill-color": "#1c1917", "fill-opacity": 0.22 },
+        });
+        map.addLayer({
+          id: "inspected-building-line",
+          type: "line",
+          source: "inspected-building",
+          paint: { "line-color": "#1c1917", "line-width": 2.5 },
+        });
+        map.on("click", (event) => {
+          if (onPickRef.current || !map) return;
+          const hits = map.queryRenderedFeatures(event.point, { layers: ["building"] });
+          const named = hits.find((feature) => feature.properties?.name);
+          const hit = named || hits[0];
+          const src = map.getSource("inspected-building") as import("maplibre-gl").GeoJSONSource | undefined;
+          const geometry = hit?.geometry;
+          if (!src || !geometry || (geometry.type !== "Polygon" && geometry.type !== "MultiPolygon")) {
+            src?.setData({ type: "FeatureCollection", features: [] });
+            setInspected(null);
+            onInspectRef.current?.(null);
+            return;
+          }
+          src.setData({ type: "Feature", geometry, properties: {} });
+          const name = hit.properties?.name ? String(hit.properties.name) : "Building";
+          setInspected(name);
+          onInspectRef.current?.(name);
+        });
         map.addSource("route", {
           type: "geojson",
           data: { type: "Feature", geometry: { type: "LineString", coordinates: [] }, properties: {} },
@@ -157,6 +219,22 @@ export function ZanaMap({
           source: "route",
           layout: { "line-cap": "round", "line-join": "round" },
           paint: { "line-color": "#9f1239", "line-width": 5 },
+        });
+        map.addLayer({
+          id: "route-arrows",
+          type: "symbol",
+          source: "route",
+          layout: {
+            "symbol-placement": "line",
+            "symbol-spacing": 70,
+            "text-field": "▸",
+            "text-font": ["Noto Sans Bold"],
+            "text-size": 16,
+            "text-rotation-alignment": "map",
+            "text-keep-upright": false,
+            "text-allow-overlap": true,
+          },
+          paint: { "text-color": "#ffffff", "text-halo-color": "#9f1239", "text-halo-width": 1 },
         });
         map.addSource("you-ring", {
           type: "geojson",
@@ -379,10 +457,61 @@ export function ZanaMap({
           [Math.min(...pts.map((p) => p[0])), Math.min(...pts.map((p) => p[1]))],
           [Math.max(...pts.map((p) => p[0])), Math.max(...pts.map((p) => p[1]))],
         ],
-        { padding: { top: 136, bottom: 132, left: 96, right: 64 }, maxZoom: 17, duration: 600 },
+        { padding: { top: 168, bottom: 168, left: 168, right: 64 }, maxZoom: 16.2, duration: 600 },
       );
     }
   }, [camera, cameraTick, ready]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!ready || !map) return;
+    let last = "";
+    const paint = () => {
+      const src = map.getSource("focus-building") as import("maplibre-gl").GeoJSONSource | undefined;
+      if (!src) return;
+      const spot = spotlightRef.current;
+      const empty = { type: "FeatureCollection" as const, features: [] };
+      if (!spot) {
+        if (last !== "") {
+          last = "";
+          src.setData(empty);
+        }
+        return;
+      }
+      const pixel = map.project([spot.lng, spot.lat]);
+      const pointHits = map.queryRenderedFeatures(pixel, { layers: ["building"] });
+      const boxHits =
+        pointHits.length > 0
+          ? pointHits
+          : map.queryRenderedFeatures(
+              [
+                [pixel.x - 18, pixel.y - 18],
+                [pixel.x + 18, pixel.y + 18],
+              ],
+              { layers: ["building"] },
+            );
+      const hit = boxHits.find(
+        (feature) => feature.geometry?.type === "Polygon" || feature.geometry?.type === "MultiPolygon",
+      );
+      const key = hit?.geometry ? JSON.stringify(hit.geometry) : "";
+      if (key === last) return;
+      last = key;
+      if (!hit?.geometry) {
+        src.setData(empty);
+        return;
+      }
+      src.setData({
+        type: "Feature",
+        geometry: hit.geometry,
+        properties: {},
+      });
+    };
+    paint();
+    map.on("idle", paint);
+    return () => {
+      map.off("idle", paint);
+    };
+  }, [ready, spotlight]);
 
   function resumeFollow() {
     const map = mapRef.current;
@@ -418,6 +547,11 @@ export function ZanaMap({
           className={full ? "h-full w-full" : "overflow-hidden rounded-[28px] ring-1 ring-stone-200"}
         />
       )}
+      {inspected && !onInspect ? (
+        <div className="absolute left-3 top-3 z-10 max-w-[70%] truncate rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-stone-900 shadow">
+          {inspected}
+        </div>
+      ) : null}
       {follow && pausedUi && you ? (
         <button
           type="button"
