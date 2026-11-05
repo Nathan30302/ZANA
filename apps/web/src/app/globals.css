@@ -87,9 +87,9 @@ body {
 }
 
 .zana-arrow {
-  width: 34px;
-  height: 34px;
-  filter: drop-shadow(0 2px 3px rgba(28, 25, 23, 0.35));
+  width: 42px;
+  height: 42px;
+  filter: drop-shadow(0 2px 4px rgba(28, 25, 23, 0.35));
 }
 
 .zana-pin {

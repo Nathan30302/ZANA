@@ -28,6 +28,9 @@ type Props = {
   follow?: boolean;
   /** Fit the route in view once. */
   frameRoute?: boolean;
+  /** One-shot camera move. `follow` keeps tracking after that. */
+  camera?: "you" | "both" | "follow";
+  cameraTick?: number;
 };
 
 function ringPolygon(lat: number, lng: number, radiusM: number) {
@@ -69,6 +72,8 @@ export function ZanaMap({
   you,
   follow = false,
   frameRoute = false,
+  camera,
+  cameraTick = 0,
 }: Props) {
   const el = useRef<HTMLDivElement>(null);
   const mapRef = useRef<import("maplibre-gl").Map | null>(null);
@@ -77,6 +82,10 @@ export function ZanaMap({
   const youMarker = useRef<import("maplibre-gl").Marker | null>(null);
   const onPickRef = useRef(onPick);
   const followRef = useRef(follow);
+  const youRef = useRef(you);
+  const pinsRef = useRef(pins);
+  youRef.current = you;
+  pinsRef.current = pins;
   const paused = useRef(false);
   const fitted = useRef("");
   const lastCam = useRef<{ lat: number; lng: number; heading: number } | null>(null);
@@ -285,23 +294,10 @@ export function ZanaMap({
     }
     const accuracy = Math.max(12, Math.min(you.accuracy || 24, 80));
     ring?.setData({ type: "FeatureCollection", features: [ringPolygon(you.lat, you.lng, accuracy)] });
-    let cancelled = false;
-    (async () => {
-      const maplibregl = await import("maplibre-gl");
-      if (cancelled) return;
+    const placeYou = () => {
       const heading = you.heading;
-      if (!youMarker.current) {
-        const node = document.createElement("div");
-        node.className = "zana-arrow";
-        node.title = "You are here";
-        node.innerHTML =
-          '<svg viewBox="0 0 40 40" width="34" height="34" aria-hidden="true"><path d="M20 2 L35 36 L20 28 L5 36 Z" fill="#1d4ed8" stroke="#fff" stroke-width="2.5" stroke-linejoin="round"/></svg>';
-        youMarker.current = new maplibregl.Marker({ element: node, anchor: "center", rotationAlignment: "map" })
-          .setLngLat([you.lng, you.lat])
-          .addTo(map);
-      } else {
-        youMarker.current.setLngLat([you.lng, you.lat]);
-      }
+      if (!youMarker.current) return false;
+      youMarker.current.setLngLat([you.lng, you.lat]);
       const tracking = follow && !paused.current;
       if (tracking) {
         const prev = lastCam.current;
@@ -323,11 +319,70 @@ export function ZanaMap({
       } else if (heading != null) {
         youMarker.current.setRotation(heading);
       }
-    })();
+      return true;
+    };
+    if (placeYou()) return;
+    let cancelled = false;
+    import("maplibre-gl").then((maplibregl) => {
+      if (cancelled || youMarker.current) return;
+      const node = document.createElement("div");
+      node.className = "zana-arrow";
+      node.title = "You are here";
+      node.innerHTML =
+        '<svg viewBox="0 0 48 48" width="42" height="42" aria-hidden="true"><circle cx="24" cy="24" r="18" fill="#fff"/><path d="M24 6 L38 40 L24 32 L10 40 Z" fill="#1d4ed8" stroke="#fff" stroke-width="2" stroke-linejoin="round"/></svg>';
+      youMarker.current = new maplibregl.Marker({ element: node, anchor: "center", rotationAlignment: "map" })
+        .setLngLat([you.lng, you.lat])
+        .addTo(map);
+      placeYou();
+    });
     return () => {
       cancelled = true;
     };
   }, [you, ready, follow]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!ready || !map || !cameraTick || !camera) return;
+    const here = youRef.current;
+    if (camera === "follow") {
+      paused.current = false;
+      setPausedUi(false);
+      lastCam.current = null;
+      if (!here) return;
+      map.easeTo({
+        center: [here.lng, here.lat],
+        bearing: here.heading ?? map.getBearing(),
+        zoom: Math.max(map.getZoom(), 16.5),
+        pitch: 0,
+        offset: [0, 90],
+        duration: 450,
+      });
+      return;
+    }
+    paused.current = true;
+    setPausedUi(false);
+    if (!here) return;
+    if (camera === "you") {
+      map.easeTo({
+        center: [here.lng, here.lat],
+        zoom: 17,
+        bearing: here.heading ?? 0,
+        pitch: 0,
+        offset: [0, 0],
+        duration: 550,
+      });
+    }
+    if (camera === "both") {
+      const pts = [[here.lng, here.lat], ...pinsRef.current.map((p) => [p.lng, p.lat])];
+      map.fitBounds(
+        [
+          [Math.min(...pts.map((p) => p[0])), Math.min(...pts.map((p) => p[1]))],
+          [Math.max(...pts.map((p) => p[0])), Math.max(...pts.map((p) => p[1]))],
+        ],
+        { padding: { top: 136, bottom: 132, left: 96, right: 64 }, maxZoom: 17, duration: 600 },
+      );
+    }
+  }, [camera, cameraTick, ready]);
 
   function resumeFollow() {
     const map = mapRef.current;

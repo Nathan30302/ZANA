@@ -89,7 +89,7 @@ function ExploreInner() {
               }))}
           />
           <p className="text-xs text-stone-500">
-            Zambia map. Pinch in to see building shapes. Tap a name to open the place.
+            Zambia map. Pinch in to read building names. Tap a name to open the place.
           </p>
           <div className="space-y-3">
             {pros.slice(0, 4).map((pro) => (

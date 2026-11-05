@@ -88,7 +88,7 @@ export function zambiaStyle() {
         source: "zambia",
         "source-layer": "building",
         minzoom: 14,
-        paint: { "fill-color": "#e7d0ae", "fill-outline-color": "#5c4634" },
+        paint: { "fill-color": "#f0d7b4", "fill-outline-color": "#3f2d1e" },
       },
       {
         id: "building-line",
@@ -97,8 +97,8 @@ export function zambiaStyle() {
         "source-layer": "building",
         minzoom: 14,
         paint: {
-          "line-color": "#4a3828",
-          "line-width": ["interpolate", ["linear"], ["zoom"], 14, 0.8, 16, 1.5, 18, 2.4],
+          "line-color": "#3f2d1e",
+          "line-width": ["interpolate", ["linear"], ["zoom"], 14, 1, 16, 1.8, 18, 2.8],
         },
       },
       {
@@ -165,6 +165,25 @@ export function zambiaStyle() {
           "text-color": "#44403c",
           "text-halo-color": "#ffffff",
           "text-halo-width": 1.6,
+        },
+      },
+      {
+        id: "building-name",
+        type: "symbol",
+        source: "zambia",
+        "source-layer": "building",
+        minzoom: 16,
+        filter: ["all", ["has", "name"], ["!=", ["get", "name"], ""]],
+        layout: {
+          "text-field": ["get", "name"],
+          "text-font": ["Noto Sans Regular"],
+          "text-size": 11,
+          "text-max-width": 8,
+        },
+        paint: {
+          "text-color": "#3f2d1e",
+          "text-halo-color": "#f6f1e7",
+          "text-halo-width": 1.4,
         },
       },
       {
