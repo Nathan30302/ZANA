@@ -2,8 +2,8 @@
 
 import { Badge, Button, Card, LogoMark, SectionTitle } from "@/components/ui";
 import { api } from "@/lib/api-client";
-import { formatZmw } from "@/lib/utils";
-import { format, isSameDay } from "date-fns";
+import { bookingLabel, bookingTone, formatZmw, greeting, lusakaDay, lusakaTime } from "@/lib/utils";
+import { isSameDay } from "date-fns";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -139,7 +139,7 @@ export default function ProHomePage() {
     <div className="space-y-5 px-4 pb-6 pt-5">
       <div className="flex items-center justify-between">
         <div>
-          <div className="text-sm text-stone-500">Good day,</div>
+          <div className="text-sm text-stone-500">{greeting()}</div>
           <h1 className="font-display text-3xl">{userName}</h1>
         </div>
         <div className="flex items-center gap-2">
@@ -171,19 +171,19 @@ export default function ProHomePage() {
         </div>
       )}
 
-      <div className="grid grid-cols-3 gap-3">
-        <Card className="p-3">
-          <div className="text-[11px] text-stone-500">Today</div>
-          <div className="mt-1 text-xl font-semibold">{today.length}</div>
-        </Card>
-        <Card className="p-3">
-          <div className="text-[11px] text-stone-500">Earned</div>
-          <div className="mt-1 text-xl font-semibold">{formatZmw(earningsToday)}</div>
-        </Card>
-        <Card className="p-3">
-          <div className="text-[11px] text-stone-500">Float</div>
-          <div className="mt-1 text-xl font-semibold">{formatZmw(pro.floatBalanceZmw)}</div>
-        </Card>
+      <div className="grid grid-cols-3 gap-px overflow-hidden rounded-[28px] bg-stone-950 text-white">
+        <div className="bg-stone-950 px-3 py-4">
+          <div className="text-[11px] text-white/55">Today</div>
+          <div className="mt-1 font-display text-2xl">{today.length}</div>
+        </div>
+        <div className="bg-stone-950 px-3 py-4">
+          <div className="text-[11px] text-white/55">Earned</div>
+          <div className="mt-1 font-display text-2xl">{formatZmw(earningsToday)}</div>
+        </div>
+        <div className="bg-stone-950 px-3 py-4">
+          <div className="text-[11px] text-white/55">Float</div>
+          <div className="mt-1 font-display text-2xl">{formatZmw(pro.floatBalanceZmw)}</div>
+        </div>
       </div>
 
       <div>
@@ -198,10 +198,10 @@ export default function ProHomePage() {
                   <div>
                     <div className="font-semibold">{b.service.name}</div>
                     <div className="text-sm text-stone-500">
-                      {b.customer.name || b.customer.phone} · {format(new Date(b.scheduledAt), "HH:mm")}
+                      {b.customer.name || b.customer.phone} · {lusakaTime(new Date(b.scheduledAt))}
                     </div>
                   </div>
-                  <Badge>{b.status}</Badge>
+                  <Badge tone={bookingTone(b.status)}>{bookingLabel(b.status)}</Badge>
                 </div>
                 {b.locationType === "AT_HOME" && ["ACCEPTED", "IN_PROGRESS"].includes(b.status) ? (
                   <div className="flex flex-wrap gap-2">
@@ -258,9 +258,9 @@ export default function ProHomePage() {
             <Card key={b.id} className="flex items-center justify-between text-sm">
               <div>
                 <div className="font-medium">{b.service.name}</div>
-                <div className="text-stone-500">{format(new Date(b.scheduledAt), "EEE d MMM HH:mm")}</div>
+                <div className="text-stone-500">{lusakaDay(new Date(b.scheduledAt))} · {lusakaTime(new Date(b.scheduledAt))}</div>
               </div>
-              <Badge tone="stone">{b.status}</Badge>
+              <Badge tone={bookingTone(b.status)}>{bookingLabel(b.status)}</Badge>
             </Card>
           ))}
         </div>

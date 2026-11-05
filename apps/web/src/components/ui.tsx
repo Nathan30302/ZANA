@@ -141,7 +141,7 @@ export function Card({
   href?: string;
 }) {
   const cls = cn(
-    "rounded-3xl bg-white p-4 shadow-[0_8px_30px_rgba(28,25,23,0.04)] ring-1 ring-stone-100",
+    "rounded-3xl bg-white p-4 shadow-[0_10px_30px_rgba(28,25,23,0.05)] ring-1 ring-stone-100 transition active:scale-[0.995]",
     className,
   );
   if (href) {
@@ -178,8 +178,15 @@ export function EmptyState({ title, body }: { title: string; body: string }) {
   );
 }
 
-export function StarRow({ rating }: { rating: number }) {
+export function StarRow({ rating, light = false }: { rating: number; light?: boolean }) {
+  const full = Math.max(0, Math.min(5, Math.round(rating)));
   return (
-    <span className="text-sm font-semibold text-amber-600">★ {rating.toFixed(1)}</span>
+    <span className={cn("inline-flex items-center gap-1 text-sm font-semibold", light ? "text-white" : "text-stone-900")}>
+      <span aria-hidden className="tracking-tight text-amber-400">
+        {"★★★★★".slice(0, full)}
+        <span className={light ? "text-white/35" : "text-stone-300"}>{"★★★★★".slice(full)}</span>
+      </span>
+      {rating.toFixed(1)}
+    </span>
   );
 }

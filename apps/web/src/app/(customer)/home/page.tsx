@@ -1,10 +1,10 @@
 "use client";
 
 import { ProCard, ProCardData } from "@/components/pro-card";
-import { Badge, BrandWordmark, Chip, EmptyState, Input, SectionTitle } from "@/components/ui";
+import { Badge, Chip, EmptyState, Input, LogoMark, SectionTitle } from "@/components/ui";
 import { api } from "@/lib/api-client";
 import { useHere } from "@/lib/use-here";
-import { formatLusaka } from "@/lib/utils";
+import { greeting, lusakaDay, lusakaTime } from "@/lib/utils";
 import { MapPin, Search } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
@@ -26,12 +26,19 @@ export default function HomePage() {
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [next, setNext] = useState<NextBooking | null>(null);
+  const [firstName, setFirstName] = useState<string | null>(null);
   const { here, fromGps } = useHere();
 
   useEffect(() => {
     const handle = window.setTimeout(() => setQuery(q.trim()), 300);
     return () => window.clearTimeout(handle);
   }, [q]);
+
+  useEffect(() => {
+    api<{ user: { name: string | null } | null }>("/api/auth/me")
+      .then((d) => setFirstName(d.user?.name?.split(/\s+/)[0] || null))
+      .catch(() => setFirstName(null));
+  }, []);
 
   useEffect(() => {
     api<{ bookings: NextBooking[] }>("/api/bookings?scope=customer")
@@ -52,6 +59,7 @@ export default function HomePage() {
         const params = new URLSearchParams();
         if (category !== "All") params.set("category", category);
         if (query) params.set("q", query);
+        if (fromGps) params.set("sort", "distance");
         params.set("lat", String(here.lat));
         params.set("lng", String(here.lng));
         const data = await api<{ professionals: ProCardData[] }>(`/api/professionals?${params}`);
@@ -63,27 +71,29 @@ export default function HomePage() {
     return () => {
       cancelled = true;
     };
-  }, [category, query, here]);
+  }, [category, query, here, fromGps]);
 
   const top = useMemo(() => pros.slice(0, 6), [pros]);
 
   return (
     <div className="space-y-6 px-4 pb-6 pt-5">
       <div className="flex items-start justify-between gap-3">
-        <BrandWordmark subtitle="Beauty on your fingertips" />
-        <div className="flex items-center gap-2">
-          <Link
-            href="/messages"
-            className="rounded-full bg-white px-3 py-2 text-xs font-semibold text-rose-800 ring-1 ring-stone-200"
-          >
-            Messages
-          </Link>
-          <div className="rounded-full bg-white px-3 py-2 text-xs font-medium text-stone-600 ring-1 ring-stone-200">
-            <span className="inline-flex items-center gap-1">
-              <MapPin size={14} className="text-rose-800" /> {fromGps ? "Near you" : "Lusaka"}
-            </span>
+        <div className="flex items-center gap-3">
+          <LogoMark size={48} />
+          <div>
+            <div className="text-xs font-medium text-stone-500">{greeting()}</div>
+            <h1 className="font-display text-2xl leading-none text-stone-900">{firstName || "Zana"}</h1>
+            <div className="mt-1 inline-flex items-center gap-1 text-xs font-medium text-rose-800">
+              <MapPin size={13} /> {fromGps ? "Near you" : "Lusaka"}
+            </div>
           </div>
         </div>
+        <Link
+          href="/messages"
+          className="rounded-full bg-white px-3 py-2 text-xs font-semibold text-rose-800 ring-1 ring-stone-200"
+        >
+          Messages
+        </Link>
       </div>
 
       <div className="relative">
@@ -111,11 +121,16 @@ export default function HomePage() {
       ) : null}
 
       {next ? (
-        <Link href={`/bookings/${next.id}`} className="block rounded-[28px] bg-white p-4 ring-1 ring-stone-200">
-          <div className="text-[11px] font-semibold uppercase tracking-wide text-rose-800">Next booking</div>
-          <div className="mt-1 font-semibold text-stone-900">{next.service.name}</div>
-          <div className="text-sm text-stone-500">
-            {next.professional.displayName} · {formatLusaka(new Date(next.scheduledAt))}
+        <Link href={`/bookings/${next.id}`} className="flex items-center gap-4 rounded-[28px] bg-stone-950 px-4 py-4 text-white shadow-lg shadow-stone-900/15">
+          <div className="w-16 shrink-0 text-center">
+            <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-white/50">Next</div>
+            <div className="font-display text-3xl leading-none">{lusakaTime(new Date(next.scheduledAt))}</div>
+          </div>
+          <div className="min-w-0 border-l border-white/15 pl-4">
+            <div className="truncate font-semibold">{next.service.name}</div>
+            <div className="truncate text-sm text-white/70">
+              {next.professional.displayName} · {lusakaDay(new Date(next.scheduledAt))}
+            </div>
           </div>
         </Link>
       ) : null}
@@ -133,7 +148,7 @@ export default function HomePage() {
 
       <div>
         <SectionTitle
-          title="Top professionals"
+          title={fromGps ? "Pros near you" : "Top in Lusaka"}
           action={
             <Link href="/explore" className="text-sm font-semibold text-rose-800">
               See all

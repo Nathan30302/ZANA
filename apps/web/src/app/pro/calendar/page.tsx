@@ -2,6 +2,7 @@
 
 import { Badge, Card, SectionTitle } from "@/components/ui";
 import { api } from "@/lib/api-client";
+import { bookingLabel, bookingTone, lusakaTime } from "@/lib/utils";
 import {
   addMonths,
   eachDayOfInterval,
@@ -103,10 +104,10 @@ export default function ProCalendarPage() {
                 <div>
                   <div className="font-medium">{b.service.name}</div>
                   <div className="text-stone-500">
-                    {format(new Date(b.scheduledAt), "HH:mm")} · {b.customer.name || "Customer"}
+                    {lusakaTime(new Date(b.scheduledAt))} · {b.customer.name || "Customer"}
                   </div>
                 </div>
-                <Badge>{b.status}</Badge>
+                <Badge tone={bookingTone(b.status)}>{bookingLabel(b.status)}</Badge>
               </Card>
             ))
           )}

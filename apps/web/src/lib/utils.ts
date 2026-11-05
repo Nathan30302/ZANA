@@ -10,18 +10,70 @@ export function formatZmw(amount: number) {
 }
 
 /** Appointment times are in Lusaka, even if the phone is set somewhere else. */
-export function formatLusaka(date: Date) {
+export function lusakaTime(date: Date) {
+  return new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Africa/Lusaka",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).format(date);
+}
+
+export function lusakaStamp(date: Date) {
   const parts = new Intl.DateTimeFormat("en-GB", {
     timeZone: "Africa/Lusaka",
     weekday: "short",
     day: "numeric",
-    month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-    hourCycle: "h23",
   }).formatToParts(date);
   const get = (type: string) => parts.find((part) => part.type === type)?.value ?? "";
-  return `${get("weekday")} ${get("day")} ${get("month")} · ${get("hour")}:${get("minute")}`;
+  return `${get("weekday")} ${get("day")}`;
+}
+
+export function lusakaDay(date: Date) {
+  return new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Africa/Lusaka",
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+  }).format(date);
+}
+
+export function formatLusaka(date: Date) {
+  return `${lusakaDay(date)} · ${lusakaTime(date)}`;
+}
+
+export function greeting(name?: string | null) {
+  const hour = Number(
+    new Intl.DateTimeFormat("en-GB", {
+      timeZone: "Africa/Lusaka",
+      hour: "numeric",
+      hourCycle: "h23",
+    }).format(new Date()),
+  );
+  const hello = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
+  const first = name?.trim().split(/\s+/)[0];
+  return first ? `${hello}, ${first}` : hello;
+}
+
+const BOOKING_LABEL: Record<string, string> = {
+  REQUESTED: "Waiting",
+  ACCEPTED: "Confirmed",
+  IN_PROGRESS: "In progress",
+  COMPLETED: "Done",
+  DECLINED: "Declined",
+  CANCELLED: "Cancelled",
+  EXPIRED: "Expired",
+};
+
+export function bookingLabel(status: string) {
+  return BOOKING_LABEL[status] || status;
+}
+
+export function bookingTone(status: string): "rose" | "orange" | "stone" | "green" {
+  if (status === "COMPLETED") return "green";
+  if (status === "REQUESTED") return "orange";
+  if (status === "ACCEPTED" || status === "IN_PROGRESS") return "rose";
+  return "stone";
 }
 
 export function normalizePhone(input: string) {

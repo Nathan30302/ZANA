@@ -43,11 +43,11 @@ export function BottomNav({ variant }: { variant: "customer" | "pro" }) {
               key={tab.href}
               href={tab.href}
               className={cn(
-                "flex flex-col items-center gap-1 rounded-2xl px-2 py-2 text-[11px] font-medium",
-                active ? "bg-rose-50 text-rose-800" : "text-stone-500",
+                "flex flex-col items-center gap-0.5 rounded-2xl px-2 py-2 text-[11px] font-semibold",
+                active ? "bg-rose-800 text-white shadow-sm shadow-rose-900/20" : "text-stone-500",
               )}
             >
-              <Icon size={20} strokeWidth={active ? 2.4 : 1.8} />
+              <Icon size={18} strokeWidth={active ? 2.4 : 1.8} />
               {tab.label}
             </Link>
           );

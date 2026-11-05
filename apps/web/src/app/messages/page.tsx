@@ -50,13 +50,20 @@ export default function MessagesPage() {
                 : c.customer.name || "Customer";
             const last = c.messages[0];
             return (
-              <Card key={c.id} href={`/messages/${c.id}`}>
-                <div className="font-semibold">{title}</div>
-                <div className="mt-1 line-clamp-1 text-sm text-stone-500">
-                  {last?.body || "Start the conversation"}
+              <Card key={c.id} href={`/messages/${c.id}`} className="flex items-center gap-3">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-rose-800 text-sm font-semibold text-white">
+                  {title.slice(0, 1).toUpperCase()}
                 </div>
-                <div className="mt-2 text-xs text-stone-400">
-                  {formatDistanceToNow(new Date(c.updatedAt), { addSuffix: true })}
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-baseline justify-between gap-2">
+                    <div className="truncate font-semibold">{title}</div>
+                    <div className="shrink-0 text-[11px] text-stone-400">
+                      {formatDistanceToNow(new Date(c.updatedAt), { addSuffix: true })}
+                    </div>
+                  </div>
+                  <div className="mt-0.5 line-clamp-1 text-sm text-stone-500">
+                    {last?.body || "Start the conversation"}
+                  </div>
                 </div>
               </Card>
             );

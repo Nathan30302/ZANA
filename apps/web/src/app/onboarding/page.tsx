@@ -65,7 +65,7 @@ export default function OnboardingPage() {
           </Button>
         ) : (
           <Link href="/login" onClick={finish}>
-            <Button className="w-full">Create account / Login</Button>
+            <Button className="w-full">Get started</Button>
           </Link>
         )}
       </div>

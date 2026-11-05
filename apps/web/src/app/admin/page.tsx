@@ -45,9 +45,11 @@ export default function AdminHomePage() {
       </div>
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {cards.map((c) => (
-          <Card key={c.label}>
-            <div className="text-xs uppercase tracking-wide text-stone-500">{c.label}</div>
-            <div className="mt-2 text-2xl font-semibold">{c.value}</div>
+          <Card key={c.label} className={c.label === "Pending apps" && stats.pendingApplications > 0 ? "bg-rose-950 text-white ring-rose-950" : ""}>
+            <div className={`text-xs uppercase tracking-wide ${c.label === "Pending apps" && stats.pendingApplications > 0 ? "text-rose-200" : "text-stone-500"}`}>
+              {c.label}
+            </div>
+            <div className="mt-2 font-display text-3xl">{c.value}</div>
           </Card>
         ))}
       </div>

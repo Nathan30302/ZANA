@@ -2,7 +2,7 @@
 
 import { Badge, Card, EmptyState, SectionTitle } from "@/components/ui";
 import { api } from "@/lib/api-client";
-import { formatLusaka, formatZmw } from "@/lib/utils";
+import { bookingLabel, bookingTone, formatZmw, lusakaStamp, lusakaTime } from "@/lib/utils";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
@@ -72,16 +72,25 @@ export default function BookingsPage() {
         <div className="space-y-3">
           {filtered.map((b) => (
             <Card key={b.id} className="space-y-3">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <div className="font-semibold text-stone-900">{b.service.name}</div>
-                  <div className="text-sm text-stone-500">{b.professional.displayName}</div>
+              <div className="flex items-start gap-3">
+                <div className="w-14 shrink-0 text-center">
+                  <div className="font-display text-lg leading-none text-stone-900">{lusakaTime(new Date(b.scheduledAt))}</div>
+                  <div className="mt-1 text-[10px] font-medium uppercase tracking-wide text-stone-400">
+                    {lusakaStamp(new Date(b.scheduledAt))}
+                  </div>
                 </div>
-                <Badge tone={b.status === "COMPLETED" ? "green" : "rose"}>{b.status}</Badge>
-              </div>
-              <div className="text-sm text-stone-600">
-                {formatLusaka(new Date(b.scheduledAt))} ·{" "}
-                {b.locationType === "AT_HOME" ? "At Home" : "At Shop"}
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <div className="truncate font-semibold text-stone-900">{b.service.name}</div>
+                      <div className="truncate text-sm text-stone-500">{b.professional.displayName}</div>
+                    </div>
+                    <Badge tone={bookingTone(b.status)}>{bookingLabel(b.status)}</Badge>
+                  </div>
+                  <div className="mt-1 text-xs text-stone-500">
+                    {b.locationType === "AT_HOME" ? "They come to you" : "You go to the shop"}
+                  </div>
+                </div>
               </div>
               <div className="flex items-center justify-between">
                 <span className="font-semibold">{formatZmw(b.servicePriceZmw + b.travelFeeZmw)}</span>

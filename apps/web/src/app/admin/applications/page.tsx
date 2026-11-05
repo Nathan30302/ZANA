@@ -56,7 +56,7 @@ export default function AdminApplicationsPage() {
                 <div className="flex items-center gap-2">
                   <h2 className="text-xl font-semibold">{app.displayName}</h2>
                   <Badge tone={app.status === "APPROVED" ? "green" : app.status === "PENDING" ? "orange" : "stone"}>
-                    {app.status}
+                    {app.status === "PENDING" ? "Waiting" : app.status === "APPROVED" ? "Live" : app.status === "REJECTED" ? "Declined" : app.status}
                   </Badge>
                 </div>
                 <p className="text-sm text-stone-500">

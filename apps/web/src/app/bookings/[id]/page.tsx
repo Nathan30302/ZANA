@@ -2,7 +2,7 @@
 
 import { Badge, Button, Card } from "@/components/ui";
 import { api } from "@/lib/api-client";
-import { formatLusaka, formatZmw } from "@/lib/utils";
+import { bookingLabel, bookingTone, formatLusaka, formatZmw } from "@/lib/utils";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -52,7 +52,7 @@ export default function BookingDetailPage() {
           <h1 className="font-display text-3xl">{booking.service.name}</h1>
           <p className="text-stone-500">{booking.professional.displayName}</p>
         </div>
-        <Badge>{booking.status}</Badge>
+        <Badge tone={bookingTone(booking.status)}>{bookingLabel(booking.status)}</Badge>
       </div>
 
       <Card className="space-y-2 text-sm">

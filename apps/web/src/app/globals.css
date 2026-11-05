@@ -16,8 +16,13 @@
 html,
 body {
   min-height: 100%;
-  background: var(--zana-cream);
+  background: #f3ebe6;
   color: var(--zana-ink);
+}
+
+::selection {
+  background: #fecdd3;
+  color: #1c1917;
 }
 
 body {
@@ -32,9 +37,11 @@ body {
   max-width: 480px;
   margin: 0 auto;
   min-height: 100dvh;
-  background: #fffaf8;
+  background:
+    radial-gradient(1200px 420px at 50% -80px, rgba(159, 18, 57, 0.08), transparent 55%),
+    #fffaf8;
   position: relative;
-  box-shadow: 0 0 0 1px rgba(28, 25, 23, 0.04);
+  box-shadow: 0 0 0 1px rgba(28, 25, 23, 0.05);
 }
 
 .desktop-shell {

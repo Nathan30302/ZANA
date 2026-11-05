@@ -2,8 +2,7 @@
 
 import { Button, Input } from "@/components/ui";
 import { api } from "@/lib/api-client";
-import { whatsappHref } from "@/lib/utils";
-import { format } from "date-fns";
+import { lusakaTime, whatsappHref } from "@/lib/utils";
 import { useEffect, useRef, useState } from "react";
 
 type Message = { id: string; senderId: string; body: string; createdAt: string };
@@ -87,7 +86,7 @@ export function ChatThread({
                 >
                   <div>{m.body}</div>
                   <div className={`mt-1 text-[10px] ${mine ? "text-rose-100" : "text-stone-400"}`}>
-                    {format(new Date(m.createdAt), "HH:mm")}
+                    {lusakaTime(new Date(m.createdAt))}
                   </div>
                 </div>
               </div>

@@ -121,7 +121,7 @@ export default function ProProfilePage() {
             {pro.verified ? <Badge tone="orange">Verified</Badge> : null}
           </div>
           <div className="mt-1 flex flex-wrap items-center gap-3 text-sm text-white/90">
-            <StarRow rating={pro.ratingAvg} />
+            <StarRow rating={pro.ratingAvg} light />
             <span>({pro.ratingCount} reviews)</span>
             <span className="inline-flex items-center gap-1">
               <MapPin size={14} /> {pro.area || "Lusaka"}

@@ -1,7 +1,8 @@
 "use client";
 
-import { Button, Card, EmptyState, Input, SectionTitle } from "@/components/ui";
+import { Button, Card, EmptyState, Input } from "@/components/ui";
 import { api } from "@/lib/api-client";
+import { greeting } from "@/lib/utils";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -60,9 +61,12 @@ export default function ProfilePage() {
 
   return (
     <div className="space-y-5 px-4 pb-6 pt-5">
-      <SectionTitle title="Profile" />
+      <div>
+        <div className="text-xs font-medium text-stone-500">{greeting(user.name)}</div>
+        <h1 className="font-display text-3xl text-stone-900">{user.name || "Your profile"}</h1>
+        <p className="mt-1 text-sm text-stone-500">{user.phone}</p>
+      </div>
       <Card className="space-y-3">
-        <div className="text-sm text-stone-500">{user.phone}</div>
         <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Full name" />
         <Input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email (optional)" />
         <Button onClick={save} className="w-full">
