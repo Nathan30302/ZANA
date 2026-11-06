@@ -276,6 +276,12 @@ body {
   filter: drop-shadow(0 2px 4px rgba(28, 25, 23, 0.35));
 }
 
+.zana-arrow-face {
+  width: 42px;
+  height: 42px;
+  transform-origin: center;
+}
+
 .zana-pin {
   display: flex;
   flex-direction: column;

@@ -382,26 +382,27 @@ export function ZanaMap({
       const heading = you.heading;
       if (!youMarker.current) return false;
       youMarker.current.setLngLat([you.lng, you.lat]);
+      const face = youMarker.current.getElement().querySelector(".zana-arrow-face") as HTMLElement | null;
+      if (face && heading != null) face.style.transform = `rotate(${heading}deg)`;
       const tracking = follow && !paused.current;
       if (tracking) {
         const prev = lastCam.current;
-        const moved = !prev || movedMetres(prev, you) > 4;
-        const turned = heading != null && (!prev || Math.abs(heading - prev.heading) > 8);
+        const moved = !prev || movedMetres(prev, you) > 1.5;
+        const turned =
+          heading != null &&
+          (!prev || Math.abs((((heading - prev.heading) % 360) + 540) % 360 - 180) > 4);
         if (moved || turned || !prev) {
           lastCam.current = { lat: you.lat, lng: you.lng, heading: heading ?? prev?.heading ?? 0 };
           map.easeTo({
             center: [you.lng, you.lat],
             bearing: heading ?? map.getBearing(),
-            zoom: Math.max(map.getZoom(), 16.5),
+            zoom: Math.max(map.getZoom(), 17),
             pitch: 0,
-            offset: [0, 90],
-            duration: prev ? 700 : 400,
+            offset: [0, 110],
+            duration: prev ? 250 : 200,
             essential: true,
           });
         }
-        youMarker.current.setRotation(0);
-      } else if (heading != null) {
-        youMarker.current.setRotation(heading);
       }
       return true;
     };
@@ -413,7 +414,7 @@ export function ZanaMap({
       node.className = "zana-arrow";
       node.title = "You are here";
       node.innerHTML =
-        '<svg viewBox="0 0 48 48" width="42" height="42" aria-hidden="true"><circle cx="24" cy="24" r="18" fill="#fff"/><path d="M24 6 L38 40 L24 32 L10 40 Z" fill="#1d4ed8" stroke="#fff" stroke-width="2" stroke-linejoin="round"/></svg>';
+        '<div class="zana-arrow-face"><svg viewBox="0 0 48 48" width="42" height="42" aria-hidden="true"><circle cx="24" cy="24" r="18" fill="#fff"/><path d="M24 6 L38 40 L24 32 L10 40 Z" fill="#1d4ed8" stroke="#fff" stroke-width="2" stroke-linejoin="round"/></svg></div>';
       youMarker.current = new maplibregl.Marker({ element: node, anchor: "center", rotationAlignment: "map" })
         .setLngLat([you.lng, you.lat])
         .addTo(map);

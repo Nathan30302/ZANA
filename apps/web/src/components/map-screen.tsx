@@ -3,6 +3,7 @@
 import { ZanaMap, type MapPoint } from "@/components/zana-map";
 import { api } from "@/lib/api-client";
 import type { DirectionStep } from "@/lib/directions";
+import { askCompass, useLiveFix } from "@/lib/live-fix";
 import { haversineKm } from "@/lib/utils";
 import { useEffect, useMemo, useRef, useState, type ComponentProps, type ReactNode } from "react";
 
@@ -28,104 +29,14 @@ function formatMb(bytes: number) {
   return `${Math.max(1, Math.round(bytes / (1024 * 1024)))} MB`;
 }
 
-function formatAway(km: number) {
-  if (km < 1) return `${Math.max(1, Math.round(km * 1000))} m away`;
-  return `${km < 10 ? km.toFixed(1) : Math.round(km)} km away`;
-}
-
 function inZambia(point: Point) {
   return point.lat > -18.2 && point.lat < -8.1 && point.lng > 21.8 && point.lng < 33.9;
 }
 
-function useMyGps(active: boolean) {
-  const [gps, setGps] = useState<MapPoint | null>(null);
-  const [heading, setHeading] = useState<number | null>(null);
-  const [gpsNote, setGpsNote] = useState("");
-  const lastFix = useRef<Point | null>(null);
-  const lastPost = useRef(0);
-  const movedAt = useRef(0);
-  const onLive = useRef<((point: MapPoint) => void) | null>(null);
-  const stableGps = useRef<MapPoint | null>(null);
-
-  useEffect(() => {
-    if (!active || !navigator.geolocation) {
-      if (active) setGpsNote("Allow location to see the arrow where you are.");
-      return;
-    }
-    const options = { enableHighAccuracy: true, maximumAge: 2000, timeout: 12000 };
-    function onFix(pos: GeolocationPosition) {
-      const point = {
-        lat: pos.coords.latitude,
-        lng: pos.coords.longitude,
-        accuracy: pos.coords.accuracy,
-      };
-      const prev = lastFix.current;
-      if (prev && haversineKm(prev, point) * 1000 > 6) {
-        const y = Math.sin(((point.lng - prev.lng) * Math.PI) / 180) * Math.cos((point.lat * Math.PI) / 180);
-        const x =
-          Math.cos((prev.lat * Math.PI) / 180) * Math.sin((point.lat * Math.PI) / 180) -
-          Math.sin((prev.lat * Math.PI) / 180) *
-            Math.cos((point.lat * Math.PI) / 180) *
-            Math.cos(((point.lng - prev.lng) * Math.PI) / 180);
-        const next = ((Math.atan2(y, x) * 180) / Math.PI + 360) % 360;
-        setHeading((current) => (current != null && Math.abs(current - next) < 6 ? current : next));
-        movedAt.current = Date.now();
-        lastFix.current = point;
-      } else if (!prev) {
-        lastFix.current = point;
-      }
-      if (pos.coords.heading != null && pos.coords.heading >= 0) {
-        setHeading(pos.coords.heading);
-        movedAt.current = Date.now();
-      }
-      setGps(point);
-      setGpsNote("");
-      const now = Date.now();
-      if (onLive.current && now - lastPost.current > 8000) {
-        lastPost.current = now;
-        onLive.current({ ...point, heading: pos.coords.heading });
-      }
-    }
-    let attempts = 0;
-    function onFail(error: GeolocationPositionError) {
-      if (error.code !== 1 && attempts < 3) {
-        attempts += 1;
-        window.setTimeout(() => navigator.geolocation.getCurrentPosition(onFix, onFail, options), 1200);
-        return;
-      }
-      setGpsNote("Allow location to see the arrow where you are.");
-    }
-    const id = navigator.geolocation.watchPosition(onFix, onFail, options);
-
-    function onOrient(event: DeviceOrientationEvent) {
-      if (Date.now() - movedAt.current < 4000) return;
-      const webkit = (event as DeviceOrientationEvent & { webkitCompassHeading?: number }).webkitCompassHeading;
-      const next = webkit != null ? webkit : event.absolute && event.alpha != null ? (360 - event.alpha) % 360 : null;
-      if (next == null) return;
-      setHeading((prev) => (prev != null && Math.abs(prev - next) < 8 ? prev : next));
-    }
-    window.addEventListener("deviceorientationabsolute", onOrient as EventListener, true);
-    window.addEventListener("deviceorientation", onOrient, true);
-    return () => {
-      navigator.geolocation.clearWatch(id);
-      window.removeEventListener("deviceorientationabsolute", onOrient as EventListener, true);
-      window.removeEventListener("deviceorientation", onOrient, true);
-    };
-  }, [active]);
-
-  const next = gps ? { ...gps, heading } : null;
-  const prev = stableGps.current;
-  if (
-    !next ||
-    !prev ||
-    prev.lat !== next.lat ||
-    prev.lng !== next.lng ||
-    prev.heading !== next.heading ||
-    prev.accuracy !== next.accuracy
-  ) {
-    stableGps.current = next;
-  }
-  return { gps: stableGps.current, gpsNote, setGpsNote, onLive };
+function liveMetres(km: number) {
+  const metres = Math.max(0, Math.round(km * 1000));
+  if (metres < 5000) return `${metres} m`;
+  return `${(metres / 1000).toFixed(1)} km`;
 }
 
 function speak(text: string) {
@@ -177,11 +88,6 @@ function turnGlyph(instruction: string) {
   return "↑";
 }
 
-function askCompass() {
-  const orientation = DeviceOrientationEvent as unknown as { requestPermission?: () => Promise<string> };
-  orientation.requestPermission?.().catch(() => undefined);
-}
-
 export function ZambiaNote() {
   const [info, setInfo] = useState<{ ready: boolean; bytes: number; download?: boolean } | null>(null);
   useEffect(() => {
@@ -225,8 +131,8 @@ export function PlaceMap({
   you?: Point | null;
 }) {
   const [open, setOpen] = useState(false);
-  const mine = useMyGps(!open);
-  const here = mine.gps ?? (you ? { ...you, heading: null } : null);
+  const mine = useLiveFix(!open);
+  const here = mine.fix ?? (you ? { ...you, heading: null } : null);
   const onMap = here && inZambia(here) ? here : null;
   const away = onMap ? haversineKm(onMap, place) : null;
   if (open) {
@@ -252,7 +158,10 @@ export function PlaceMap({
         />
         <button
           type="button"
-          onClick={() => setOpen(true)}
+          onClick={() => {
+            askCompass();
+            setOpen(true);
+          }}
           className="absolute left-3 top-3 z-10 rounded-full bg-stone-900 px-4 py-2 text-sm font-semibold text-white shadow"
         >
           Open map
@@ -260,8 +169,8 @@ export function PlaceMap({
       </div>
       <p className="text-sm text-stone-600">
         {away != null
-          ? `${formatAway(away)}. Pinch in for building names. The route stays hidden until you tap Route me.`
-          : mine.gpsNote || "Pinch in to read building names. The route stays hidden until you tap Route me."}
+          ? `${liveMetres(away)} to this place. It drops as you walk. Turn the phone and the arrow turns.`
+          : mine.note || "Pinch in to read building names. The route stays hidden until you tap Route me."}
       </p>
       <ZambiaNote />
     </div>
@@ -293,10 +202,10 @@ export function MapScreen({
   onLive?: (point: MapPoint) => void;
   footer?: ReactNode;
 }) {
-  const tracker = useMyGps(true);
+  const tracker = useLiveFix(true);
   tracker.onLive.current = onLive ?? null;
-  const gps = tracker.gps;
-  const gpsNote = tracker.gpsNote;
+  const gps = tracker.fix;
+  const gpsNote = tracker.note;
   const [mode, setMode] = useState<"driving" | "foot">("driving");
   const [routes, setRoutes] = useState<Partial<Record<"driving" | "foot", RoutePayload>>>({});
   const [seeRoute, setSeeRoute] = useState(false);
@@ -307,6 +216,9 @@ export function MapScreen({
   const spoken = useRef("");
   const tripSpoken = useRef("");
   const fitted = useRef(false);
+  const stick = useRef(false);
+  const walked = useRef(0);
+  const stepFrom = useRef<Point | null>(null);
 
   const fromPoint = showRoute ? (routeFrom === "gps" ? gps : origin) : null;
   const fromKey = fromPoint ? `${fromPoint.lat.toFixed(3)},${fromPoint.lng.toFixed(3)}` : "";
@@ -343,12 +255,25 @@ export function MapScreen({
     }
   }, [you, showRoute, place]);
 
+  useEffect(() => {
+    if (!you) return;
+    if (stepFrom.current) {
+      const step = haversineKm(stepFrom.current, you) * 1000;
+      if (step > 1.2 && step < 40) walked.current += step;
+    }
+    stepFrom.current = { lat: you.lat, lng: you.lng };
+    if (stick.current || camera === "follow" || walked.current < 25) return;
+    setCamera("follow");
+    setCameraTick((n) => n + 1);
+  }, [you, camera]);
+
   function aim(next: "you" | "both" | "follow") {
     askCompass();
+    stick.current = next !== "follow";
     if ((next === "you" || next === "follow") && !you && navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
-        () => tracker.setGpsNote(""),
-        () => tracker.setGpsNote("Allow location to see the arrow where you are."),
+        () => tracker.setNote(""),
+        () => tracker.setNote("Allow location to see the arrow where you are."),
         { enableHighAccuracy: true, timeout: 12000 },
       );
     }
@@ -432,14 +357,15 @@ export function MapScreen({
         <div className="pointer-events-auto mt-2 max-w-[220px] rounded-2xl bg-white/95 px-3 py-2 shadow">
           <div className="truncate text-sm font-semibold text-stone-900">{title}</div>
           {building ? <div className="truncate text-xs font-semibold text-rose-800">{building}</div> : null}
+          <div className="font-display text-3xl font-semibold leading-none text-stone-900">
+            {away != null ? liveMetres(away) : gps && !inZambia(gps) ? "Outside" : "…"}
+          </div>
           <div className="text-xs text-stone-500">
-            {showRoute
-              ? `${route?.distanceKm != null ? `${route.distanceKm.toFixed(1)} km` : "…"} · ${formatMins(route?.durationMin ?? null)}`
-              : away != null
-                ? formatAway(away)
-                : gps && !inZambia(gps)
-                  ? "Location is outside the Zambia map"
-                  : "Where it is"}
+            {away != null
+              ? "to this place, live"
+              : gps && !inZambia(gps)
+                ? "Location is outside the Zambia map"
+                : "Waiting for the phone"}
           </div>
         </div>
       </div>
@@ -582,6 +508,7 @@ export function RouteButton({
         type="button"
         disabled={disabled}
         onClick={() => {
+          askCompass();
           speak("Finding the way.");
           setOpen(true);
         }}

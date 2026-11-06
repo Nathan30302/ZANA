@@ -4,7 +4,9 @@ import { ProCard, ProCardData } from "@/components/pro-card";
 import { Chip, EmptyState, Input, SectionTitle } from "@/components/ui";
 import { ZanaMap } from "@/components/zana-map";
 import { api } from "@/lib/api-client";
-import { formatDistance, useHere } from "@/lib/use-here";
+import { askCompass, useLiveFix } from "@/lib/live-fix";
+import { formatDistance, inZambia, useHere } from "@/lib/use-here";
+import { haversineKm } from "@/lib/utils";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 
@@ -22,6 +24,8 @@ function ExploreInner() {
   const [fitTick, setFitTick] = useState(0);
   const [streetTick, setStreetTick] = useState(0);
   const { here, fromGps, ready } = useHere();
+  const live = useLiveFix(wide);
+  const [followYou, setFollowYou] = useState(false);
 
   useEffect(() => {
     const handle = window.setTimeout(() => setQuery(q.trim()), 300);
@@ -61,19 +65,34 @@ function ExploreInner() {
     }));
 
   function openWide() {
-    setFitTick((n) => n + 1);
+    askCompass();
+    setFollowYou(true);
     setWide(true);
   }
+
+  const arrow =
+    live.fix && inZambia(live.fix) ? live.fix : fromGps ? { ...here, heading: null as number | null } : null;
+  const nearest =
+    arrow && pins.length
+      ? pins.reduce(
+          (best, pin) => {
+            const metres = Math.round(haversineKm(arrow, pin) * 1000);
+            return metres < best.metres ? { metres, label: pin.label.split(" · ")[0] } : best;
+          },
+          { metres: Infinity, label: "" },
+        )
+      : null;
 
   return (
     <div className="space-y-5 px-4 pb-6 pt-5">
       {wide && ready ? (
         <div className="fixed inset-0 z-[70] mx-auto max-w-[480px] bg-[#e9e2d6]">
           <ZanaMap
-            center={here}
-            zoom={fromGps ? 15 : 12}
+            center={arrow ?? here}
+            zoom={fromGps ? 16 : 12}
             height="full"
-            you={fromGps ? here : null}
+            you={arrow}
+            follow={followYou}
             pins={pins}
             fitTick={fitTick}
             streetTick={streetTick}
@@ -89,14 +108,30 @@ function ExploreInner() {
             <div className="pointer-events-auto flex gap-2">
               <button
                 type="button"
-                onClick={() => setStreetTick((n) => n + 1)}
+                onClick={() => {
+                  askCompass();
+                  setFollowYou(true);
+                }}
+                className={`rounded-full px-3 py-2 text-sm font-semibold shadow ${followYou ? "bg-stone-900 text-white" : "bg-white text-stone-800"}`}
+              >
+                {followYou ? "Following" : "Follow me"}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setFollowYou(false);
+                  setStreetTick((n) => n + 1);
+                }}
                 className="rounded-full bg-white px-3 py-2 text-sm font-semibold text-stone-800 shadow"
               >
                 Buildings
               </button>
               <button
                 type="button"
-                onClick={() => setFitTick((n) => n + 1)}
+                onClick={() => {
+                  setFollowYou(false);
+                  setFitTick((n) => n + 1);
+                }}
                 className="rounded-full bg-stone-900 px-3 py-2 text-sm font-semibold text-white shadow"
               >
                 Wider view
@@ -104,7 +139,9 @@ function ExploreInner() {
             </div>
           </div>
           <p className="pointer-events-none absolute inset-x-3 bottom-4 z-10 rounded-2xl bg-white/95 px-3 py-2 text-xs text-stone-600 shadow">
-            Wider view is every place. Buildings zooms to the footprints around you, updated 5 Nov 2026. Tap a pin to open the place.
+            {nearest && nearest.metres < Infinity
+              ? `${nearest.metres} m to ${nearest.label}. Turn the phone and the arrow turns. Walk and this number drops.`
+              : "Turn the phone and the arrow turns. Walk and the distance drops."}
           </p>
         </div>
       ) : null}
