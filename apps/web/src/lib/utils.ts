@@ -42,6 +42,78 @@ export function formatLusaka(date: Date) {
   return `${lusakaDay(date)} · ${lusakaTime(date)}`;
 }
 
+export function lusakaLongDay(date: Date) {
+  return new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Africa/Lusaka",
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+  }).format(date);
+}
+
+/** Zambia stays on UTC+2 all year, so a shop time is a fixed offset from UTC. */
+const LUSAKA_OFFSET_MS = 2 * 60 * 60 * 1000;
+
+/** Calendar day in Lusaka, `yyyy-mm-dd`. */
+export function lusakaDateKey(date = new Date()) {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Africa/Lusaka",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(date);
+}
+
+export function addLusakaDays(dateKey: string, days: number) {
+  const [y, m, d] = dateKey.split("-").map(Number);
+  return lusakaDateKey(new Date(Date.UTC(y, m - 1, d + days, 10, 0, 0)));
+}
+
+/** Sunday is 0, matching the shop hours stored on each professional. */
+export function lusakaWeekdayIndex(dateKey: string) {
+  const [y, m, d] = dateKey.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d, 10, 0, 0)).getUTCDay();
+}
+
+export function lusakaDayStart(dateKey: string) {
+  const [y, m, d] = dateKey.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d, 0, 0, 0) - LUSAKA_OFFSET_MS);
+}
+
+/** `09:00` on a Lusaka calendar day, as an absolute instant. */
+export function lusakaInstant(dateKey: string, hhmm: string) {
+  const [hh, mm] = hhmm.split(":").map(Number);
+  return new Date(lusakaDayStart(dateKey).getTime() + ((hh || 0) * 60 + (mm || 0)) * 60_000);
+}
+
+export function minutesLabel(total: number) {
+  const hh = Math.floor(total / 60);
+  const mm = total % 60;
+  return `${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}`;
+}
+
+export function lusakaMonthKey(date = new Date()) {
+  return lusakaDateKey(date).slice(0, 7);
+}
+
+export function shiftLusakaMonth(monthKey: string, delta: number) {
+  const [y, m] = monthKey.split("-").map(Number);
+  return lusakaDateKey(new Date(Date.UTC(y, m - 1 + delta, 1, 10, 0, 0))).slice(0, 7);
+}
+
+export function daysInLusakaMonth(monthKey: string) {
+  const [y, m] = monthKey.split("-").map(Number);
+  return new Date(Date.UTC(y, m, 0)).getUTCDate();
+}
+
+export function lusakaMonthLabel(monthKey: string) {
+  return new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Africa/Lusaka",
+    month: "long",
+    year: "numeric",
+  }).format(lusakaInstant(`${monthKey}-01`, "12:00"));
+}
+
 export function greeting(name?: string | null) {
   const hour = Number(
     new Intl.DateTimeFormat("en-GB", {

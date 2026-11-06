@@ -72,7 +72,7 @@ export default function BookingsPage() {
         <div className="space-y-3">
           {filtered.map((b) => (
             <Card key={b.id} className="space-y-3">
-              <div className="flex items-start gap-3">
+              <Link href={`/bookings/${b.id}`} className="flex items-start gap-3">
                 <div className="w-14 shrink-0 text-center">
                   <div className="font-display text-lg leading-none text-stone-900">{lusakaTime(new Date(b.scheduledAt))}</div>
                   <div className="mt-1 text-[10px] font-medium uppercase tracking-wide text-stone-400">
@@ -91,7 +91,7 @@ export default function BookingsPage() {
                     {b.locationType === "AT_HOME" ? "They come to you" : "You go to the shop"}
                   </div>
                 </div>
-              </div>
+              </Link>
               <div className="flex items-center justify-between">
                 <span className="font-semibold">{formatZmw(b.servicePriceZmw + b.travelFeeZmw)}</span>
                 <div className="flex gap-3 text-sm font-semibold text-rose-800">

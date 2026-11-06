@@ -1,6 +1,6 @@
-import { addMinutes, format, getDay, isBefore, startOfDay } from "date-fns";
-import { prisma } from "./prisma";
 import { BookingStatus, LocationType } from "@prisma/client";
+import { prisma } from "./prisma";
+import { lusakaDayStart, lusakaWeekdayIndex, minutesLabel } from "./utils";
 
 export async function getSettings() {
   const existing = await prisma.platformSettings.findUnique({ where: { id: 1 } });
@@ -11,8 +11,9 @@ export async function getSettings() {
 }
 
 export async function getAvailableSlots(professionalId: string, dateIso: string, durationMin: number) {
-  const day = startOfDay(new Date(dateIso));
-  const dow = getDay(day);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateIso)) return [];
+  const day = lusakaDayStart(dateIso);
+  const dow = lusakaWeekdayIndex(dateIso);
   const hours = await prisma.workingHour.findUnique({
     where: { professionalId_dayOfWeek: { professionalId, dayOfWeek: dow } },
   });
@@ -23,24 +24,24 @@ export async function getAvailableSlots(professionalId: string, dateIso: string,
       professionalId,
       scheduledAt: {
         gte: day,
-        lt: addMinutes(day, 24 * 60),
+        lt: new Date(day.getTime() + 24 * 60 * 60 * 1000),
       },
       status: { in: [BookingStatus.REQUESTED, BookingStatus.ACCEPTED, BookingStatus.IN_PROGRESS] },
     },
   });
 
   const slots: string[] = [];
+  const now = Date.now();
   for (let m = hours.startMin; m + durationMin <= hours.endMin; m += 30) {
-    const slotStart = addMinutes(day, m);
-    if (isBefore(slotStart, new Date())) continue;
-    const slotEnd = addMinutes(slotStart, durationMin);
+    const slotStart = new Date(day.getTime() + m * 60_000);
+    if (slotStart.getTime() <= now) continue;
+    const slotEnd = new Date(slotStart.getTime() + durationMin * 60_000);
     const overlaps = bookings.some((b) => {
-      const bStart = b.scheduledAt;
-      // assume 60 min if unknown — use service duration via join would be better; approximate 60
-      const bEnd = addMinutes(bStart, 60);
-      return slotStart < bEnd && slotEnd > bStart;
+      const bStart = b.scheduledAt.getTime();
+      const bEnd = bStart + 60 * 60_000;
+      return slotStart.getTime() < bEnd && slotEnd.getTime() > bStart;
     });
-    if (!overlaps) slots.push(format(slotStart, "HH:mm"));
+    if (!overlaps) slots.push(minutesLabel(m));
   }
   return slots;
 }

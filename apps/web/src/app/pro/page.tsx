@@ -2,8 +2,7 @@
 
 import { Badge, Button, Card, LogoMark, SectionTitle } from "@/components/ui";
 import { api } from "@/lib/api-client";
-import { bookingLabel, bookingTone, formatZmw, greeting, lusakaDay, lusakaTime } from "@/lib/utils";
-import { isSameDay } from "date-fns";
+import { bookingLabel, bookingTone, formatZmw, greeting, lusakaDateKey, lusakaDay, lusakaTime } from "@/lib/utils";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -67,10 +66,10 @@ export default function ProHomePage() {
     })();
   }, [router]);
 
-  const today = useMemo(
-    () => bookings.filter((b) => isSameDay(new Date(b.scheduledAt), new Date())),
-    [bookings],
-  );
+  const today = useMemo(() => {
+    const key = lusakaDateKey();
+    return bookings.filter((b) => lusakaDateKey(new Date(b.scheduledAt)) === key);
+  }, [bookings]);
   const upcoming = useMemo(
     () =>
       bookings.filter(

@@ -2,8 +2,9 @@
 
 import { Button, Card, TextArea } from "@/components/ui";
 import { api } from "@/lib/api-client";
+import { formatLusaka } from "@/lib/utils";
 import { useParams, useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 export default function ReviewPage() {
   const { id } = useParams<{ id: string }>();
@@ -12,6 +13,21 @@ export default function ReviewPage() {
   const [comment, setComment] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [visit, setVisit] = useState<{ service: string; pro: string; when: string } | null>(null);
+
+  useEffect(() => {
+    api<{
+      booking: { scheduledAt: string; service: { name: string }; professional: { displayName: string } };
+    }>(`/api/bookings/${id}`)
+      .then((d) =>
+        setVisit({
+          service: d.booking.service.name,
+          pro: d.booking.professional.displayName,
+          when: formatLusaka(new Date(d.booking.scheduledAt)),
+        }),
+      )
+      .catch(() => setVisit(null));
+  }, [id]);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -32,8 +48,10 @@ export default function ReviewPage() {
 
   return (
     <div className="mobile-shell px-4 py-8">
-      <h1 className="font-display text-3xl">Rate your service</h1>
-      <p className="mt-2 text-sm text-stone-500">Help others find quality beauty pros on Zana.</p>
+      <h1 className="font-display text-3xl">Rate your visit</h1>
+      <p className="mt-2 text-sm text-stone-500">
+        {visit ? `${visit.service} with ${visit.pro} · ${visit.when}` : "Tell the next customer what it was like."}
+      </p>
       <form onSubmit={submit} className="mt-6 space-y-4">
         <Card>
           <div className="flex justify-center gap-2 text-3xl">

@@ -4,8 +4,7 @@ import { PlaceMap, RouteButton } from "@/components/map-screen";
 import { Button, Card, Chip, Input, TextArea } from "@/components/ui";
 import { ZanaMap } from "@/components/zana-map";
 import { api } from "@/lib/api-client";
-import { formatZmw } from "@/lib/utils";
-import { addDays, format, setHours, setMinutes } from "date-fns";
+import { addLusakaDays, formatLusaka, formatZmw, lusakaDateKey, lusakaInstant, lusakaStamp } from "@/lib/utils";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
@@ -34,7 +33,7 @@ export default function BookFlowPage() {
   const router = useRouter();
   const [pro, setPro] = useState<Professional | null>(null);
   const [serviceId, setServiceId] = useState("");
-  const [date, setDate] = useState(format(addDays(new Date(), 1), "yyyy-MM-dd"));
+  const [date, setDate] = useState(() => addLusakaDays(lusakaDateKey(), 1));
   const [slots, setSlots] = useState<string[]>([]);
   const [time, setTime] = useState("");
   const [travel, setTravel] = useState<"AT_HOME" | "AT_SHOP" | null>(null);
@@ -105,8 +104,7 @@ export default function BookFlowPage() {
     setLoading(true);
     setError("");
     try {
-      const [hh, mm] = time.split(":").map(Number);
-      const scheduledAt = setMinutes(setHours(new Date(date), hh), mm).toISOString();
+      const scheduledAt = lusakaInstant(date, time).toISOString();
       const data = await api<{ booking: { id: string } }>("/api/bookings", {
         method: "POST",
         json: {
@@ -145,7 +143,7 @@ export default function BookFlowPage() {
           </div>
           <h1 className="font-display text-3xl">Booking requested</h1>
           <p className="text-stone-600">
-            {service.name} with {pro.displayName} on {format(new Date(date), "EEE d MMM")} at {time}.
+            {service.name} with {pro.displayName}, {formatLusaka(lusakaInstant(date, time))}.
           </p>
           <Card className="text-left text-sm">
             <div className="flex justify-between">
@@ -156,11 +154,11 @@ export default function BookFlowPage() {
               {travel === "AT_HOME" ? `At home · ${address}` : `At shop · ${pro.address}`}
             </div>
           </Card>
-          <Button className="w-full" onClick={() => router.push(`/bookings/${doneId}/track`)}>
-            Route me
+          <Button className="w-full" onClick={() => router.push(`/bookings/${doneId}`)}>
+            See the appointment
           </Button>
-          <Button variant="secondary" className="w-full" onClick={() => router.push(`/bookings/${doneId}`)}>
-            View booking
+          <Button variant="secondary" className="w-full" onClick={() => router.push(`/bookings/${doneId}/track`)}>
+            Route me
           </Button>
           <Button variant="secondary" className="w-full" onClick={() => router.push("/bookings")}>
             All bookings
@@ -176,7 +174,12 @@ export default function BookFlowPage() {
         <button onClick={() => (step > 1 ? setStep(step - 1) : router.back())} className="text-sm font-semibold text-stone-600">
           Back
         </button>
-        <div className="text-sm text-stone-500">Step {Math.min(step, 5)} / 5</div>
+        <div className="text-sm text-stone-500">Step {step} / 4</div>
+      </div>
+      <div className="mb-4 flex gap-1">
+        {[1, 2, 3, 4].map((n) => (
+          <span key={n} className={`h-1 flex-1 rounded-full ${n <= step ? "bg-rose-800" : "bg-stone-200"}`} />
+        ))}
       </div>
 
       <h1 className="font-display text-3xl text-stone-900">Book {pro.displayName}</h1>
@@ -212,11 +215,10 @@ export default function BookFlowPage() {
           <h2 className="font-semibold">Choose date & time</h2>
           <div className="flex gap-2 overflow-x-auto">
             {Array.from({ length: 10 }).map((_, i) => {
-              const d = addDays(new Date(), i);
-              const value = format(d, "yyyy-MM-dd");
+              const value = addLusakaDays(lusakaDateKey(), i);
               return (
                 <Chip key={value} active={date === value} onClick={() => setDate(value)}>
-                  {format(d, "EEE d")}
+                  {i === 0 ? "Today" : lusakaStamp(lusakaInstant(value, "12:00"))}
                 </Chip>
               );
             })}
@@ -359,7 +361,7 @@ export default function BookFlowPage() {
         </div>
       ) : null}
 
-      {step === 4 || step === 5 ? (
+      {step === 4 ? (
         <div className="mt-6 space-y-4">
           <h2 className="font-semibold">Review & confirm</h2>
           <Card className="space-y-2 text-sm">
@@ -376,9 +378,11 @@ export default function BookFlowPage() {
               <span>{formatZmw(total)}</span>
             </div>
             <div className="pt-2 text-stone-500">
-              {format(new Date(date), "EEE d MMM")} · {time} ·{" "}
+              {formatLusaka(lusakaInstant(date, time))} ·{" "}
               {travel === "AT_HOME" ? "They're coming to me" : "I'm going there"}
             </div>
+            {travel === "AT_HOME" && address ? <div className="text-stone-500">{address}</div> : null}
+            {travel === "AT_SHOP" && pro.address ? <div className="text-stone-500">{pro.address}</div> : null}
           </Card>
           {error ? <p className="text-sm text-red-600">{error}</p> : null}
           <Button className="w-full" disabled={loading} onClick={confirm}>
