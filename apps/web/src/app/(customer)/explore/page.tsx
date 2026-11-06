@@ -18,6 +18,9 @@ function ExploreInner() {
   const [sort, setSort] = useState("distance");
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(true);
+  const [wide, setWide] = useState(false);
+  const [fitTick, setFitTick] = useState(0);
+  const [streetTick, setStreetTick] = useState(0);
   const { here, fromGps, ready } = useHere();
 
   useEffect(() => {
@@ -47,8 +50,64 @@ function ExploreInner() {
     };
   }, [query, homeOnly, minRating, sort, here]);
 
+  const pins = pros
+    .filter((p) => p.lat != null && p.lng != null)
+    .map((p) => ({
+      id: p.id,
+      lat: p.lat as number,
+      lng: p.lng as number,
+      label: `${p.displayName.split(" ")[0]} · ${p.distanceKm != null ? formatDistance(p.distanceKm) : "–"}`,
+      href: `/pros/${p.id}`,
+    }));
+
+  function openWide() {
+    setFitTick((n) => n + 1);
+    setWide(true);
+  }
+
   return (
     <div className="space-y-5 px-4 pb-6 pt-5">
+      {wide && ready ? (
+        <div className="fixed inset-0 z-[70] mx-auto max-w-[480px] bg-[#e9e2d6]">
+          <ZanaMap
+            center={here}
+            zoom={fromGps ? 15 : 12}
+            height="full"
+            you={fromGps ? here : null}
+            pins={pins}
+            fitTick={fitTick}
+            streetTick={streetTick}
+          />
+          <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex items-start justify-between gap-2 p-3">
+            <button
+              type="button"
+              onClick={() => setWide(false)}
+              className="pointer-events-auto rounded-full bg-white px-4 py-2 text-sm font-semibold text-stone-800 shadow"
+            >
+              Back
+            </button>
+            <div className="pointer-events-auto flex gap-2">
+              <button
+                type="button"
+                onClick={() => setStreetTick((n) => n + 1)}
+                className="rounded-full bg-white px-3 py-2 text-sm font-semibold text-stone-800 shadow"
+              >
+                Buildings
+              </button>
+              <button
+                type="button"
+                onClick={() => setFitTick((n) => n + 1)}
+                className="rounded-full bg-stone-900 px-3 py-2 text-sm font-semibold text-white shadow"
+              >
+                Wider view
+              </button>
+            </div>
+          </div>
+          <p className="pointer-events-none absolute inset-x-3 bottom-4 z-10 rounded-2xl bg-white/95 px-3 py-2 text-xs text-stone-600 shadow">
+            Wider view is every place. Buildings zooms to the footprints around you, updated 5 Nov 2026. Tap a pin to open the place.
+          </p>
+        </div>
+      ) : null}
       <SectionTitle title="Explore" />
       <Input placeholder="Search services or pros" value={q} onChange={(e) => setQ(e.target.value)} />
 
@@ -92,6 +151,14 @@ function ExploreInner() {
         ))}
       </div>
 
+      <button
+        type="button"
+        onClick={openWide}
+        className="w-full rounded-2xl bg-stone-900 px-4 py-3 text-sm font-semibold text-white"
+      >
+        Open map
+      </button>
+
       {view === "list" ? (
         loading ? (
           <div className="h-56 animate-pulse rounded-3xl bg-stone-100" />
@@ -113,15 +180,7 @@ function ExploreInner() {
               zoom={fromGps ? 15.5 : 12}
               height={380}
               you={fromGps ? here : null}
-              pins={pros
-                .filter((p) => p.lat != null && p.lng != null)
-                .map((p) => ({
-                  id: p.id,
-                  lat: p.lat as number,
-                  lng: p.lng as number,
-                  label: `${p.displayName.split(" ")[0]} · ${p.distanceKm != null ? formatDistance(p.distanceKm) : "–"}`,
-                  href: `/pros/${p.id}`,
-                }))}
+              pins={pins}
             />
           ) : (
             <div className="flex h-[380px] items-center justify-center rounded-[28px] bg-[#efeae2] text-sm text-stone-600">

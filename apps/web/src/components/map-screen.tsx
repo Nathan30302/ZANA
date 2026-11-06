@@ -128,6 +128,45 @@ function useMyGps(active: boolean) {
   return { gps: stableGps.current, gpsNote, setGpsNote, onLive };
 }
 
+function speak(text: string) {
+  if (typeof window === "undefined" || !window.speechSynthesis || typeof SpeechSynthesisUtterance !== "function") return;
+  try {
+    window.speechSynthesis.cancel();
+    const utter = new SpeechSynthesisUtterance(text);
+    utter.lang = "en-GB";
+    utter.rate = 0.96;
+    window.speechSynthesis.speak(utter);
+  } catch {
+    // A phone without speech still shows the turn on screen.
+  }
+}
+
+function voiceLine(instruction: string, metres: number) {
+  if (instruction.toLowerCase().includes("arrived")) return instruction;
+  const bucket = metres > 500 ? 500 : metres > 200 ? 200 : metres > 80 ? 80 : metres > 25 ? 30 : 0;
+  if (!bucket) return instruction;
+  return `In ${bucket} metres. ${instruction}`;
+}
+
+function speakableTime(mins: number) {
+  if (mins < 60) return `about ${mins} ${mins === 1 ? "minute" : "minutes"}`;
+  const hours = Math.floor(mins / 60);
+  const rest = mins % 60;
+  const hourLabel = `${hours} ${hours === 1 ? "hour" : "hours"}`;
+  return rest ? `about ${hourLabel} and ${rest} ${rest === 1 ? "minute" : "minutes"}` : `about ${hourLabel}`;
+}
+
+function tripSentence(mode: "driving" | "foot", route: RoutePayload | undefined) {
+  const how = mode === "foot" ? "Walking" : "By car";
+  if (!route || route.distanceKm == null) return `${how}.`;
+  const dist =
+    route.distanceKm < 1
+      ? `${Math.max(1, Math.round(route.distanceKm * 1000))} metres`
+      : `${route.distanceKm < 100 ? route.distanceKm.toFixed(1) : Math.round(route.distanceKm)} kilometres`;
+  const time = route.durationMin != null ? `, ${speakableTime(route.durationMin)}` : "";
+  return `${how}. ${dist}${time}.`;
+}
+
 function turnGlyph(instruction: string) {
   const text = instruction.toLowerCase();
   if (text.includes("arrived")) return "●";
@@ -264,6 +303,9 @@ export function MapScreen({
   const [camera, setCamera] = useState<"place" | "you" | "both" | "follow">(showRoute && followUser ? "follow" : "place");
   const [cameraTick, setCameraTick] = useState(0);
   const [building, setBuilding] = useState<string | null>(null);
+  const [voiceOn, setVoiceOn] = useState(true);
+  const spoken = useRef("");
+  const tripSpoken = useRef("");
   const fitted = useRef(false);
 
   const fromPoint = showRoute ? (routeFrom === "gps" ? gps : origin) : null;
@@ -331,6 +373,24 @@ export function MapScreen({
 
   const current = route?.steps[active];
   const metresLeft = current && (gps || fromPoint) ? Math.round(haversineKm(gps || fromPoint!, current) * 1000) : 0;
+  const spokenLine = current && showRoute ? voiceLine(current.instruction, metresLeft) : "";
+  const tripKey = `${mode}|${place.lat.toFixed(4)},${place.lng.toFixed(4)}`;
+
+  useEffect(() => {
+    if (!voiceOn || !spokenLine) return;
+    const full = tripSpoken.current === tripKey ? spokenLine : `${tripSentence(mode, route)} ${spokenLine}`;
+    // A tap on Car or Walk already spoke this turn. Don't cancel it with a second line.
+    if (spoken.current === full || (tripSpoken.current === tripKey && spoken.current.endsWith(spokenLine))) return;
+    tripSpoken.current = tripKey;
+    spoken.current = full;
+    speak(full);
+  }, [voiceOn, spokenLine, tripKey, mode, route]);
+
+  useEffect(() => {
+    return () => {
+      if (typeof window !== "undefined") window.speechSynthesis?.cancel();
+    };
+  }, []);
   const pins = useMemo(
     () => [
       ...(showRoute && routeFrom === "point" && origin
@@ -399,7 +459,29 @@ export function MapScreen({
               <button
                 key={key}
                 type="button"
-                onClick={() => setMode(key)}
+                onClick={() => {
+                  setMode(key);
+                  const next = routes[key];
+                  if (!voiceOn || !next?.steps.length) return;
+                  const here = gps || fromPoint;
+                  let step = next.steps[0];
+                  let nearest = step.distanceM;
+                  if (here) {
+                    let best = Infinity;
+                    for (const candidate of next.steps) {
+                      const metres = haversineKm(here, candidate) * 1000;
+                      if (metres < best) {
+                        best = metres;
+                        step = candidate;
+                        nearest = metres;
+                      }
+                    }
+                  }
+                  const full = `${tripSentence(key, next)} ${voiceLine(step.instruction, nearest)}`;
+                  tripSpoken.current = `${key}|${place.lat.toFixed(4)},${place.lng.toFixed(4)}`;
+                  spoken.current = full;
+                  speak(full);
+                }}
                 className={`rounded-2xl px-3 py-2 text-left text-sm shadow ${
                   mode === key ? "bg-rose-800 text-white" : "bg-white text-stone-700"
                 }`}
@@ -443,13 +525,34 @@ export function MapScreen({
         {showRoute && current ? (
           <div className="pointer-events-auto flex items-center gap-3 rounded-3xl bg-rose-800 px-4 py-3 text-white shadow">
             <div className="font-display text-3xl leading-none">{turnGlyph(current.instruction)}</div>
-            <div className="min-w-0">
+            <div className="min-w-0 flex-1">
               <div className="text-[11px] uppercase tracking-wide text-rose-100">Next</div>
               <div className="text-base font-semibold">{current.instruction}</div>
               <div className="text-sm text-rose-100">
                 {metresLeft < 1000 ? `${metresLeft} m` : `${(metresLeft / 1000).toFixed(1)} km`}
               </div>
             </div>
+            <button
+              type="button"
+              onClick={() => {
+                if (voiceOn) {
+                  window.speechSynthesis?.cancel();
+                  spoken.current = "";
+                  setVoiceOn(false);
+                  return;
+                }
+                setVoiceOn(true);
+                if (spokenLine) {
+                  const full = `${tripSentence(mode, route)} ${spokenLine}`;
+                  tripSpoken.current = tripKey;
+                  spoken.current = full;
+                  speak(full);
+                }
+              }}
+              className="shrink-0 rounded-full bg-white/15 px-3 py-2 text-xs font-semibold"
+            >
+              {voiceOn ? "Voice on" : "Hear turn"}
+            </button>
           </div>
         ) : null}
         {showRoute ? (
@@ -478,7 +581,10 @@ export function RouteButton({
       <button
         type="button"
         disabled={disabled}
-        onClick={() => setOpen(true)}
+        onClick={() => {
+          speak("Finding the way.");
+          setOpen(true);
+        }}
         className="w-full rounded-2xl bg-stone-900 px-4 py-3 text-sm font-semibold text-white disabled:bg-stone-300"
       >
         {label}

@@ -68,6 +68,13 @@ export default function OnboardingPage() {
             <Button className="w-full">Get started</Button>
           </Link>
         )}
+        <div className="mt-4 flex justify-center gap-4 text-sm text-stone-500">
+          <Link href="/login" onClick={finish}>
+            I already have an account
+          </Link>
+          <Link href="/pro/login">Pro login</Link>
+          <Link href="/admin/login">Admin</Link>
+        </div>
       </div>
     </div>
   );

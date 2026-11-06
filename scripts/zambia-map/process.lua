@@ -76,8 +76,10 @@ function way_function(way)
     end
   end
 
+  -- Tilemaker already sends multipolygon buildings through way_function,
+  -- so a compound mapped as one relation stays one footprint.
   local building = way:Find("building")
-  if building ~= "" and building ~= "no" then
+  if building ~= "" and building ~= "no" and building ~= "demolished" and building ~= "proposed" and building ~= "razed" then
     way:Layer("building", true)
     way:MinZoom(14)
     local name = way:Find("name")

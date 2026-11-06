@@ -92,7 +92,56 @@ body {
     linear-gradient(rgba(255, 250, 248, 0.05) 1px, transparent 1px),
     linear-gradient(90deg, rgba(255, 250, 248, 0.05) 1px, transparent 1px);
   background-size: 32px 32px;
-  mask-image: radial-gradient(circle at 50% 38%, #000 0%, transparent 68%);
+  mask-image: radial-gradient(circle at 50% 42%, #000 0%, transparent 72%);
+}
+
+.zana-flow {
+  position: absolute;
+  border-radius: 999px;
+  filter: blur(18px);
+  mix-blend-mode: screen;
+}
+
+.zana-flow-a {
+  width: 150%;
+  height: 80%;
+  left: -55%;
+  top: -20%;
+  background: radial-gradient(circle, #fb923c 0%, #ea580c 42%, transparent 70%);
+  animation: zana-flow-a 3.4s ease-in-out infinite alternate;
+}
+
+.zana-flow-b {
+  width: 140%;
+  height: 90%;
+  right: -60%;
+  bottom: -30%;
+  background: radial-gradient(circle, #fb7185 0%, #9f1239 46%, transparent 72%);
+  animation: zana-flow-b 3.8s ease-in-out infinite alternate;
+}
+
+.zana-flow-c {
+  width: 110%;
+  height: 70%;
+  left: -10%;
+  top: 35%;
+  background: radial-gradient(circle, rgba(255, 247, 237, 0.55) 0%, transparent 60%);
+  animation: zana-flow-c 2.8s ease-in-out infinite alternate;
+}
+
+@keyframes zana-flow-a {
+  from { transform: translate3d(0, 0, 0) scale(1); }
+  to { transform: translate3d(28%, 36%, 0) scale(1.18); }
+}
+
+@keyframes zana-flow-b {
+  from { transform: translate3d(0, 0, 0) scale(1.05); }
+  to { transform: translate3d(-24%, -30%, 0) scale(0.92); }
+}
+
+@keyframes zana-flow-c {
+  from { transform: translate3d(-12%, 8%, 0); }
+  to { transform: translate3d(30%, -18%, 0); }
 }
 
 .zana-orbit {

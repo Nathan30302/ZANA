@@ -35,6 +35,10 @@ type Props = {
   spotlight?: { lat: number; lng: number } | null;
   /** Fired when someone taps a named building. */
   onInspect?: (name: string | null) => void;
+  /** Fit every pin (and you) once. Bump the number to fit again. */
+  fitTick?: number;
+  /** Zoom to street level on you, so building footprints fill the screen. */
+  streetTick?: number;
 };
 
 function ringPolygon(lat: number, lng: number, radiusM: number) {
@@ -80,6 +84,8 @@ export function ZanaMap({
   cameraTick = 0,
   spotlight,
   onInspect,
+  fitTick = 0,
+  streetTick = 0,
 }: Props) {
   const el = useRef<HTMLDivElement>(null);
   const mapRef = useRef<import("maplibre-gl").Map | null>(null);
@@ -461,6 +467,42 @@ export function ZanaMap({
       );
     }
   }, [camera, cameraTick, ready]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!ready || !map || !fitTick) return;
+    const pts = pinsRef.current.map((p) => [p.lng, p.lat]);
+    const here = youRef.current;
+    if (here) pts.push([here.lng, here.lat]);
+    if (pts.length === 0) return;
+    if (pts.length === 1) {
+      map.easeTo({ center: pts[0] as [number, number], zoom: 16.4, pitch: 0, duration: 600 });
+      return;
+    }
+    map.fitBounds(
+      [
+        [Math.min(...pts.map((p) => p[0])), Math.min(...pts.map((p) => p[1]))],
+        [Math.max(...pts.map((p) => p[0])), Math.max(...pts.map((p) => p[1]))],
+      ],
+      { padding: { top: 96, bottom: 88, left: 36, right: 36 }, maxZoom: 16.2, duration: 700 },
+    );
+  }, [ready, fitTick]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!ready || !map || !streetTick) return;
+    const here = youRef.current;
+    const pin = pinsRef.current[0];
+    const target = here || pin;
+    if (!target) return;
+    map.easeTo({
+      center: [target.lng, target.lat],
+      zoom: 16.8,
+      pitch: 0,
+      bearing: 0,
+      duration: 700,
+    });
+  }, [ready, streetTick]);
 
   useEffect(() => {
     const map = mapRef.current;

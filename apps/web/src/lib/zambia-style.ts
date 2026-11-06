@@ -86,7 +86,7 @@ export function zambiaStyle() {
     sources: {
       zambia: {
         type: "vector" as const,
-        tiles: ["/maps/tiles/{z}/{x}/{y}"],
+        tiles: ["/maps/tiles/{z}/{x}/{y}?v=20261106"],
         minzoom: 0,
         maxzoom: 15,
         attribution: "© OpenStreetMap",
@@ -176,10 +176,10 @@ export function zambiaStyle() {
         type: "line",
         source: "zambia",
         "source-layer": "building",
-        minzoom: 15,
+        minzoom: 16,
         paint: {
-          "line-color": "rgba(62, 44, 28, 0.28)",
-          "line-width": width([15, 2, 17, 4, 18, 6]),
+          "line-color": "rgba(62, 44, 28, 0.22)",
+          "line-width": width([16, 1.4, 17, 2.4, 18, 3.4]),
           "line-translate": [1.2, 1.5],
           "line-blur": 0.4,
         },
@@ -190,7 +190,7 @@ export function zambiaStyle() {
         source: "zambia",
         "source-layer": "building",
         minzoom: 14,
-        paint: { "fill-color": "#f6e4c8", "fill-outline-color": "#3a291c" },
+        paint: { "fill-color": "#f3d7b4", "fill-outline-color": "#24180f" },
       },
       {
         id: "building-line",
@@ -199,8 +199,8 @@ export function zambiaStyle() {
         "source-layer": "building",
         minzoom: 14,
         paint: {
-          "line-color": "#3a291c",
-          "line-width": width([14, 0.8, 16, 1.6, 18, 2.6]),
+          "line-color": "#24180f",
+          "line-width": width([14, 1.15, 16, 1.8, 18, 2.4]),
         },
       },
       ...roadLayers,
