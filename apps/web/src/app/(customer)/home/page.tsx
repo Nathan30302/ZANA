@@ -1,11 +1,11 @@
 "use client";
 
 import { ProCard, ProCardData } from "@/components/pro-card";
-import { Badge, Chip, EmptyState, Input, LogoMark, SectionTitle } from "@/components/ui";
+import { Badge, BrandWordmark, Chip, EmptyState, Input, SectionTitle } from "@/components/ui";
 import { api } from "@/lib/api-client";
 import { useHere } from "@/lib/use-here";
-import { greeting, lusakaDay, lusakaTime } from "@/lib/utils";
-import { MapPin, Search } from "lucide-react";
+import { lusakaDay, lusakaTime } from "@/lib/utils";
+import { Search } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
@@ -26,19 +26,12 @@ export default function HomePage() {
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [next, setNext] = useState<NextBooking | null>(null);
-  const [firstName, setFirstName] = useState<string | null>(null);
   const { here, fromGps } = useHere();
 
   useEffect(() => {
     const handle = window.setTimeout(() => setQuery(q.trim()), 300);
     return () => window.clearTimeout(handle);
   }, [q]);
-
-  useEffect(() => {
-    api<{ user: { name: string | null } | null }>("/api/auth/me")
-      .then((d) => setFirstName(d.user?.name?.split(/\s+/)[0] || null))
-      .catch(() => setFirstName(null));
-  }, []);
 
   useEffect(() => {
     api<{ bookings: NextBooking[] }>("/api/bookings?scope=customer")
@@ -78,16 +71,7 @@ export default function HomePage() {
   return (
     <div className="space-y-6 px-4 pb-6 pt-5">
       <div className="flex items-start justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <LogoMark size={48} />
-          <div>
-            <div className="text-xs font-medium text-stone-500">{greeting()}</div>
-            <h1 className="font-display text-2xl leading-none text-stone-900">{firstName || "Zana"}</h1>
-            <div className="mt-1 inline-flex items-center gap-1 text-xs font-medium text-rose-800">
-              <MapPin size={13} /> {fromGps ? "Near you" : "Lusaka"}
-            </div>
-          </div>
-        </div>
+        <BrandWordmark mark={46} subtitle={fromGps ? "Near you" : "Lusaka"} />
         <Link
           href="/messages"
           className="rounded-full bg-white px-3 py-2 text-xs font-semibold text-rose-800 ring-1 ring-stone-200"

@@ -4,12 +4,20 @@ import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode } from "react";
 
-export function LogoMark({ size = 40, className }: { size?: number; className?: string }) {
+export function LogoMark({
+  size = 40,
+  className,
+  alt = "Zana",
+}: {
+  size?: number;
+  className?: string;
+  alt?: string;
+}) {
   return (
     // eslint-disable-next-line @next/next/no-img-element
     <img
       src="/brand/zana-logo.png"
-      alt="Zana"
+      alt={alt}
       width={size}
       height={size}
       className={cn("object-contain", className)}
@@ -17,13 +25,42 @@ export function LogoMark({ size = 40, className }: { size?: number; className?: 
   );
 }
 
-export function BrandWordmark({ subtitle }: { subtitle?: string }) {
+export function BrandWordmark({
+  subtitle,
+  light = false,
+  stacked = false,
+  compact = false,
+  mark = 44,
+}: {
+  subtitle?: string;
+  light?: boolean;
+  stacked?: boolean;
+  compact?: boolean;
+  mark?: number;
+}) {
   return (
-    <div className="flex items-center gap-3">
-      <LogoMark size={44} />
+    <div className={cn("flex items-center", stacked ? "flex-col gap-4 text-center" : "gap-3")}>
+      <LogoMark size={mark} className={stacked ? "drop-shadow-[0_8px_24px_rgba(234,88,12,0.35)]" : undefined} />
       <div>
-        <div className="font-display text-2xl font-semibold tracking-tight text-stone-900">Zana</div>
-        {subtitle ? <div className="text-xs text-stone-500">{subtitle}</div> : null}
+        <div
+          className={cn(
+            "font-display font-semibold leading-none tracking-tight",
+            stacked ? "text-5xl" : compact ? "text-lg" : "text-2xl",
+            light ? "text-white" : "text-stone-900",
+          )}
+        >
+          Zana
+        </div>
+        {subtitle ? (
+          <div
+            className={cn(
+              stacked ? "mt-2 text-[11px] uppercase tracking-[0.28em]" : "mt-1 text-xs",
+              light ? "text-orange-100/80" : "text-rose-800",
+            )}
+          >
+            {subtitle}
+          </div>
+        ) : null}
       </div>
     </div>
   );

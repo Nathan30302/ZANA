@@ -1,6 +1,6 @@
 "use client";
 
-import { Button, LogoMark } from "@/components/ui";
+import { BrandWordmark, Button } from "@/components/ui";
 import Link from "next/link";
 import { useState } from "react";
 
@@ -39,8 +39,8 @@ export default function OnboardingPage() {
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={slide.image} alt="" className="h-full w-full object-cover" />
         <div className="absolute inset-0 bg-gradient-to-t from-[#fffaf8] via-transparent to-black/20" />
-        <div className="absolute left-5 top-5">
-          <LogoMark size={40} />
+        <div className="absolute left-4 top-4 rounded-full bg-white/95 px-3 py-1.5 shadow">
+          <BrandWordmark compact mark={26} />
         </div>
       </div>
 

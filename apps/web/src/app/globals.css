@@ -80,6 +80,124 @@ body {
   animation: pulse-soft 2.4s ease-in-out infinite;
 }
 
+.zana-splash {
+  background:
+    radial-gradient(ellipse at 50% 36%, rgba(234, 88, 12, 0.28), transparent 36%),
+    radial-gradient(ellipse at 50% 78%, rgba(159, 18, 57, 0.35), transparent 42%),
+    #0c0708;
+}
+
+.zana-grid {
+  background-image:
+    linear-gradient(rgba(255, 250, 248, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 250, 248, 0.05) 1px, transparent 1px);
+  background-size: 32px 32px;
+  mask-image: radial-gradient(circle at 50% 38%, #000 0%, transparent 68%);
+}
+
+.zana-orbit {
+  position: absolute;
+  inset: -28px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  border-top-color: rgba(255, 247, 237, 0.85);
+  border-right-color: rgba(234, 88, 12, 0.35);
+  animation: zana-spin 7s linear infinite;
+}
+
+.zana-orbit-2 {
+  inset: -48px;
+  border-top-color: transparent;
+  border-bottom-color: rgba(159, 18, 57, 0.8);
+  animation-duration: 12s;
+  animation-direction: reverse;
+}
+
+.zana-mark {
+  animation: zana-mark-in 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.zana-sweep {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: 999px;
+  pointer-events: none;
+}
+
+.zana-sweep::after {
+  content: "";
+  position: absolute;
+  top: -10%;
+  bottom: -10%;
+  width: 40%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.75), transparent);
+  animation: zana-sweep 1.5s ease-in-out 0.35s both;
+}
+
+.zana-word {
+  animation: zana-lock 0.9s cubic-bezier(0.16, 1, 0.3, 1) 0.25s both;
+}
+
+.zana-rule {
+  height: 1px;
+  width: 148px;
+  margin: 14px auto 0;
+  transform-origin: center;
+  background: linear-gradient(90deg, transparent, #fb923c, #fff7ed, #fb923c, transparent);
+  animation: zana-line 0.8s ease-out 0.45s both;
+}
+
+@keyframes zana-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes zana-mark-in {
+  from {
+    opacity: 0;
+    transform: scale(0.82);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes zana-sweep {
+  from {
+    transform: translateX(-140%);
+  }
+  to {
+    transform: translateX(260%);
+  }
+}
+
+@keyframes zana-lock {
+  from {
+    opacity: 0;
+    letter-spacing: 0.42em;
+    filter: blur(8px);
+  }
+  to {
+    opacity: 1;
+    letter-spacing: 0;
+    filter: blur(0);
+  }
+}
+
+@keyframes zana-line {
+  from {
+    transform: scaleX(0);
+    opacity: 0;
+  }
+  to {
+    transform: scaleX(1);
+    opacity: 1;
+  }
+}
+
 .maplibregl-map {
   font-family: inherit;
 }

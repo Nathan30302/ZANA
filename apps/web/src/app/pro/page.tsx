@@ -1,8 +1,8 @@
 "use client";
 
-import { Badge, Button, Card, LogoMark, SectionTitle } from "@/components/ui";
+import { Badge, BrandWordmark, Button, Card, SectionTitle } from "@/components/ui";
 import { api } from "@/lib/api-client";
-import { bookingLabel, bookingTone, formatZmw, greeting, lusakaDateKey, lusakaDay, lusakaTime } from "@/lib/utils";
+import { bookingLabel, bookingTone, formatZmw, lusakaDateKey, lusakaDay, lusakaTime } from "@/lib/utils";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -138,15 +138,12 @@ export default function ProHomePage() {
     <div className="space-y-5 px-4 pb-6 pt-5">
       <div className="flex items-center justify-between">
         <div>
-          <div className="text-sm text-stone-500">{greeting()}</div>
-          <h1 className="font-display text-3xl">{userName}</h1>
+          <BrandWordmark mark={40} />
+          <p className="mt-2 text-sm text-stone-500">{userName}</p>
         </div>
-        <div className="flex items-center gap-2">
-          <Link href="/messages" className="text-sm font-semibold text-rose-800">
-            Messages
-          </Link>
-          <LogoMark size={44} />
-        </div>
+        <Link href="/messages" className="text-sm font-semibold text-rose-800">
+          Messages
+        </Link>
       </div>
 
       {tripNote ? <p className="text-sm font-medium text-rose-800">{tripNote}</p> : null}

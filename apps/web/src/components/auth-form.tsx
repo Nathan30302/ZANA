@@ -1,6 +1,6 @@
 "use client";
 
-import { Button, Input, LogoMark } from "@/components/ui";
+import { BrandWordmark, Button, Input } from "@/components/ui";
 import { api } from "@/lib/api-client";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -60,11 +60,7 @@ export function AuthForm({
   return (
     <div className="mx-auto flex min-h-dvh max-w-[480px] flex-col justify-center px-6 py-10">
       <div className="animate-fade-up space-y-8">
-        <div className="text-center">
-          <LogoMark size={76} className="mx-auto" />
-          <h1 className="font-display mt-5 text-4xl text-stone-900">Welcome to Zana</h1>
-          <p className="mt-2 text-sm text-stone-500">Beauty on your fingertips</p>
-        </div>
+        <BrandWordmark stacked mark={72} subtitle="Beauty on your fingertips" />
 
         {step === "phone" ? (
           <form onSubmit={requestOtp} className="space-y-3">

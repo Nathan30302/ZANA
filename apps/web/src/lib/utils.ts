@@ -114,19 +114,6 @@ export function lusakaMonthLabel(monthKey: string) {
   }).format(lusakaInstant(`${monthKey}-01`, "12:00"));
 }
 
-export function greeting(name?: string | null) {
-  const hour = Number(
-    new Intl.DateTimeFormat("en-GB", {
-      timeZone: "Africa/Lusaka",
-      hour: "numeric",
-      hourCycle: "h23",
-    }).format(new Date()),
-  );
-  const hello = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
-  const first = name?.trim().split(/\s+/)[0];
-  return first ? `${hello}, ${first}` : hello;
-}
-
 const BOOKING_LABEL: Record<string, string> = {
   REQUESTED: "Waiting",
   ACCEPTED: "Confirmed",
