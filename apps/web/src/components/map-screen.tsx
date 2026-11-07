@@ -362,7 +362,9 @@ export function MapScreen({
           </div>
           <div className="text-xs text-stone-500">
             {away != null
-              ? "to this place, live"
+              ? gps?.speed != null && gps.speed > 0.4
+                ? `${Math.max(1, Math.round(gps.speed * 3.6))} km/h toward it`
+                : "to this place"
               : gps && !inZambia(gps)
                 ? "Location is outside the Zambia map"
                 : "Waiting for the phone"}

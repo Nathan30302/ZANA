@@ -54,16 +54,6 @@ function ExploreInner() {
     };
   }, [query, homeOnly, minRating, sort, here]);
 
-  const pins = pros
-    .filter((p) => p.lat != null && p.lng != null)
-    .map((p) => ({
-      id: p.id,
-      lat: p.lat as number,
-      lng: p.lng as number,
-      label: `${p.displayName.split(" ")[0]} · ${p.distanceKm != null ? formatDistance(p.distanceKm) : "–"}`,
-      href: `/pros/${p.id}`,
-    }));
-
   function openWide() {
     askCompass();
     setFollowYou(true);
@@ -72,6 +62,16 @@ function ExploreInner() {
 
   const arrow =
     live.fix && inZambia(live.fix) ? live.fix : fromGps ? { ...here, heading: null as number | null } : null;
+  const from = arrow && inZambia(arrow) ? arrow : here;
+  const pins = pros
+    .filter((p) => p.lat != null && p.lng != null)
+    .map((p) => ({
+      id: p.id,
+      lat: p.lat as number,
+      lng: p.lng as number,
+      label: `${p.displayName.split(" ")[0]} · ${formatDistance(haversineKm(from, { lat: p.lat as number, lng: p.lng as number }))}`,
+      href: `/pros/${p.id}`,
+    }));
   const nearest =
     arrow && pins.length
       ? pins.reduce(
@@ -97,46 +97,44 @@ function ExploreInner() {
             fitTick={fitTick}
             streetTick={streetTick}
           />
-          <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex items-start justify-between gap-2 p-3">
+          <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex flex-wrap gap-2 p-3">
             <button
               type="button"
               onClick={() => setWide(false)}
-              className="pointer-events-auto rounded-full bg-white px-4 py-2 text-sm font-semibold text-stone-800 shadow"
+              className="pointer-events-auto rounded-full bg-white px-3 py-2 text-sm font-semibold text-stone-800 shadow"
             >
               Back
             </button>
-            <div className="pointer-events-auto flex gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  askCompass();
-                  setFollowYou(true);
-                }}
-                className={`rounded-full px-3 py-2 text-sm font-semibold shadow ${followYou ? "bg-stone-900 text-white" : "bg-white text-stone-800"}`}
-              >
-                {followYou ? "Following" : "Follow me"}
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setFollowYou(false);
-                  setStreetTick((n) => n + 1);
-                }}
-                className="rounded-full bg-white px-3 py-2 text-sm font-semibold text-stone-800 shadow"
-              >
-                Buildings
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setFollowYou(false);
-                  setFitTick((n) => n + 1);
-                }}
-                className="rounded-full bg-stone-900 px-3 py-2 text-sm font-semibold text-white shadow"
-              >
-                Wider view
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={() => {
+                askCompass();
+                setFollowYou(true);
+              }}
+              className={`pointer-events-auto rounded-full px-3 py-2 text-sm font-semibold shadow ${followYou ? "bg-stone-900 text-white" : "bg-white text-stone-800"}`}
+            >
+              {followYou ? "Following" : "Follow"}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setFollowYou(false);
+                setStreetTick((n) => n + 1);
+              }}
+              className="pointer-events-auto rounded-full bg-white px-3 py-2 text-sm font-semibold text-stone-800 shadow"
+            >
+              Buildings
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setFollowYou(false);
+                setFitTick((n) => n + 1);
+              }}
+              className="pointer-events-auto rounded-full bg-stone-900 px-3 py-2 text-sm font-semibold text-white shadow"
+            >
+              Wider
+            </button>
           </div>
           <p className="pointer-events-none absolute inset-x-3 bottom-4 z-10 rounded-2xl bg-white/95 px-3 py-2 text-xs text-stone-600 shadow">
             {nearest && nearest.metres < Infinity

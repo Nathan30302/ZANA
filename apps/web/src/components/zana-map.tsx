@@ -1,5 +1,6 @@
 "use client";
 
+import { watchCompass } from "@/lib/live-fix";
 import { zambiaStyle } from "@/lib/zambia-style";
 import { useEffect, useRef, useState } from "react";
 import "maplibre-gl/dist/maplibre-gl.css";
@@ -59,6 +60,15 @@ function ringPolygon(lat: number, lng: number, radiusM: number) {
   };
 }
 
+function metresAhead(lat: number, lng: number, heading: number, metres: number): [number, number] {
+  const rad = (heading * Math.PI) / 180;
+  const north = metres * Math.cos(rad);
+  const east = metres * Math.sin(rad);
+  const dLat = north / 111320;
+  const dLng = east / (111320 * Math.cos((lat * Math.PI) / 180));
+  return [lng + dLng, lat + dLat];
+}
+
 function movedMetres(a: { lat: number; lng: number }, b: { lat: number; lng: number }) {
   const earth = 6371000;
   const p1 = (a.lat * Math.PI) / 180;
@@ -101,6 +111,9 @@ export function ZanaMap({
   const paused = useRef(false);
   const fitted = useRef("");
   const lastCam = useRef<{ lat: number; lng: number; heading: number } | null>(null);
+  const targetRef = useRef<{ lat: number; lng: number; heading: number | null; accuracy?: number } | null>(null);
+  const shownRef = useRef<{ lat: number; lng: number; heading: number } | null>(null);
+  const compassLive = useRef(false);
   const [ready, setReady] = useState(false);
   const [mapReady, setMapReady] = useState<boolean | null>(null);
   const [pausedUi, setPausedUi] = useState(false);
@@ -374,56 +387,93 @@ export function ZanaMap({
       ring?.setData({ type: "FeatureCollection", features: [] });
       youMarker.current?.remove();
       youMarker.current = null;
+      targetRef.current = null;
+      shownRef.current = null;
       return;
     }
-    const accuracy = Math.max(12, Math.min(you.accuracy || 24, 80));
-    ring?.setData({ type: "FeatureCollection", features: [ringPolygon(you.lat, you.lng, accuracy)] });
-    const placeYou = () => {
-      const heading = you.heading;
-      if (!youMarker.current) return false;
-      youMarker.current.setLngLat([you.lng, you.lat]);
-      const face = youMarker.current.getElement().querySelector(".zana-arrow-face") as HTMLElement | null;
-      if (face && heading != null) face.style.transform = `rotate(${heading}deg)`;
-      const tracking = follow && !paused.current;
-      if (tracking) {
-        const prev = lastCam.current;
-        const moved = !prev || movedMetres(prev, you) > 1.5;
-        const turned =
-          heading != null &&
-          (!prev || Math.abs((((heading - prev.heading) % 360) + 540) % 360 - 180) > 4);
-        if (moved || turned || !prev) {
-          lastCam.current = { lat: you.lat, lng: you.lng, heading: heading ?? prev?.heading ?? 0 };
-          map.easeTo({
-            center: [you.lng, you.lat],
-            bearing: heading ?? map.getBearing(),
-            zoom: Math.max(map.getZoom(), 17),
-            pitch: 0,
-            offset: [0, 110],
-            duration: prev ? 250 : 200,
-            essential: true,
-          });
-        }
-      }
-      return true;
+    const previous = targetRef.current;
+    targetRef.current = {
+      lat: you.lat,
+      lng: you.lng,
+      heading: compassLive.current ? (previous?.heading ?? you.heading ?? null) : (you.heading ?? previous?.heading ?? null),
+      accuracy: you.accuracy,
     };
-    if (placeYou()) return;
+    if (youMarker.current) return;
     let cancelled = false;
+    const here = you;
     import("maplibre-gl").then((maplibregl) => {
       if (cancelled || youMarker.current) return;
       const node = document.createElement("div");
       node.className = "zana-arrow";
       node.title = "You are here";
       node.innerHTML =
-        '<div class="zana-arrow-face"><svg viewBox="0 0 48 48" width="42" height="42" aria-hidden="true"><circle cx="24" cy="24" r="18" fill="#fff"/><path d="M24 6 L38 40 L24 32 L10 40 Z" fill="#1d4ed8" stroke="#fff" stroke-width="2" stroke-linejoin="round"/></svg></div>';
+        '<div class="zana-arrow-face"><svg viewBox="0 0 84 84" width="84" height="84" aria-hidden="true"><path d="M42 42 L26 8 L58 8 Z" fill="rgba(29,78,216,0.28)"/><circle cx="42" cy="42" r="15" fill="#fff"/><path d="M42 18 L56 54 L42 46 L28 54 Z" fill="#1d4ed8" stroke="#fff" stroke-width="2" stroke-linejoin="round"/></svg></div>';
       youMarker.current = new maplibregl.Marker({ element: node, anchor: "center", rotationAlignment: "map" })
-        .setLngLat([you.lng, you.lat])
+        .setLngLat([here.lng, here.lat])
         .addTo(map);
-      placeYou();
+      shownRef.current = { lat: here.lat, lng: here.lng, heading: here.heading ?? 0 };
     });
     return () => {
       cancelled = true;
     };
-  }, [you, ready, follow]);
+  }, [you, ready]);
+
+  useEffect(() => {
+    if (!ready) return;
+    return watchCompass((degrees) => {
+      compassLive.current = true;
+      const target = targetRef.current;
+      if (!target) return;
+      target.heading = degrees;
+    });
+  }, [ready]);
+
+  useEffect(() => {
+    if (!ready) return;
+    let frame = 0;
+    let last = performance.now();
+    let ringAt = { lat: 0, lng: 0 };
+    const tick = (now: number) => {
+      frame = requestAnimationFrame(tick);
+      const map = mapRef.current;
+      const marker = youMarker.current;
+      const target = targetRef.current;
+      if (!map || !marker || !target) return;
+      const dt = Math.min(0.05, (now - last) / 1000);
+      last = now;
+      let shown = shownRef.current;
+      if (!shown) {
+        shown = { lat: target.lat, lng: target.lng, heading: target.heading ?? 0 };
+        shownRef.current = shown;
+      }
+      const catchUp = 1 - Math.exp(-dt * 8);
+      shown.lat += (target.lat - shown.lat) * catchUp;
+      shown.lng += (target.lng - shown.lng) * catchUp;
+      if (target.heading != null) {
+        const turn = ((target.heading - shown.heading + 540) % 360) - 180;
+        shown.heading = (shown.heading + turn * (1 - Math.exp(-dt * 12)) + 360) % 360;
+      }
+      marker.setLngLat([shown.lng, shown.lat]);
+      const face = marker.getElement().querySelector(".zana-arrow-face") as HTMLElement | null;
+      if (face) face.style.transform = `rotate(${shown.heading}deg)`;
+      if (movedMetres(ringAt, shown) > 0.6) {
+        ringAt = { lat: shown.lat, lng: shown.lng };
+        const ring = map.getSource("you-ring") as import("maplibre-gl").GeoJSONSource | undefined;
+        const accuracy = Math.max(12, Math.min(target.accuracy || 24, 80));
+        ring?.setData({ type: "FeatureCollection", features: [ringPolygon(shown.lat, shown.lng, accuracy)] });
+      }
+      if (!followRef.current || paused.current || target.heading == null) return;
+      const look = 70 * 2 ** (17 - map.getZoom());
+      const ahead = metresAhead(shown.lat, shown.lng, shown.heading, look);
+      const center = map.getCenter();
+      const drift = movedMetres({ lat: center.lat, lng: center.lng }, { lat: ahead[1], lng: ahead[0] });
+      const bearingDelta = Math.abs(((shown.heading - map.getBearing() + 540) % 360) - 180);
+      if (drift < 0.3 && bearingDelta < 0.3) return;
+      map.jumpTo({ center: ahead, bearing: shown.heading });
+    };
+    frame = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frame);
+  }, [ready]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -434,13 +484,11 @@ export function ZanaMap({
       setPausedUi(false);
       lastCam.current = null;
       if (!here) return;
-      map.easeTo({
-        center: [here.lng, here.lat],
-        bearing: here.heading ?? map.getBearing(),
-        zoom: Math.max(map.getZoom(), 16.5),
-        pitch: 0,
-        offset: [0, 90],
-        duration: 450,
+      const face = here.heading ?? map.getBearing();
+      map.jumpTo({
+        center: metresAhead(here.lat, here.lng, face, 70),
+        bearing: face,
+        zoom: Math.max(map.getZoom(), 16.8),
       });
       return;
     }

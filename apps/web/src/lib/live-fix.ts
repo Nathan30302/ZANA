@@ -8,6 +8,8 @@ export type LiveFix = {
   lng: number;
   accuracy?: number;
   heading?: number | null;
+  /** Metres per second, when the phone reports it. */
+  speed?: number | null;
 };
 
 function angDiff(a: number, b: number) {
@@ -51,11 +53,32 @@ export function askCompass() {
   orientation.requestPermission?.().catch(() => undefined);
 }
 
+/** Fires with the direction the top of the phone is pointing. */
+export function watchCompass(onHeading: (degrees: number) => void) {
+  const onAbs = (event: Event) => {
+    const next = compassDegrees(event as DeviceOrientationEvent, true);
+    if (next != null) onHeading(next);
+  };
+  const onRel = (event: Event) => {
+    const next = compassDegrees(event as DeviceOrientationEvent, false);
+    if (next != null) onHeading(next);
+  };
+  window.addEventListener("deviceorientationabsolute", onAbs, true);
+  window.addEventListener("deviceorientation", onRel, true);
+  return () => {
+    window.removeEventListener("deviceorientationabsolute", onAbs, true);
+    window.removeEventListener("deviceorientation", onRel, true);
+  };
+}
+
 export function useLiveFix(active: boolean) {
   const [fix, setFix] = useState<LiveFix | null>(null);
   const [note, setNote] = useState("");
-  const lastFix = useRef<{ lat: number; lng: number } | null>(null);
+  const lastFix = useRef<{ lat: number; lng: number; at: number } | null>(null);
+  const suspect = useRef<{ lat: number; lng: number } | null>(null);
   const headingRef = useRef<number | null>(null);
+  const publishedHeading = useRef<number | null>(null);
+  const lastHeadingPublish = useRef(0);
   const compassAt = useRef(0);
   const lastPost = useRef(0);
   const onLive = useRef<((point: LiveFix) => void) | null>(null);
@@ -67,34 +90,51 @@ export function useLiveFix(active: boolean) {
     }
     const options = { enableHighAccuracy: true, maximumAge: 0, timeout: 20000 };
 
-    function pushHeading(next: number) {
-      const prev = headingRef.current;
-      if (prev != null && Math.abs(angDiff(next, prev)) < 3) return;
+    function pushHeading(next: number, force: boolean) {
       headingRef.current = next;
+      const now = Date.now();
+      const prev = publishedHeading.current;
+      if (!force && prev != null && Math.abs(angDiff(next, prev)) < 8 && now - lastHeadingPublish.current < 400) return;
+      if (!force && now - lastHeadingPublish.current < 120) return;
+      lastHeadingPublish.current = now;
+      publishedHeading.current = next;
       setFix((current) => (current ? { ...current, heading: next } : current));
     }
 
     function onFix(pos: GeolocationPosition) {
-      const point = { lat: pos.coords.latitude, lng: pos.coords.longitude, accuracy: pos.coords.accuracy };
+      const now = Date.now();
+      const point = {
+        lat: pos.coords.latitude,
+        lng: pos.coords.longitude,
+        accuracy: pos.coords.accuracy,
+        speed: pos.coords.speed,
+      };
       const prev = lastFix.current;
       const metres = prev ? haversineKm(prev, point) * 1000 : Infinity;
-      const speed = pos.coords.speed;
-      const walking = !prev || metres > 1.2 || (speed != null && speed > 0.4 && metres > 0.4);
-      if (walking) {
-        if (prev && metres > 4 && Date.now() - compassAt.current > 2500) {
-          pushHeading(bearingDegrees(prev, point));
-        }
-        lastFix.current = point;
-        const heading =
-          pos.coords.heading != null && pos.coords.heading >= 0 && Date.now() - compassAt.current > 2500
-            ? pos.coords.heading
-            : headingRef.current;
-        if (heading != null) headingRef.current = heading;
-        setFix({ ...point, heading });
-        setNote("");
+      const seconds = prev ? Math.max(0.2, (now - prev.at) / 1000) : 1;
+      if (prev && metres / seconds > 45) {
+        const held = suspect.current;
+        const agrees = held != null && haversineKm(held, point) * 1000 < 30;
+        suspect.current = { lat: point.lat, lng: point.lng };
+        if (!agrees) return;
+      } else {
+        suspect.current = null;
       }
-      const now = Date.now();
-      if (onLive.current && walking && now - lastPost.current > 8000) {
+      const speed = pos.coords.speed;
+      const walking = !prev || metres > 0.8 || (speed != null && speed > 0.3 && metres > 0.3);
+      if (!walking) return;
+      if (prev && metres > 4 && now - compassAt.current > 2500) {
+        pushHeading(bearingDegrees(prev, point), true);
+      }
+      lastFix.current = { lat: point.lat, lng: point.lng, at: now };
+      const course =
+        pos.coords.heading != null && pos.coords.heading >= 0 && now - compassAt.current > 2500
+          ? pos.coords.heading
+          : headingRef.current;
+      if (course != null) headingRef.current = course;
+      setFix({ ...point, heading: course });
+      setNote("");
+      if (onLive.current && now - lastPost.current > 8000) {
         lastPost.current = now;
         onLive.current({ ...point, heading: headingRef.current });
       }
@@ -112,20 +152,13 @@ export function useLiveFix(active: boolean) {
 
     const id = navigator.geolocation.watchPosition(onFix, onFail, options);
 
-    function onOrient(event: Event, absoluteEvent: boolean) {
-      const next = compassDegrees(event as DeviceOrientationEvent, absoluteEvent);
-      if (next == null) return;
+    const stopCompass = watchCompass((next) => {
       compassAt.current = Date.now();
-      pushHeading(next);
-    }
-    const onAbs = (event: Event) => onOrient(event, true);
-    const onRel = (event: Event) => onOrient(event, false);
-    window.addEventListener("deviceorientationabsolute", onAbs, true);
-    window.addEventListener("deviceorientation", onRel, true);
+      pushHeading(next, false);
+    });
     return () => {
       navigator.geolocation.clearWatch(id);
-      window.removeEventListener("deviceorientationabsolute", onAbs, true);
-      window.removeEventListener("deviceorientation", onRel, true);
+      stopCompass();
     };
   }, [active]);
 

@@ -270,16 +270,15 @@ body {
   box-shadow: 0 0 0 6px rgba(37, 99, 235, 0.25);
 }
 
-.zana-arrow {
-  width: 42px;
-  height: 42px;
-  filter: drop-shadow(0 2px 4px rgba(28, 25, 23, 0.35));
+.zana-arrow,
+.zana-arrow-face {
+  width: 84px;
+  height: 84px;
+  transform-origin: center;
 }
 
-.zana-arrow-face {
-  width: 42px;
-  height: 42px;
-  transform-origin: center;
+.zana-arrow {
+  filter: drop-shadow(0 2px 4px rgba(28, 25, 23, 0.35));
 }
 
 .zana-pin {
