@@ -6,6 +6,7 @@ node_modules/
 .env
 .env.*
 !.env.example
+!**/.env.example
 
 # Build
 dist/
@@ -15,17 +16,11 @@ out/
 coverage/
 *.tsbuildinfo
 
-# Flutter
-apps/customer/.dart_tool/
-apps/customer/.flutter-plugins
-apps/customer/.flutter-plugins-dependencies
-apps/customer/.packages
-apps/customer/build/
-apps/pro/.dart_tool/
-apps/pro/.flutter-plugins
-apps/pro/.flutter-plugins-dependencies
-apps/pro/.packages
-apps/pro/build/
+# Flutter / mobile leftovers
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
 **/ios/Pods/
 **/ios/.symlinks/
 **/android/.gradle/
@@ -41,8 +36,10 @@ apps/pro/build/
 .vercel/
 
 # Prisma
-apps/api/prisma/*.db
-apps/api/prisma/*.db-journal
+*.db
+*.db-journal
 
-# Local uploads
-apps/api/uploads/
+# Zambia map download (scripts/download-zambia-map.sh)
+/data/zambia*
+apps/web/data/*
+!apps/web/data/.gitkeep

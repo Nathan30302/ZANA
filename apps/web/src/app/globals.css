@@ -1,34 +1,326 @@
-:root {
-  --ink: #1c1917;
-  --muted: #57534e;
-  --line: #e7e5e4;
-  --cream: #faf7f2;
-  --paper: #ffffff;
-  --gold: #b45309;
-  --charcoal: #292524;
-}
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
-* {
-  box-sizing: border-box;
+:root {
+  --zana-rose: #9f1239;
+  --zana-rose-soft: #fff1f2;
+  --zana-burgundy: #881337;
+  --zana-ink: #1c1917;
+  --zana-muted: #78716c;
+  --zana-cream: #fffaf8;
+  --zana-line: #f1e7e4;
+  --zana-orange: #ea580c;
 }
 
 html,
 body {
-  margin: 0;
+  min-height: 100%;
+  background: #f3ebe6;
+  color: var(--zana-ink);
+}
+
+::selection {
+  background: #fecdd3;
+  color: #1c1917;
+}
+
+body {
+  font-family: var(--font-outfit), system-ui, sans-serif;
+}
+
+.font-display {
+  font-family: var(--font-fraunces), Georgia, serif;
+}
+
+.mobile-shell {
+  max-width: 480px;
+  margin: 0 auto;
+  min-height: 100dvh;
+  background:
+    radial-gradient(1200px 420px at 50% -80px, rgba(159, 18, 57, 0.08), transparent 55%),
+    #fffaf8;
+  position: relative;
+  box-shadow: 0 0 0 1px rgba(28, 25, 23, 0.05);
+}
+
+.desktop-shell {
+  max-width: 1100px;
+  margin: 0 auto;
+  min-height: 100dvh;
+  padding: 24px;
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-up {
+  animation: fade-up 0.45s ease-out both;
+}
+
+@keyframes pulse-soft {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.03);
+  }
+}
+
+.animate-pulse-soft {
+  animation: pulse-soft 2.4s ease-in-out infinite;
+}
+
+.zana-splash {
+  background:
+    radial-gradient(ellipse at 50% 36%, rgba(234, 88, 12, 0.28), transparent 36%),
+    radial-gradient(ellipse at 50% 78%, rgba(159, 18, 57, 0.35), transparent 42%),
+    #0c0708;
+}
+
+.zana-grid {
+  background-image:
+    linear-gradient(rgba(255, 250, 248, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 250, 248, 0.05) 1px, transparent 1px);
+  background-size: 32px 32px;
+  mask-image: radial-gradient(circle at 50% 42%, #000 0%, transparent 72%);
+}
+
+.zana-flow {
+  position: absolute;
+  border-radius: 999px;
+  filter: blur(18px);
+  mix-blend-mode: screen;
+}
+
+.zana-flow-a {
+  width: 150%;
+  height: 80%;
+  left: -55%;
+  top: -20%;
+  background: radial-gradient(circle, #fb923c 0%, #ea580c 42%, transparent 70%);
+  animation: zana-flow-a 3.4s ease-in-out infinite alternate;
+}
+
+.zana-flow-b {
+  width: 140%;
+  height: 90%;
+  right: -60%;
+  bottom: -30%;
+  background: radial-gradient(circle, #fb7185 0%, #9f1239 46%, transparent 72%);
+  animation: zana-flow-b 3.8s ease-in-out infinite alternate;
+}
+
+.zana-flow-c {
+  width: 110%;
+  height: 70%;
+  left: -10%;
+  top: 35%;
+  background: radial-gradient(circle, rgba(255, 247, 237, 0.55) 0%, transparent 60%);
+  animation: zana-flow-c 2.8s ease-in-out infinite alternate;
+}
+
+@keyframes zana-flow-a {
+  from { transform: translate3d(0, 0, 0) scale(1); }
+  to { transform: translate3d(28%, 36%, 0) scale(1.18); }
+}
+
+@keyframes zana-flow-b {
+  from { transform: translate3d(0, 0, 0) scale(1.05); }
+  to { transform: translate3d(-24%, -30%, 0) scale(0.92); }
+}
+
+@keyframes zana-flow-c {
+  from { transform: translate3d(-12%, 8%, 0); }
+  to { transform: translate3d(30%, -18%, 0); }
+}
+
+.zana-orbit {
+  position: absolute;
+  inset: -28px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  border-top-color: rgba(255, 247, 237, 0.85);
+  border-right-color: rgba(234, 88, 12, 0.35);
+  animation: zana-spin 7s linear infinite;
+}
+
+.zana-orbit-2 {
+  inset: -48px;
+  border-top-color: transparent;
+  border-bottom-color: rgba(159, 18, 57, 0.8);
+  animation-duration: 12s;
+  animation-direction: reverse;
+}
+
+.zana-mark {
+  animation: zana-mark-in 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.zana-sweep {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: 999px;
+  pointer-events: none;
+}
+
+.zana-sweep::after {
+  content: "";
+  position: absolute;
+  top: -10%;
+  bottom: -10%;
+  width: 40%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.75), transparent);
+  animation: zana-sweep 1.5s ease-in-out 0.35s both;
+}
+
+.zana-word {
+  animation: zana-lock 0.9s cubic-bezier(0.16, 1, 0.3, 1) 0.25s both;
+}
+
+.zana-rule {
+  height: 1px;
+  width: 148px;
+  margin: 14px auto 0;
+  transform-origin: center;
+  background: linear-gradient(90deg, transparent, #fb923c, #fff7ed, #fb923c, transparent);
+  animation: zana-line 0.8s ease-out 0.45s both;
+}
+
+@keyframes zana-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes zana-mark-in {
+  from {
+    opacity: 0;
+    transform: scale(0.82);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes zana-sweep {
+  from {
+    transform: translateX(-140%);
+  }
+  to {
+    transform: translateX(260%);
+  }
+}
+
+@keyframes zana-lock {
+  from {
+    opacity: 0;
+    letter-spacing: 0.42em;
+    filter: blur(8px);
+  }
+  to {
+    opacity: 1;
+    letter-spacing: 0;
+    filter: blur(0);
+  }
+}
+
+@keyframes zana-line {
+  from {
+    transform: scaleX(0);
+    opacity: 0;
+  }
+  to {
+    transform: scaleX(1);
+    opacity: 1;
+  }
+}
+
+.maplibregl-map {
+  font-family: inherit;
+}
+
+.maplibregl-ctrl-scale {
+  margin-top: 6px;
+  border: 0;
+  border-bottom: 2px solid #3a291c;
+  background: rgba(255, 250, 248, 0.92);
+  color: #1c1917;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.zana-you-dot {
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  background: #2563eb;
+  border: 3px solid #fff;
+  box-shadow: 0 0 0 6px rgba(37, 99, 235, 0.25);
+}
+
+.zana-arrow,
+.zana-arrow-face {
+  width: 84px;
+  height: 84px;
+  transform-origin: center;
+}
+
+.zana-arrow {
+  filter: drop-shadow(0 2px 4px rgba(28, 25, 23, 0.35));
+}
+
+.zana-pin {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  background: transparent;
+  border: 0;
   padding: 0;
-  color: var(--ink);
-  background: var(--cream);
-  font-family: "Avenir Next", "Segoe UI", "Helvetica Neue", Helvetica, Arial, sans-serif;
 }
 
-a {
-  color: inherit;
-  text-decoration: none;
+.zana-pin span {
+  color: #fff;
+  font: 700 11px/1.2 system-ui, sans-serif;
+  padding: 4px 8px;
+  border-radius: 999px;
+  box-shadow: 0 6px 16px rgba(28, 25, 23, 0.25);
+  white-space: nowrap;
 }
 
-button,
-input,
-select,
-textarea {
-  font: inherit;
+.zana-pin i {
+  width: 16px;
+  height: 16px;
+  border: 2px solid #fff;
+  border-radius: 50% 50% 50% 0;
+  transform: rotate(-45deg);
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.28);
+}
+
+.zana-pick {
+  width: 22px;
+  height: 22px;
+}
+
+.zana-pick i {
+  display: block;
+  width: 22px;
+  height: 22px;
+  background: #9f1239;
+  border: 3px solid #fff;
+  border-radius: 50% 50% 50% 0;
+  transform: rotate(-45deg);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
 }

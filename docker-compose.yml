@@ -1,14 +1,13 @@
 services:
   db:
     image: postgres:16-alpine
-    container_name: zana-db
     restart: unless-stopped
+    environment:
+      POSTGRES_USER: zana
+      POSTGRES_PASSWORD: zana
+      POSTGRES_DB: zana
     ports:
       - "5432:5432"
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: zana
     volumes:
       - zana_pg:/var/lib/postgresql/data
 

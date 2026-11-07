@@ -1,81 +1,89 @@
-# ZANA
+# Zana
 
-Zambia’s beauty booking marketplace — salons, barbershops, and mobile stylists.
+**Beauty on your fingertips** — Zambia’s beauty services marketplace for salons, barbershops, and independent professionals, with first-class **home service** booking.
 
-**Mental model:** Yango for hair. Dual apps, float-based monetization, Lusaka first.
+Built as a production-structured Next.js app (customer + professional + admin) on Nest-style API routes, Prisma, and PostgreSQL. Mobile-first UI ready for Expo/React Native wrappers later.
 
-| Surface | Path | Stack |
+## Surfaces
+
+| Surface | Path | Who |
 |---|---|---|
-| Customer app | `apps/customer` | Flutter |
-| Provider app (ZANA Pro) | `apps/pro` | Flutter |
-| Pro apply + Admin web | `apps/web` | Next.js |
-| API | `apps/api` | NestJS + Prisma + PostgreSQL |
-| Shared types | `packages/shared` | TypeScript |
+| Customer app | `/` → `/home` | Discover & book |
+| Professional app | `/pro` | Apply, calendar, earnings, float |
+| Admin panel | `/admin` | Approvals, analytics, commission |
 
-Product blueprint: [`docs/ZANA_Product_Blueprint.pdf`](docs/ZANA_Product_Blueprint.pdf) · domain wiki: [`docs/PRODUCT.md`](docs/PRODUCT.md) · **pilot deploy:** [`docs/DEPLOY.md`](docs/DEPLOY.md)
+## Stack
+
+- **Frontend:** Next.js 15 (App Router) + Tailwind + TypeScript  
+- **Backend:** Next.js Route Handlers  
+- **DB:** PostgreSQL + Prisma  
+- **Auth:** Phone + OTP (demo code `123456`)  
+- **Payments:** Float wallet with MTN/Airtel/Card top-up stubs (Flutterwave-ready)  
+- **Currency:** Zambian Kwacha (K / ZMW)
 
 ## Quick start
 
 ### Prerequisites
 - Node.js 20+
-- Docker Desktop (Postgres)
-- Flutter 3.24+ (for mobile apps) — optional until you run apps
+- PostgreSQL 16 (local or Docker)
 
-### 1. Database + API
+### 1. Database
 ```bash
-cp apps/api/.env.example apps/api/.env
-cp apps/web/.env.example apps/web/.env.local
+# Option A — Docker
+docker compose up -d
 
+# Option B — local Postgres user/db already created:
+# createuser zana with password 'zana' superuser;
+# create database zana owner zana;
+```
+
+### 2. App
+```bash
+cd apps/web
+cp .env.example .env   # defaults point at postgresql://zana:zana@localhost:5432/zana
 npm install
-npm run db:setup          # docker compose up + migrate + seed
-npm run dev:api           # http://localhost:3000/v1/health
+npx prisma migrate dev
+npm run db:seed
+npm run dev
 ```
 
-Seeded admin: `+260970000099` · OTP `123456`  
-Seeded pro (Lusaka Cuts): `+260970000001` · OTP `123456`
+Open [http://localhost:3000](http://localhost:3000).
 
-### 2. Web (pro apply + admin)
+From repo root you can also run `npm run dev` (workspace).
+
+### 3. Zambia map
+
+The map is one download of Zambia (streets and building shapes), not a live world-tile feed. Build it once:
+
 ```bash
-npm run dev:web           # http://localhost:3001
-```
-- `/apply` — Become a Professional  
-- `/admin` — approve applications  
-
-### 3. Mobile (simulator / device)
-```bash
-export PATH="$HOME/development/flutter/bin:$PATH"
-# Simulator (API on same machine):
-cd apps/customer && flutter run
-cd apps/pro && flutter run
-
-# Physical device / internal APK — point at hosted API (see docs/DEPLOY.md):
-export API_URL="https://YOUR_HOST/v1"
-./scripts/build-internal.sh
+bash scripts/download-zambia-map.sh
 ```
 
-## Pilot hosting (API + OTP + builds)
+That writes `data/zambia.mbtiles` (outside the Next.js app so the build does not try to bundle it). In the app, a place shows where it is. **Open map** fills the screen with your arrow. Choose **I'm going there** or **They're coming to me**, then tap **Route me** for car or walk. The map on screen is that Zambia download.
 
-See **[`docs/DEPLOY.md`](docs/DEPLOY.md)** for:
-1. Docker Compose / Fly.io API + Postgres  
-2. Africa’s Talking SMS OTP (`OTP_PROVIDER=africas_talking`)  
-3. Internal APK / TestFlight builds with `--dart-define=API_URL=…`  
+## Demo accounts (OTP always `123456`)
 
-Payments stay stubbed until you enable MoMo/Airtel intentionally.
+| Role | Phone |
+|---|---|
+| Customer | `+260970000010` |
+| Professional (approved) | `+260970000001` |
+| Professional (pending app) | `+260970000020` |
+| Admin | `+260970000099` |
 
-## API surface (MVP)
-| Method | Path | Purpose |
-|---|---|---|
-| GET | `/v1/health` | Health |
-| GET | `/v1/meta/areas` | Lusaka areas |
-| POST | `/v1/auth/otp/*` | Phone OTP |
-| GET | `/v1/providers` | Discover |
-| POST | `/v1/bookings` | Request job |
-| PATCH | `/v1/bookings/:id/status` | Accept / progress |
-| POST | `/v1/bookings/:id/review` | Rate completed job |
-| GET/POST | `/v1/floats/*` | Packages, MoMo/Airtel purchase, webhook confirm |
-| GET | `/v1/providers?lat=&lng=` | Discover sorted by distance |
-| POST | `/v1/applications` | Pro apply |
-| GET/PATCH | `/v1/admin/*` | Admin queue |
+## Core flows that work
 
-## Repo
-https://github.com/Nathan30302/ZANA
+1. **Customer:** browse → open pro (map shows where the place is) → Open map for the full screen and your arrow → Book Now → choose **I'm going there** or **They're coming to me** → **Route me** for car or walk → confirm  
+2. **Professional:** login → dashboard accept/start/complete → calendar → float top-up → manage services  
+3. **Admin:** review applications → approve/reject → adjust commission %  
+
+Commission is deducted from the pro **float** when a booking is marked **COMPLETED**.
+
+## Brand
+
+Logo files live in [`brand/`](brand/) and are copied to `apps/web/public/brand/`.
+
+Slogan: **Beauty on your fingertips**
+
+## Product reference
+
+Business plan PDF provided by the founder (Nov 2026) is the source of truth for roles, float model, and roadmap.
