@@ -2,7 +2,7 @@
 
 import { Badge, Card, EmptyState, SectionTitle } from "@/components/ui";
 import { api } from "@/lib/api-client";
-import { bookingLabel, bookingTone, formatZmw, lusakaStamp, lusakaTime } from "@/lib/utils";
+import { appointmentIsUpcoming, bookingLabel, bookingTone, formatZmw, lusakaTime, lusakaWhen } from "@/lib/utils";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
@@ -13,8 +13,8 @@ type Booking = {
   locationType: string;
   servicePriceZmw: number;
   travelFeeZmw: number;
-  service: { name: string };
-  professional: { displayName: string; coverUrl: string | null };
+  service: { id: string; name: string; durationMin: number };
+  professional: { id: string; displayName: string; coverUrl: string | null };
   review: { id: string } | null;
 };
 
@@ -38,12 +38,14 @@ export default function BookingsPage() {
   }, []);
 
   const filtered = useMemo(() => {
-    const now = Date.now();
-    return bookings.filter((b) => {
-      const upcoming =
-        ["REQUESTED", "ACCEPTED", "IN_PROGRESS"].includes(b.status) ||
-        (new Date(b.scheduledAt).getTime() >= now && !["COMPLETED", "CANCELLED", "DECLINED", "EXPIRED"].includes(b.status));
-      return tab === "upcoming" ? upcoming && b.status !== "COMPLETED" : !upcoming || b.status === "COMPLETED";
+    const rows = bookings.filter((b) =>
+      tab === "upcoming"
+        ? appointmentIsUpcoming(b.status, b.scheduledAt, b.service.durationMin)
+        : !appointmentIsUpcoming(b.status, b.scheduledAt, b.service.durationMin),
+    );
+    return rows.sort((a, b) => {
+      const delta = new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime();
+      return tab === "upcoming" ? delta : -delta;
     });
   }, [bookings, tab]);
 
@@ -67,7 +69,16 @@ export default function BookingsPage() {
       {error ? (
         <EmptyState title="Sign in to see bookings" body={`${error}. Use demo phone +260970000010 / OTP 123456.`} />
       ) : filtered.length === 0 ? (
-        <EmptyState title="No bookings yet" body="Explore pros and book your first service." />
+        <EmptyState
+          title={bookings.length === 0 ? "No bookings yet" : tab === "upcoming" ? "Nothing coming up" : "Nothing finished yet"}
+          body={
+            bookings.length === 0
+              ? "Explore pros and book your first service."
+              : tab === "upcoming"
+                ? "Finished visits are under Past. Book again from there."
+                : "A visit shows here after it is done."
+          }
+        />
       ) : (
         <div className="space-y-3">
           {filtered.map((b) => (
@@ -76,7 +87,7 @@ export default function BookingsPage() {
                 <div className="w-14 shrink-0 text-center">
                   <div className="font-display text-lg leading-none text-stone-900">{lusakaTime(new Date(b.scheduledAt))}</div>
                   <div className="mt-1 text-[10px] font-medium uppercase tracking-wide text-stone-400">
-                    {lusakaStamp(new Date(b.scheduledAt))}
+                    {lusakaWhen(new Date(b.scheduledAt))}
                   </div>
                 </div>
                 <div className="min-w-0 flex-1">
@@ -89,6 +100,10 @@ export default function BookingsPage() {
                   </div>
                   <div className="mt-1 text-xs text-stone-500">
                     {b.locationType === "AT_HOME" ? "They come to you" : "You go to the shop"}
+                    {!appointmentIsUpcoming(b.status, b.scheduledAt, b.service.durationMin) &&
+                    ["REQUESTED", "ACCEPTED", "IN_PROGRESS"].includes(b.status)
+                      ? " · This time has passed"
+                      : ""}
                   </div>
                 </div>
               </Link>
@@ -96,6 +111,11 @@ export default function BookingsPage() {
                 <span className="font-semibold">{formatZmw(b.servicePriceZmw + b.travelFeeZmw)}</span>
                 <div className="flex gap-3 text-sm font-semibold text-rose-800">
                   <Link href={`/bookings/${b.id}`}>Details</Link>
+                  {appointmentIsUpcoming(b.status, b.scheduledAt, b.service.durationMin) ? (
+                    <Link href={`/bookings/${b.id}/track`}>Route</Link>
+                  ) : (
+                    <Link href={`/pros/${b.professional.id}/book?service=${b.service.id}`}>Book again</Link>
+                  )}
                   {b.status === "COMPLETED" && !b.review ? (
                     <Link href={`/bookings/${b.id}/review`}>Rate</Link>
                   ) : null}

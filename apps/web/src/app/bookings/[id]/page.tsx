@@ -3,7 +3,16 @@
 import { PlaceMap } from "@/components/map-screen";
 import { Badge, Button, Card } from "@/components/ui";
 import { api } from "@/lib/api-client";
-import { bookingLabel, bookingTone, formatLusaka, formatZmw, lusakaLongDay, lusakaTime, whatsappHref } from "@/lib/utils";
+import {
+  appointmentIsUpcoming,
+  bookingLabel,
+  bookingTone,
+  formatLusaka,
+  formatZmw,
+  lusakaLongDay,
+  lusakaTime,
+  whatsappHref,
+} from "@/lib/utils";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -19,7 +28,8 @@ type Booking = {
   servicePriceZmw: number;
   travelFeeZmw: number;
   customerNote: string | null;
-  service: { name: string; durationMin: number };
+  service: { id: string; name: string; durationMin: number };
+  customer: { id: string; name: string | null; phone: string };
   professional: {
     id: string;
     displayName: string;
@@ -33,7 +43,17 @@ type Booking = {
   review: { id: string } | null;
 };
 
-function statusLine(status: string, name: string) {
+function statusLine(status: string, name: string, asPro: boolean) {
+  if (asPro) {
+    if (status === "REQUESTED") return `${name} is waiting for you to confirm.`;
+    if (status === "ACCEPTED") return "You confirmed this. Start when the visit begins.";
+    if (status === "IN_PROGRESS") return "This visit is underway.";
+    if (status === "COMPLETED") return "This appointment is done.";
+    if (status === "DECLINED") return "You declined this request.";
+    if (status === "CANCELLED") return "This booking was cancelled.";
+    if (status === "EXPIRED") return "This request expired.";
+    return "";
+  }
   if (status === "REQUESTED") return `Waiting for ${name} to confirm.`;
   if (status === "ACCEPTED") return `${name} confirmed this.`;
   if (status === "IN_PROGRESS") return `${name} has started.`;
@@ -48,12 +68,28 @@ export default function BookingDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const [booking, setBooking] = useState<Booking | null>(null);
+  const [viewer, setViewer] = useState<"customer" | "pro" | "admin">("customer");
   const [askCancel, setAskCancel] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
 
   async function load() {
-    const data = await api<{ booking: Booking }>(`/api/bookings/${id}`);
+    const data = await api<{ booking: Booking; viewer: "customer" | "pro" | "admin" }>(`/api/bookings/${id}`);
     setBooking(data.booking);
+    setViewer(data.viewer);
+  }
+
+  async function setStatus(status: string) {
+    setBusy(true);
+    setError("");
+    try {
+      await api(`/api/bookings/${id}`, { method: "PATCH", json: { status } });
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not update this booking");
+    } finally {
+      setBusy(false);
+    }
   }
 
   useEffect(() => {
@@ -77,7 +113,10 @@ export default function BookingDetailPage() {
     try {
       const data = await api<{ conversation: { id: string } }>("/api/conversations", {
         method: "POST",
-        json: { professionalId: booking.professional.id },
+        json:
+          viewer === "pro"
+            ? { customerId: booking.customer.id }
+            : { professionalId: booking.professional.id },
       });
       router.push(`/messages/${data.conversation.id}`);
     } catch {
@@ -105,7 +144,12 @@ export default function BookingDetailPage() {
     ? booking.address || "They come to you"
     : booking.professional.address || booking.professional.area || "At the shop";
   const total = booking.servicePriceZmw + booking.travelFeeZmw;
-  const active = ["REQUESTED", "ACCEPTED", "IN_PROGRESS"].includes(booking.status);
+  const asPro = viewer === "pro";
+  const upcoming = appointmentIsUpcoming(booking.status, booking.scheduledAt, booking.service.durationMin);
+  const otherName = asPro
+    ? booking.customer.name || booking.customer.phone
+    : booking.professional.displayName;
+  const phone = asPro ? booking.customer.phone : booking.professional.user.phone;
 
   return (
     <div className="mobile-shell pb-10">
@@ -125,7 +169,7 @@ export default function BookingDetailPage() {
         <div className="absolute bottom-4 left-4 right-4 text-white">
           <Badge tone={bookingTone(booking.status)}>{bookingLabel(booking.status)}</Badge>
           <h1 className="font-display mt-2 text-3xl leading-none">{booking.service.name}</h1>
-          <p className="mt-1 text-sm text-white/80">{booking.professional.displayName}</p>
+          <p className="mt-1 text-sm text-white/80">{otherName}</p>
         </div>
       </div>
 
@@ -144,7 +188,11 @@ export default function BookingDetailPage() {
           </div>
         </Card>
 
-        <p className="text-sm text-stone-600">{statusLine(booking.status, booking.professional.displayName)}</p>
+        <p className="text-sm text-stone-600">{statusLine(booking.status, otherName, asPro)}</p>
+        {!upcoming && ["REQUESTED", "ACCEPTED"].includes(booking.status) ? (
+          <p className="text-sm text-amber-800">This time has passed.</p>
+        ) : null}
+        {error ? <p className="text-sm text-red-700">{error}</p> : null}
 
         <Card className="space-y-2 text-sm">
           <div className="flex justify-between">
@@ -165,7 +213,32 @@ export default function BookingDetailPage() {
         {place ? <PlaceMap place={place} /> : null}
 
         <div className="flex flex-col gap-2">
-          {active ? (
+          {asPro && booking.status === "REQUESTED" ? (
+            <div className="grid grid-cols-2 gap-2">
+              <Button disabled={busy} onClick={() => setStatus("ACCEPTED")}>
+                Accept
+              </Button>
+              <Button variant="secondary" disabled={busy} onClick={() => setStatus("DECLINED")}>
+                Decline
+              </Button>
+            </div>
+          ) : null}
+          {asPro && booking.status === "ACCEPTED" ? (
+            <Button disabled={busy} onClick={() => setStatus("IN_PROGRESS")}>
+              Start service
+            </Button>
+          ) : null}
+          {asPro && booking.status === "IN_PROGRESS" ? (
+            <Button disabled={busy} onClick={() => setStatus("COMPLETED")}>
+              Complete
+            </Button>
+          ) : null}
+          {upcoming && asPro && atHome ? (
+            <Link href={`/bookings/${booking.id}/track?as=pro`}>
+              <Button className="w-full">Route to them</Button>
+            </Link>
+          ) : null}
+          {upcoming && !asPro ? (
             <Link href={`/bookings/${booking.id}/track`}>
               <Button className="w-full">Route me</Button>
             </Link>
@@ -177,8 +250,10 @@ export default function BookingDetailPage() {
             <a
               className="inline-flex items-center justify-center rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white"
               href={whatsappHref(
-                booking.professional.user.phone,
-                `Hi ${booking.professional.displayName}, about my ${booking.service.name} on ${formatLusaka(when)}.`,
+                phone,
+                asPro
+                  ? `Hi ${otherName}, about your ${booking.service.name} on ${formatLusaka(when)}.`
+                  : `Hi ${booking.professional.displayName}, about my ${booking.service.name} on ${formatLusaka(when)}.`,
               )}
               target="_blank"
               rel="noreferrer"
@@ -186,18 +261,27 @@ export default function BookingDetailPage() {
               WhatsApp
             </a>
           </div>
-          <Link href={`/pros/${booking.professional.id}`}>
-            <Button variant="secondary" className="w-full">
-              View {booking.professional.displayName}
-            </Button>
-          </Link>
-          {booking.status === "COMPLETED" && !booking.review ? (
+          {!asPro ? (
+            <Link href={`/pros/${booking.professional.id}`}>
+              <Button variant="secondary" className="w-full">
+                View {booking.professional.displayName}
+              </Button>
+            </Link>
+          ) : null}
+          {!asPro && !upcoming ? (
+            <Link href={`/pros/${booking.professional.id}/book?service=${booking.service.id}`}>
+              <Button variant="secondary" className="w-full">
+                Book again
+              </Button>
+            </Link>
+          ) : null}
+          {!asPro && booking.status === "COMPLETED" && !booking.review ? (
             <Link href={`/bookings/${booking.id}/review`}>
               <Button className="w-full">Rate this visit</Button>
             </Link>
           ) : null}
-          {booking.review ? <p className="text-center text-sm text-stone-500">You already rated this visit.</p> : null}
-          {["REQUESTED", "ACCEPTED"].includes(booking.status) ? (
+          {!asPro && booking.review ? <p className="text-center text-sm text-stone-500">You already rated this visit.</p> : null}
+          {!asPro && ["REQUESTED", "ACCEPTED"].includes(booking.status) ? (
             askCancel ? (
               <Card className="space-y-3">
                 <div className="font-semibold">Cancel this {booking.service.name.toLowerCase()}?</div>

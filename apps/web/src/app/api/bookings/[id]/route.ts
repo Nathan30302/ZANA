@@ -38,7 +38,8 @@ export async function GET(_: Request, ctx: { params: Promise<{ id: string }> }) 
     session.role === "ADMIN";
   if (!allowed) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-  return NextResponse.json({ booking });
+  const viewer = pro && pro.id === booking.professionalId ? "pro" : session.role === "ADMIN" ? "admin" : "customer";
+  return NextResponse.json({ booking, viewer });
 }
 
 export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }> }) {

@@ -4,7 +4,7 @@ import { ProCard, ProCardData } from "@/components/pro-card";
 import { Badge, BrandWordmark, Chip, EmptyState, Input, SectionTitle } from "@/components/ui";
 import { api } from "@/lib/api-client";
 import { useHere } from "@/lib/use-here";
-import { lusakaDay, lusakaTime } from "@/lib/utils";
+import { appointmentIsUpcoming, lusakaTime, lusakaWhen } from "@/lib/utils";
 import { Search } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
@@ -13,7 +13,8 @@ type NextBooking = {
   id: string;
   status: string;
   scheduledAt: string;
-  service: { name: string };
+  locationType: string;
+  service: { name: string; durationMin: number };
   professional: { displayName: string };
 };
 
@@ -37,7 +38,7 @@ export default function HomePage() {
     api<{ bookings: NextBooking[] }>("/api/bookings?scope=customer")
       .then((data) => {
         const upcoming = data.bookings
-          .filter((b) => ["REQUESTED", "ACCEPTED", "IN_PROGRESS"].includes(b.status))
+          .filter((b) => appointmentIsUpcoming(b.status, b.scheduledAt, b.service.durationMin))
           .sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime());
         setNext(upcoming[0] || null);
       })
@@ -105,18 +106,29 @@ export default function HomePage() {
       ) : null}
 
       {next ? (
-        <Link href={`/bookings/${next.id}`} className="flex items-center gap-4 rounded-[28px] bg-stone-950 px-4 py-4 text-white shadow-lg shadow-stone-900/15">
-          <div className="w-16 shrink-0 text-center">
-            <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-white/50">Next</div>
-            <div className="font-display text-3xl leading-none">{lusakaTime(new Date(next.scheduledAt))}</div>
-          </div>
-          <div className="min-w-0 border-l border-white/15 pl-4">
-            <div className="truncate font-semibold">{next.service.name}</div>
-            <div className="truncate text-sm text-white/70">
-              {next.professional.displayName} · {lusakaDay(new Date(next.scheduledAt))}
+        <div className="flex items-center gap-3 rounded-[28px] bg-stone-950 px-4 py-4 text-white shadow-lg shadow-stone-900/15">
+          <Link href={`/bookings/${next.id}`} className="flex min-w-0 flex-1 items-center gap-4">
+            <div className="w-16 shrink-0 text-center">
+              <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-white/50">
+                {lusakaWhen(new Date(next.scheduledAt))}
+              </div>
+              <div className="font-display text-3xl leading-none">{lusakaTime(new Date(next.scheduledAt))}</div>
             </div>
-          </div>
-        </Link>
+            <div className="min-w-0 border-l border-white/15 pl-4">
+              <div className="truncate font-semibold">{next.service.name}</div>
+              <div className="truncate text-sm text-white/70">{next.professional.displayName}</div>
+              <div className="text-sm text-white/70">
+                {next.locationType === "AT_HOME" ? "At your home" : "At the shop"}
+              </div>
+            </div>
+          </Link>
+          <Link
+            href={`/bookings/${next.id}/track`}
+            className="shrink-0 rounded-full bg-white px-3 py-2 text-xs font-semibold text-stone-900"
+          >
+            Route
+          </Link>
+        </div>
       ) : null}
 
       <Link

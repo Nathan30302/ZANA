@@ -29,6 +29,25 @@ export function lusakaStamp(date: Date) {
   return `${get("weekday")} ${get("day")}`;
 }
 
+/** Today, Tomorrow, or a short Lusaka date. */
+export function lusakaWhen(date: Date) {
+  const key = lusakaDateKey(date);
+  const today = lusakaDateKey();
+  if (key === today) return "Today";
+  if (key === addLusakaDays(today, 1)) return "Tomorrow";
+  return lusakaDay(date);
+}
+
+const OPEN_BOOKING = new Set(["REQUESTED", "ACCEPTED", "IN_PROGRESS"]);
+
+/** Still coming up: the visit is underway, or the slot has not finished. */
+export function appointmentIsUpcoming(status: string, scheduledAt: string | Date, durationMin = 45) {
+  if (!OPEN_BOOKING.has(status)) return false;
+  if (status === "IN_PROGRESS") return true;
+  const start = new Date(scheduledAt).getTime();
+  return start + durationMin * 60_000 + 30 * 60_000 > Date.now();
+}
+
 export function lusakaDay(date: Date) {
   return new Intl.DateTimeFormat("en-GB", {
     timeZone: "Africa/Lusaka",

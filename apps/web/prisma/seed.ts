@@ -1,5 +1,4 @@
 import { PrismaClient, ProStatus, ProType, Role, BookingStatus, LocationType } from "@prisma/client";
-import { addDays, setHours, setMinutes } from "date-fns";
 
 const prisma = new PrismaClient();
 
@@ -122,7 +121,22 @@ const PROS = [
   },
 ];
 
+/** A shop clock time in Lusaka, `dayOffset` days from today. */
+function lusakaAt(dayOffset: number, hour: number, minute = 0) {
+  const key = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Africa/Lusaka",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+  const [year, month, day] = key.split("-").map(Number);
+  const startUtc = Date.UTC(year, month - 1, day + dayOffset, 0, 0, 0) - 2 * 60 * 60 * 1000;
+  return new Date(startUtc + (hour * 60 + minute) * 60_000);
+}
+
 async function main() {
+  await prisma.message.deleteMany();
+  await prisma.conversation.deleteMany();
   await prisma.review.deleteMany();
   await prisma.booking.deleteMany();
   await prisma.favorite.deleteMany();
@@ -288,28 +302,43 @@ async function main() {
   });
 
   const pro0 = createdPros[0];
-  const svc = pro0.services[0];
-  const tomorrow = setMinutes(setHours(addDays(new Date(), 1), 10), 0);
+  const cut = pro0.services.find((service) => service.name === "Classic Haircut") ?? pro0.services[0];
+  const fade = pro0.services.find((service) => service.name === "Skin Fade") ?? pro0.services[1];
 
   await prisma.booking.create({
     data: {
       customerId: customer.id,
       professionalId: pro0.id,
-      serviceId: svc.id,
+      serviceId: cut.id,
       status: BookingStatus.ACCEPTED,
       locationType: LocationType.AT_HOME,
       address: "12 Twin Palms Road, Kabulonga, Lusaka",
       customerLat: -15.4175,
       customerLng: 28.3512,
-      scheduledAt: tomorrow,
-      servicePriceZmw: svc.priceZmw,
+      scheduledAt: lusakaAt(0, 15, 0),
+      servicePriceZmw: cut.priceZmw,
       travelFeeZmw: pro0.travelFeeZmw,
-      commissionZmw: Math.round(svc.priceZmw * 0.1),
+      commissionZmw: Math.round(cut.priceZmw * 0.1),
       customerNote: "Please bring cape — kids at home.",
     },
   });
 
-  const past = setMinutes(setHours(addDays(new Date(), -3), 14), 0);
+  await prisma.booking.create({
+    data: {
+      customerId: customer.id,
+      professionalId: pro0.id,
+      serviceId: fade.id,
+      status: BookingStatus.REQUESTED,
+      locationType: LocationType.AT_SHOP,
+      scheduledAt: lusakaAt(1, 11, 0),
+      servicePriceZmw: fade.priceZmw,
+      travelFeeZmw: 0,
+      commissionZmw: Math.round(fade.priceZmw * 0.12),
+      customerNote: "Line-up as well, if there is time.",
+    },
+  });
+
+  const past = lusakaAt(-3, 14, 0);
   const pastBooking = await prisma.booking.create({
     data: {
       customerId: customer.id,
