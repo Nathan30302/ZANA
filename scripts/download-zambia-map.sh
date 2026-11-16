@@ -9,6 +9,13 @@ OUT="$DATA/zambia.mbtiles"
 # The .mbtiles suffix makes tilemaker write one file. Any other suffix becomes a folder of tiles.
 TMP="$DATA/zambia.build.mbtiles"
 
+if [[ -s "$OUT" && "${REPLACE_ZAMBIA_MAP:-}" != "1" ]]; then
+  echo "Leaving the frozen map at $OUT"
+  echo "The app serves this file, so the buildings stay where they are."
+  echo "Set REPLACE_ZAMBIA_MAP=1 only when you mean to replace that map."
+  exit 0
+fi
+
 if [[ ! -s "$PBF" ]]; then
   echo "Downloading Zambia from Geofabrik…"
   curl -fL --retry 4 --retry-delay 2 \

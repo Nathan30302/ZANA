@@ -10,8 +10,19 @@ export type ZambiaMapInfo = {
   download: boolean;
 };
 
+/** Shipped with the repo. Prefer this over any other path so a deploy cannot swap the buildings. */
+function frozenMbtiles() {
+  const roots = [process.cwd(), path.resolve(process.cwd(), ".."), path.resolve(process.cwd(), "../..")];
+  for (const root of roots) {
+    const file = path.join(root, "data", "zambia.mbtiles");
+    if (fs.existsSync(file) && fs.statSync(file).isFile() && fs.statSync(file).size > 1024 * 1024) return file;
+  }
+  return null;
+}
+
 const candidates = () =>
   [
+    frozenMbtiles(),
     process.env.ZAMBIA_MAP_PATH,
     path.resolve(process.cwd(), "data/zambia"),
     path.resolve(process.cwd(), "data/zambia.mbtiles"),

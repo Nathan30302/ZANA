@@ -40,6 +40,9 @@ coverage/
 *.db-journal
 
 # Zambia map download (scripts/download-zambia-map.sh)
+# The frozen mbtiles and its note stay in git so a deploy keeps the same buildings.
 /data/zambia*
+!/data/zambia.mbtiles
+!/data/zambia-map.json
 apps/web/data/*
 !apps/web/data/.gitkeep

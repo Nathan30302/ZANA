@@ -111,8 +111,8 @@ export function ZambiaNote() {
   return (
     <div className="flex items-center justify-between gap-3 text-xs text-stone-500">
       <span>
-        Zambia map is saved{info.bytes ? ` · ${formatMb(info.bytes)}` : ""}. Streets and buildings come from that
-        download.
+        Lusaka map is saved{info.bytes ? ` · ${formatMb(info.bytes)}` : ""}. These streets and buildings stay as they
+        are.
       </span>
       {info.download ? (
         <a className="shrink-0 font-semibold text-rose-800" href="/maps/zambia-map">

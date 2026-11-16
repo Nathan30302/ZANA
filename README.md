@@ -53,13 +53,13 @@ From repo root you can also run `npm run dev` (workspace).
 
 ### 3. Zambia map
 
-The map is one download of Zambia (streets and building shapes), not a live world-tile feed. Build it once:
+The map is one saved file, `data/zambia.mbtiles`, not a live world-tile feed. That file is the Greater Lusaka snapshot from 15 November 2026 (buildings and streets, including Roma). A deploy serves this same file, so the buildings stay where they are. The download script leaves it in place.
 
 ```bash
 bash scripts/download-zambia-map.sh
 ```
 
-That writes `data/zambia.mbtiles` (outside the Next.js app so the build does not try to bundle it). In the app, a place shows where it is. **Open map** fills the screen with your arrow. Choose **I'm going there** or **They're coming to me**, then tap **Route me** for car or walk. The map on screen is that Zambia download.
+The file sits outside the Next.js app so the build does not try to bundle it. In the app, a place shows where it is. **Open map** fills the screen with your arrow. Choose **I'm going there** or **They're coming to me**, then tap **Route me** for car or walk. The map on screen is that saved file.
 
 ## Demo accounts (OTP always `123456`)
 

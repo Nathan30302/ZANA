@@ -86,7 +86,7 @@ export function zambiaStyle() {
     sources: {
       zambia: {
         type: "vector" as const,
-        tiles: ["/maps/tiles/{z}/{x}/{y}?v=20261106"],
+        tiles: ["/maps/tiles/{z}/{x}/{y}?v=lusaka-20261115"],
         minzoom: 0,
         maxzoom: 15,
         attribution: "© OpenStreetMap",

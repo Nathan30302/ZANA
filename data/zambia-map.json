@@ -1,0 +1,9 @@
+{
+  "id": "lusaka-20261115",
+  "name": "Greater Lusaka",
+  "sha256": "7b4ee5ff12db42f949883ac885ca58a517c562293172d1f13972cd441dfdb689",
+  "bytes": 34566144,
+  "osmThrough": "2026-11-15T18:50:37Z",
+  "bbox": [27.0166844, -16.9783514, 29.6637243, -14.596806],
+  "note": "Frozen map. A deploy serves this file. Buildings around Lusaka stay where they are."
+}
