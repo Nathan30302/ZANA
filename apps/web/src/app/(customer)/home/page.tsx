@@ -4,7 +4,7 @@ import { ProCard, ProCardData } from "@/components/pro-card";
 import { BrandWordmark, Chip, EmptyState, Input, SectionTitle } from "@/components/ui";
 import { api } from "@/lib/api-client";
 import { useHere } from "@/lib/use-here";
-import { appointmentIsUpcoming, lusakaDay, lusakaTime, lusakaWhen } from "@/lib/utils";
+import { appointmentIsUpcoming, formatZmw, lusakaDay, lusakaTime, lusakaWhen } from "@/lib/utils";
 import { Search } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
@@ -14,6 +14,8 @@ type NextBooking = {
   status: string;
   scheduledAt: string;
   locationType: string;
+  servicePriceZmw: number;
+  travelFeeZmw: number;
   service: { name: string; durationMin: number };
   professional: { displayName: string };
 };
@@ -121,6 +123,9 @@ export default function HomePage() {
                 {lusakaWhen(new Date(next.scheduledAt))}
               </div>
               <div className="font-display text-3xl leading-none">{lusakaTime(new Date(next.scheduledAt))}</div>
+              <div className="mt-1 text-xs font-semibold text-white/80">
+                {formatZmw(next.servicePriceZmw + next.travelFeeZmw)}
+              </div>
             </div>
             <div className="min-w-0 border-l border-white/15 pl-4">
               <div className="truncate font-semibold">{next.service.name}</div>

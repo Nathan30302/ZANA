@@ -1,6 +1,6 @@
 "use client";
 
-import { haversineKm } from "@/lib/utils";
+import { driveMinutes, haversineKm } from "@/lib/utils";
 import { useEffect, useState } from "react";
 
 export const LUSAKA = { lat: -15.4167, lng: 28.2833 };
@@ -12,6 +12,14 @@ export function inZambia(point: { lat: number; lng: number }) {
 export function formatDistance(km: number) {
   if (km < 1) return `${Math.max(1, Math.round(km * 1000))} m`;
   return `${km < 10 ? km.toFixed(1) : Math.round(km)} km`;
+}
+
+/** A distance a person can read. Very close is "Here", and a short hop has no drive time. */
+export function tripLine(km: number | null | undefined) {
+  if (km == null || Number.isNaN(km)) return "Lusaka";
+  if (km < 0.08) return "Here";
+  if (km < 0.8) return formatDistance(km);
+  return `${formatDistance(km)} · ${driveMinutes(km)} min`;
 }
 
 /** Where the person is, or central Lusaka when location is off or outside Zambia. */

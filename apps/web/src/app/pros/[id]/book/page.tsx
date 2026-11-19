@@ -175,15 +175,43 @@ export default function BookFlowPage() {
         <button onClick={() => (step > 1 ? setStep(step - 1) : router.back())} className="text-sm font-semibold text-stone-600">
           Back
         </button>
-        <div className="text-sm text-stone-500">Step {step} / 4</div>
+        <div className="text-sm font-semibold text-stone-800">{["Service", "Time", "Place", "Confirm"][step - 1]}</div>
       </div>
       <div className="mb-4 flex gap-1">
         {[1, 2, 3, 4].map((n) => (
-          <span key={n} className={`h-1 flex-1 rounded-full ${n <= step ? "bg-rose-800" : "bg-stone-200"}`} />
+          <button
+            key={n}
+            type="button"
+            disabled={n >= step}
+            aria-label={["Service", "Time", "Place", "Confirm"][n - 1]}
+            onClick={() => setStep(n)}
+            className={`h-1 flex-1 rounded-full ${n <= step ? "bg-rose-800" : "bg-stone-200"}`}
+          />
         ))}
       </div>
 
       <h1 className="font-display text-3xl text-stone-900">Book {pro.displayName}</h1>
+      {step > 1 ? (
+        <div className="mt-4 flex items-center justify-between gap-3 rounded-2xl bg-white px-4 py-3 ring-1 ring-stone-100">
+          <div className="min-w-0">
+            <div className="truncate font-semibold">{service.name}</div>
+            <div className="truncate text-sm text-stone-500">
+              {service.durationMin} min
+              {time
+                ? ` · ${
+                    date === lusakaDateKey()
+                      ? "Today"
+                      : date === addLusakaDays(lusakaDateKey(), 1)
+                        ? "Tomorrow"
+                        : lusakaStamp(lusakaInstant(date, "12:00"))
+                  } ${time}`
+                : ""}
+              {travel === "AT_HOME" ? " · They come to you" : travel === "AT_SHOP" ? " · You go there" : ""}
+            </div>
+          </div>
+          <div className="shrink-0 font-semibold">{formatZmw(travel ? total : service.priceZmw)}</div>
+        </div>
+      ) : null}
 
       {step === 1 ? (
         <div className="mt-6 space-y-3">
@@ -214,20 +242,32 @@ export default function BookFlowPage() {
       {step === 2 ? (
         <div className="mt-6 space-y-4">
           <h2 className="font-semibold">Choose date & time</h2>
-          <div className="no-scrollbar flex gap-2 overflow-x-auto">
+          <div className="no-scrollbar flex gap-2 overflow-x-auto pb-1">
             {Array.from({ length: 7 }).map((_, i) => {
               const value = addLusakaDays(lusakaDateKey(), i);
-              const label = i === 0 ? "Today" : i === 1 ? "Tomorrow" : lusakaStamp(lusakaInstant(value, "12:00"));
+              const [weekday, dayNum] = lusakaStamp(lusakaInstant(value, "12:00")).split(" ");
+              const top = i === 0 ? "Today" : i === 1 ? "Tomorrow" : weekday;
+              const on = date === value;
               return (
-                <Chip key={value} active={date === value} onClick={() => setDate(value)}>
-                  {label}
-                </Chip>
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => setDate(value)}
+                  className={`shrink-0 rounded-2xl px-3 py-2 text-left ${
+                    on ? "bg-rose-800 text-white" : "bg-white text-stone-800 ring-1 ring-stone-200"
+                  }`}
+                >
+                  <div className={`text-[10px] font-semibold uppercase tracking-wide ${on ? "text-rose-100" : "text-stone-400"}`}>
+                    {top}
+                  </div>
+                  <div className="text-sm font-semibold">{dayNum}</div>
+                </button>
               );
             })}
           </div>
           <div className="flex flex-wrap gap-2">
             {slots.length === 0 ? (
-              <p className="text-sm text-stone-500">No slots this day — try another date.</p>
+              <p className="text-sm text-stone-500">No open time this day. Try another date.</p>
             ) : (
               slots.map((s) => (
                 <Chip key={s} active={time === s} onClick={() => setTime(s)}>
@@ -237,7 +277,7 @@ export default function BookFlowPage() {
             )}
           </div>
           <Button className="w-full" disabled={!time} onClick={() => setStep(3)}>
-            Continue
+            {time ? `Continue · ${time}` : "Choose a time"}
           </Button>
         </div>
       ) : null}
@@ -275,7 +315,7 @@ export default function BookFlowPage() {
               } disabled:opacity-40`}
             >
               <div className="font-semibold">They&apos;re coming to me</div>
-              <div className="mt-1 text-xs text-stone-500">+ travel fee</div>
+              <div className="mt-1 text-xs text-stone-500">+ {formatZmw(pro.travelFeeZmw)} travel</div>
             </button>
           </div>
           {gpsNote ? <p className="text-xs text-amber-800">{gpsNote}</p> : null}
@@ -357,7 +397,7 @@ export default function BookFlowPage() {
             disabled={!travel || (travel === "AT_HOME" && !address.trim())}
             onClick={() => setStep(4)}
           >
-            Continue
+            {travel === "AT_HOME" ? "Continue · at your home" : travel === "AT_SHOP" ? "Continue · at the shop" : "Choose where"}
           </Button>
         </div>
       ) : null}

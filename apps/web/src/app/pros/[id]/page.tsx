@@ -3,8 +3,8 @@
 import { PlaceMap } from "@/components/map-screen";
 import { Badge, Button, Card, StarRow } from "@/components/ui";
 import { api } from "@/lib/api-client";
-import { formatDistance, useHere } from "@/lib/use-here";
-import { driveMinutes, formatZmw, haversineKm, whatsappHref } from "@/lib/utils";
+import { tripLine, useHere } from "@/lib/use-here";
+import { formatZmw, haversineKm, whatsappHref } from "@/lib/utils";
 import { ArrowLeft, Heart, Home, MapPin } from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
@@ -139,18 +139,6 @@ export default function ProProfilePage() {
 
         <p className="text-sm leading-relaxed text-stone-600">{pro.bio}</p>
 
-        {pro.lat != null && pro.lng != null ? (
-          <div className="space-y-2">
-            <p className="text-sm text-stone-500">{pro.address || pro.area || "Lusaka"}</p>
-            {awayKm != null ? (
-              <p className="text-sm font-medium text-stone-800">
-                {formatDistance(awayKm)} from you · about {driveMinutes(awayKm)} min by car
-              </p>
-            ) : null}
-            <PlaceMap place={{ lat: pro.lat, lng: pro.lng, label: pro.displayName }} />
-          </div>
-        ) : null}
-
         <div>
           <h2 className="font-display mb-3 text-xl">Services</h2>
           <div className="space-y-2">
@@ -160,7 +148,7 @@ export default function ProProfilePage() {
                   <div className="font-semibold">{s.name}</div>
                   <div className="text-sm text-stone-500">
                     {s.durationMin} min
-                    {s.homeEligible ? " · Home eligible" : ""}
+                    {s.homeEligible ? " · Can come to you" : ""}
                   </div>
                 </div>
                 <div className="text-right">
@@ -171,6 +159,15 @@ export default function ProProfilePage() {
             ))}
           </div>
         </div>
+
+        {pro.lat != null && pro.lng != null ? (
+          <div className="space-y-2">
+            <h2 className="font-display text-xl">The shop</h2>
+            <p className="text-sm text-stone-500">{pro.address || pro.area || "Lusaka"}</p>
+            {awayKm != null ? <p className="text-sm font-medium text-stone-800">{tripLine(awayKm)}</p> : null}
+            <PlaceMap place={{ lat: pro.lat, lng: pro.lng, label: pro.displayName }} />
+          </div>
+        ) : null}
 
         {pro.portfolio.length ? (
           <div>

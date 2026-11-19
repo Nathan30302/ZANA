@@ -1,7 +1,7 @@
 "use client";
 
 import { Card } from "@/components/ui";
-import { formatDistance } from "@/lib/use-here";
+import { tripLine } from "@/lib/use-here";
 import { formatZmw } from "@/lib/utils";
 
 export type ProCardData = {
@@ -23,10 +23,7 @@ export type ProCardData = {
 };
 
 export function ProCard({ pro }: { pro: ProCardData }) {
-  const distance =
-    pro.distanceKm != null
-      ? `${formatDistance(pro.distanceKm)}${pro.etaMin ? ` · ${pro.etaMin} min` : ""}`
-      : "Lusaka";
+  const distance = tripLine(pro.distanceKm);
 
   return (
     <Card href={`/pros/${pro.id}`} className="flex items-stretch gap-3 p-3">

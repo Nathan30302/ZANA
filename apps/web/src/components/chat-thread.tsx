@@ -2,7 +2,7 @@
 
 import { Button, Input } from "@/components/ui";
 import { api } from "@/lib/api-client";
-import { lusakaTime, whatsappHref } from "@/lib/utils";
+import { lusakaTime } from "@/lib/utils";
 import { useEffect, useRef, useState } from "react";
 
 type Message = { id: string; senderId: string; body: string; createdAt: string };
@@ -10,13 +10,9 @@ type Message = { id: string; senderId: string; body: string; createdAt: string }
 export function ChatThread({
   conversationId,
   meId,
-  title,
-  phone,
 }: {
   conversationId: string;
   meId: string;
-  title: string;
-  phone?: string | null;
 }) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [text, setText] = useState("");
@@ -55,21 +51,8 @@ export function ChatThread({
   }
 
   return (
-    <div className="flex min-h-[70dvh] flex-col">
-      <div className="mb-3 flex items-center justify-between gap-3">
-        <h1 className="font-display text-2xl">{title}</h1>
-        {phone ? (
-          <a
-            href={whatsappHref(phone, `Hi ${title}, messaging you from Zana.`)}
-            target="_blank"
-            rel="noreferrer"
-            className="rounded-full bg-emerald-600 px-3 py-2 text-xs font-semibold text-white"
-          >
-            WhatsApp
-          </a>
-        ) : null}
-      </div>
-      <div className="flex-1 space-y-2 overflow-y-auto rounded-3xl bg-white p-3 ring-1 ring-stone-100">
+    <div className="flex min-h-0 flex-1 flex-col px-4 pb-4">
+      <div className="min-h-0 flex-1 space-y-2 overflow-y-auto rounded-3xl bg-white p-3 ring-1 ring-stone-100">
         {messages.length === 0 ? (
           <p className="px-2 py-8 text-center text-sm text-stone-500">
             Say hello. You can also continue on WhatsApp.
