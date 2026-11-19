@@ -33,6 +33,14 @@ body {
   font-family: var(--font-fraunces), Georgia, serif;
 }
 
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.no-scrollbar {
+  scrollbar-width: none;
+}
+
 .mobile-shell {
   max-width: 480px;
   margin: 0 auto;

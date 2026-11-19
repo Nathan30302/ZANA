@@ -7,10 +7,11 @@ import { api } from "@/lib/api-client";
 import { askCompass, useLiveFix } from "@/lib/live-fix";
 import { formatDistance, inZambia, useHere } from "@/lib/use-here";
 import { haversineKm } from "@/lib/utils";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 
 function ExploreInner() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const [view, setView] = useState<"list" | "map">("list");
   const [pros, setPros] = useState<ProCardData[]>([]);
@@ -54,10 +55,22 @@ function ExploreInner() {
     };
   }, [query, homeOnly, minRating, sort, here]);
 
+  useEffect(() => {
+    if (searchParams.get("map") === "1") {
+      setFollowYou(true);
+      setWide(true);
+    }
+  }, [searchParams]);
+
   function openWide() {
     askCompass();
     setFollowYou(true);
     setWide(true);
+  }
+
+  function closeWide() {
+    setWide(false);
+    if (searchParams.get("map") === "1") router.replace("/explore");
   }
 
   const arrow =
@@ -100,7 +113,7 @@ function ExploreInner() {
           <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex flex-wrap gap-2 p-3">
             <button
               type="button"
-              onClick={() => setWide(false)}
+              onClick={closeWide}
               className="pointer-events-auto rounded-full bg-white px-3 py-2 text-sm font-semibold text-stone-800 shadow"
             >
               Back
@@ -147,30 +160,28 @@ function ExploreInner() {
       <Input placeholder="Search services or pros" value={q} onChange={(e) => setQ(e.target.value)} />
 
       <div className="flex flex-wrap gap-2">
-        <Chip
-          active={sort === "distance"}
-          onClick={() => {
-            if (sort === "distance") {
-              setSort("rating");
-              return;
-            }
-            setSort("distance");
-            setHomeOnly(false);
-            setMinRating(0);
-          }}
-        >
-          Near me
+        <Chip active={sort === "distance"} onClick={() => setSort("distance")}>
+          Nearest
         </Chip>
-        <Chip active={homeOnly} onClick={() => setHomeOnly((v) => !v)}>
-          Home Service
+        <Chip active={sort === "rating"} onClick={() => setSort("rating")}>
+          Top rated
         </Chip>
-        <Chip active={minRating >= 4.5} onClick={() => setMinRating(minRating >= 4.5 ? 0 : 4.5)}>
-          4.5+ Ratings
-        </Chip>
-        <Chip active={sort === "price"} onClick={() => setSort(sort === "price" ? "rating" : "price")}>
+        <Chip active={sort === "price"} onClick={() => setSort("price")}>
           Price
         </Chip>
+        <Chip active={homeOnly} onClick={() => setHomeOnly((v) => !v)}>
+          Comes to you
+        </Chip>
+        <Chip active={minRating >= 4.5} onClick={() => setMinRating(minRating >= 4.5 ? 0 : 4.5)}>
+          4.5+
+        </Chip>
       </div>
+      {!loading ? (
+        <p className="text-xs text-stone-500">
+          {pros.length} {pros.length === 1 ? "place" : "places"}
+          {homeOnly ? " that come to you" : ""}
+        </p>
+      ) : null}
 
       <div className="flex rounded-2xl bg-stone-100 p-1">
         {(["list", "map"] as const).map((v) => (
@@ -196,7 +207,7 @@ function ExploreInner() {
 
       {view === "list" ? (
         loading ? (
-          <div className="h-56 animate-pulse rounded-3xl bg-stone-100" />
+          <div className="h-28 animate-pulse rounded-3xl bg-stone-100" />
         ) : pros.length === 0 ? (
           <EmptyState title="No one nearby" body="Try another search, or turn off a filter." />
         ) : (

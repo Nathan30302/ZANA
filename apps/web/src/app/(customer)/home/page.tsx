@@ -1,10 +1,10 @@
 "use client";
 
 import { ProCard, ProCardData } from "@/components/pro-card";
-import { Badge, BrandWordmark, Chip, EmptyState, Input, SectionTitle } from "@/components/ui";
+import { BrandWordmark, Chip, EmptyState, Input, SectionTitle } from "@/components/ui";
 import { api } from "@/lib/api-client";
 import { useHere } from "@/lib/use-here";
-import { appointmentIsUpcoming, lusakaTime, lusakaWhen } from "@/lib/utils";
+import { appointmentIsUpcoming, lusakaDay, lusakaTime, lusakaWhen } from "@/lib/utils";
 import { Search } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
@@ -67,12 +67,20 @@ export default function HomePage() {
     };
   }, [category, query, here, fromGps]);
 
-  const top = useMemo(() => pros.slice(0, 6), [pros]);
+  const top = useMemo(() => pros.slice(0, 8), [pros]);
+  const dayLine = `${lusakaDay(new Date())} · ${fromGps ? "Near you" : "Lusaka"}`;
+  const listTitle = query
+    ? `Results for “${query}”`
+    : category !== "All"
+      ? category
+      : fromGps
+        ? "Pros near you"
+        : "Top in Lusaka";
 
   return (
-    <div className="space-y-6 px-4 pb-6 pt-5">
+    <div className="space-y-5 px-4 pb-6 pt-5">
       <div className="flex items-start justify-between gap-3">
-        <BrandWordmark mark={46} subtitle={fromGps ? "Near you" : "Lusaka"} />
+        <BrandWordmark mark={46} subtitle={dayLine} />
         <Link
           href="/messages"
           className="rounded-full bg-white px-3 py-2 text-xs font-semibold text-rose-800 ring-1 ring-stone-200"
@@ -91,7 +99,7 @@ export default function HomePage() {
         />
       </div>
 
-      <div className="flex gap-2 overflow-x-auto pb-1">
+      <div className="no-scrollbar flex gap-2 overflow-x-auto pb-1">
         {CATEGORIES.map((c) => (
           <Chip key={c} active={category === c} onClick={() => setCategory(c)}>
             {c}
@@ -131,20 +139,20 @@ export default function HomePage() {
         </div>
       ) : null}
 
-      <Link
-        href="/explore?homeService=1"
-        className="block overflow-hidden rounded-[28px] bg-gradient-to-br from-rose-800 to-rose-950 p-5 text-white shadow-lg shadow-rose-900/20"
-      >
-        <Badge tone="orange">Featured</Badge>
-        <h2 className="font-display mt-3 text-2xl">Home service, on tap</h2>
-        <p className="mt-2 max-w-[28ch] text-sm text-rose-100">
-          Verified pros come to your door across Lusaka. Book in minutes.
-        </p>
-      </Link>
+      <div className="grid grid-cols-2 gap-3">
+        <Link href="/explore?homeService=1" className="rounded-[24px] bg-rose-800 p-4 text-white">
+          <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-rose-100">At your door</div>
+          <div className="font-display mt-2 text-[22px] leading-none">They come to you</div>
+        </Link>
+        <Link href="/explore?map=1" className="rounded-[24px] bg-stone-950 p-4 text-white">
+          <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-white/55">Around Lusaka</div>
+          <div className="font-display mt-2 text-[22px] leading-none">Open the map</div>
+        </Link>
+      </div>
 
       <div>
         <SectionTitle
-          title={fromGps ? "Pros near you" : "Top in Lusaka"}
+          title={listTitle}
           action={
             <Link href="/explore" className="text-sm font-semibold text-rose-800">
               See all
@@ -154,7 +162,7 @@ export default function HomePage() {
         {loading ? (
           <div className="space-y-3">
             {[1, 2, 3].map((i) => (
-              <div key={i} className="h-56 animate-pulse rounded-3xl bg-stone-100" />
+              <div key={i} className="h-28 animate-pulse rounded-3xl bg-stone-100" />
             ))}
           </div>
         ) : top.length === 0 ? (

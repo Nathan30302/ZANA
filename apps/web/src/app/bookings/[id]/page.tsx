@@ -209,6 +209,11 @@ export default function BookingDetailPage() {
           </div>
           {booking.customerNote ? <div className="pt-1 text-stone-500">Note: {booking.customerNote}</div> : null}
         </Card>
+        <p className="text-sm text-stone-500">
+          {asPro
+            ? `${booking.customer.name || "They"} pay you ${formatZmw(total)} in cash or mobile money.`
+            : `You pay ${booking.professional.displayName} ${formatZmw(total)} in cash or mobile money.`}
+        </p>
 
         {place ? <PlaceMap place={place} /> : null}
 

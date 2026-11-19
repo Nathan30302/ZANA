@@ -2,7 +2,7 @@
 
 import { Badge, BrandWordmark, Button, Card, SectionTitle } from "@/components/ui";
 import { api } from "@/lib/api-client";
-import { bookingLabel, bookingTone, formatZmw, lusakaDateKey, lusakaTime, lusakaWhen } from "@/lib/utils";
+import { bookingLabel, bookingTone, formatZmw, lusakaDateKey, lusakaDay, lusakaTime, lusakaWhen } from "@/lib/utils";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -155,7 +155,9 @@ export default function ProHomePage() {
       <div className="flex items-center justify-between">
         <div>
           <BrandWordmark mark={40} />
-          <p className="mt-2 text-sm text-stone-500">{userName}</p>
+          <p className="mt-2 text-sm text-stone-500">
+            {userName} · {lusakaDay(new Date())}
+          </p>
         </div>
         <Link href="/messages" className="text-sm font-semibold text-rose-800">
           Messages
@@ -204,18 +206,27 @@ export default function ProHomePage() {
           <div className="space-y-3">
             {needsReply.map((b) => (
               <Card key={b.id} className="space-y-3">
-                <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <div className="font-semibold">{b.service.name}</div>
-                    <div className="text-sm text-stone-500">
-                      {b.customer.name || b.customer.phone} · {lusakaWhen(new Date(b.scheduledAt))}{" "}
+                <div className="flex items-start gap-3">
+                  <div className="w-16 shrink-0 text-center">
+                    <div className="font-display text-lg leading-none text-stone-900">
                       {lusakaTime(new Date(b.scheduledAt))}
                     </div>
-                    <div className="text-xs text-stone-500">
-                      {b.locationType === "AT_HOME" ? "You go to them" : "They come to the shop"}
+                    <div className="mt-1 text-[10px] font-medium uppercase tracking-wide text-stone-400">
+                      {lusakaWhen(new Date(b.scheduledAt))}
                     </div>
                   </div>
-                  <Badge tone="orange">Waiting</Badge>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <div className="truncate font-semibold">{b.service.name}</div>
+                        <div className="truncate text-sm text-stone-500">{b.customer.name || b.customer.phone}</div>
+                        <div className="text-xs text-stone-500">
+                          {b.locationType === "AT_HOME" ? "You go to them" : "They come to the shop"}
+                        </div>
+                      </div>
+                      <Badge tone="orange">Waiting</Badge>
+                    </div>
+                  </div>
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   <Button onClick={() => updateStatus(b.id, "ACCEPTED")}>Accept</Button>
@@ -243,17 +254,25 @@ export default function ProHomePage() {
               .filter((b) => b.status !== "REQUESTED")
               .map((b) => (
                 <Card key={b.id} className="space-y-3">
-                  <Link href={`/bookings/${b.id}`} className="flex items-start justify-between gap-2">
-                    <div>
-                      <div className="font-semibold">{b.service.name}</div>
-                      <div className="text-sm text-stone-500">
-                        {b.customer.name || b.customer.phone} · {lusakaTime(new Date(b.scheduledAt))}
+                  <Link href={`/bookings/${b.id}`} className="flex items-start gap-3">
+                    <div className="w-16 shrink-0 text-center">
+                      <div className="font-display text-lg leading-none text-stone-900">
+                        {lusakaTime(new Date(b.scheduledAt))}
                       </div>
-                      <div className="text-xs text-stone-500">
-                        {b.locationType === "AT_HOME" ? b.address || "You go to them" : "They come to the shop"}
+                      <div className="mt-1 text-[10px] font-medium uppercase tracking-wide text-stone-400">Today</div>
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <div className="truncate font-semibold">{b.service.name}</div>
+                          <div className="truncate text-sm text-stone-500">{b.customer.name || b.customer.phone}</div>
+                          <div className="text-xs text-stone-500">
+                            {b.locationType === "AT_HOME" ? b.address || "You go to them" : "They come to the shop"}
+                          </div>
+                        </div>
+                        <Badge tone={bookingTone(b.status)}>{bookingLabel(b.status)}</Badge>
                       </div>
                     </div>
-                    <Badge tone={bookingTone(b.status)}>{bookingLabel(b.status)}</Badge>
                   </Link>
                   {b.locationType === "AT_HOME" && ["ACCEPTED", "IN_PROGRESS"].includes(b.status) ? (
                     <div className="space-y-2">

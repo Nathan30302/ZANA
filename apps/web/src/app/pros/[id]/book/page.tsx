@@ -1,7 +1,7 @@
 "use client";
 
 import { PlaceMap, RouteButton } from "@/components/map-screen";
-import { Button, Card, Chip, Input, TextArea } from "@/components/ui";
+import { Button, Card, Chip, TextArea } from "@/components/ui";
 import { ZanaMap } from "@/components/zana-map";
 import { api } from "@/lib/api-client";
 import { addLusakaDays, formatLusaka, formatZmw, lusakaDateKey, lusakaInstant, lusakaStamp } from "@/lib/utils";
@@ -143,7 +143,8 @@ export default function BookFlowPage() {
           </div>
           <h1 className="font-display text-3xl">Booking requested</h1>
           <p className="text-stone-600">
-            {service.name} with {pro.displayName}, {formatLusaka(lusakaInstant(date, time))}.
+            {service.name} with {pro.displayName}, {formatLusaka(lusakaInstant(date, time))}. You pay them{" "}
+            {formatZmw(total)} in cash or mobile money.
           </p>
           <Card className="text-left text-sm">
             <div className="flex justify-between">
@@ -213,17 +214,17 @@ export default function BookFlowPage() {
       {step === 2 ? (
         <div className="mt-6 space-y-4">
           <h2 className="font-semibold">Choose date & time</h2>
-          <div className="flex gap-2 overflow-x-auto">
-            {Array.from({ length: 10 }).map((_, i) => {
+          <div className="no-scrollbar flex gap-2 overflow-x-auto">
+            {Array.from({ length: 7 }).map((_, i) => {
               const value = addLusakaDays(lusakaDateKey(), i);
+              const label = i === 0 ? "Today" : i === 1 ? "Tomorrow" : lusakaStamp(lusakaInstant(value, "12:00"));
               return (
                 <Chip key={value} active={date === value} onClick={() => setDate(value)}>
-                  {i === 0 ? "Today" : lusakaStamp(lusakaInstant(value, "12:00"))}
+                  {label}
                 </Chip>
               );
             })}
           </div>
-          <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
           <div className="flex flex-wrap gap-2">
             {slots.length === 0 ? (
               <p className="text-sm text-stone-500">No slots this day — try another date.</p>
@@ -384,6 +385,9 @@ export default function BookFlowPage() {
             {travel === "AT_HOME" && address ? <div className="text-stone-500">{address}</div> : null}
             {travel === "AT_SHOP" && pro.address ? <div className="text-stone-500">{pro.address}</div> : null}
           </Card>
+          <p className="text-sm text-stone-500">
+            You pay {pro.displayName} {formatZmw(total)} in cash or mobile money. Zana does not charge your phone.
+          </p>
           {error ? <p className="text-sm text-red-600">{error}</p> : null}
           <Button className="w-full" disabled={loading} onClick={confirm}>
             {loading ? "Booking…" : "Confirm booking"}

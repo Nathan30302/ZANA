@@ -60,9 +60,14 @@ export default function ProfilePage() {
 
   return (
     <div className="space-y-5 px-4 pb-6 pt-5">
-      <div>
-        <h1 className="font-display text-3xl text-stone-900">{user.name || "Your profile"}</h1>
-        <p className="mt-1 text-sm text-stone-500">{user.phone}</p>
+      <div className="flex items-center gap-3">
+        <div className="flex h-14 w-14 items-center justify-center rounded-full bg-rose-800 text-xl font-semibold text-white">
+          {(user.name || user.phone).slice(0, 1).toUpperCase()}
+        </div>
+        <div className="min-w-0">
+          <h1 className="truncate font-display text-3xl text-stone-900">{user.name || "Your profile"}</h1>
+          <p className="mt-1 text-sm text-stone-500">{user.phone}</p>
+        </div>
       </div>
       <Card className="space-y-3">
         <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Full name" />
@@ -76,20 +81,24 @@ export default function ProfilePage() {
       <Card className="space-y-2">
         <div className="font-semibold">Favorites</div>
         {favorites.length === 0 ? (
-          <p className="text-sm text-stone-500">No favorites yet.</p>
+          <p className="text-sm text-stone-500">Tap the heart on a pro to keep them here.</p>
         ) : (
           favorites.map((f) => (
-            <Link key={f.id} href={`/pros/${f.id}`} className="block text-sm text-rose-800">
-              {f.displayName}
+            <Link
+              key={f.id}
+              href={`/pros/${f.id}`}
+              className="flex items-center justify-between rounded-2xl bg-stone-50 px-3 py-3 text-sm font-semibold text-stone-900"
+            >
+              <span className="truncate">{f.displayName}</span>
+              <span className="text-rose-800">View</span>
             </Link>
           ))
         )}
       </Card>
 
       <Card className="space-y-2 text-sm text-stone-600">
-        <div className="font-semibold text-stone-900">Payments</div>
-        <p>Mobile money (MTN MoMo / Airtel Money) and cards — ready for Flutterwave in production.</p>
-        <p className="text-xs">Demo mode: bookings confirm without charging the customer yet.</p>
+        <div className="font-semibold text-stone-900">How you pay</div>
+        <p>You pay the stylist directly, in cash or mobile money, when the visit is done. Zana does not charge your phone.</p>
       </Card>
 
       <Card className="space-y-2 text-sm">
