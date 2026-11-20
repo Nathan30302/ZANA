@@ -6,24 +6,33 @@ import { useEffect } from "react";
 
 const OPENING_MS = 3600;
 
+function openingPath() {
+  try {
+    return localStorage.getItem("zana_onboarded") ? "/home" : "/onboarding";
+  } catch {
+    return "/onboarding";
+  }
+}
+
 export default function SplashPage() {
   const router = useRouter();
 
   useEffect(() => {
-    const seen = localStorage.getItem("zana_onboarded");
-    const t = setTimeout(() => {
-      router.replace(seen ? "/home" : "/onboarding");
-    }, OPENING_MS);
-    return () => clearTimeout(t);
+    const t = window.setTimeout(() => router.replace(openingPath()), OPENING_MS);
+    return () => window.clearTimeout(t);
   }, [router]);
 
   return (
-    <div className="zana-splash mobile-shell relative min-h-dvh overflow-hidden text-white">
+    <button
+      type="button"
+      onClick={() => router.replace(openingPath())}
+      className="zana-splash mobile-shell relative flex min-h-dvh w-full flex-col overflow-hidden text-left text-white"
+    >
       <div className="zana-flow zana-flow-a" />
       <div className="zana-flow zana-flow-b" />
       <div className="zana-flow zana-flow-c" />
       <div className="zana-grid pointer-events-none absolute inset-0" />
-      <div className="relative z-10 flex min-h-dvh flex-col items-center justify-center px-6">
+      <div className="relative z-10 flex flex-1 flex-col items-center justify-center px-6">
         <div className="relative">
           <div className="zana-orbit" />
           <div className="zana-orbit zana-orbit-2" />
@@ -38,6 +47,9 @@ export default function SplashPage() {
           <p className="mt-3 text-[11px] uppercase tracking-[0.32em] text-orange-50/90">Beauty on your fingertips</p>
         </div>
       </div>
-    </div>
+      <p className="relative z-10 pb-[max(1.25rem,env(safe-area-inset-bottom))] text-center text-sm font-semibold text-white/80">
+        Tap to enter
+      </p>
+    </button>
   );
 }

@@ -12,7 +12,7 @@ export default function ProLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="mobile-shell">
-      <div className={hideNav ? "min-h-dvh" : "min-h-dvh pb-24"}>{children}</div>
+      <div className={hideNav ? "min-h-dvh" : "min-h-dvh pb-[calc(6rem+env(safe-area-inset-bottom))]"}>{children}</div>
       {!hideNav ? <BottomNav variant="pro" /> : null}
     </div>
   );

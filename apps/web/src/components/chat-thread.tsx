@@ -78,7 +78,7 @@ export function ChatThread({
         )}
         <div ref={end} />
       </div>
-      <form onSubmit={send} className="mt-3 flex gap-2">
+      <form onSubmit={send} className="mt-3 flex gap-2 pb-[max(0.25rem,env(safe-area-inset-bottom))]">
         <Input value={text} onChange={(e) => setText(e.target.value)} placeholder="Message…" />
         <Button type="submit" disabled={sending} className="shrink-0">
           Send

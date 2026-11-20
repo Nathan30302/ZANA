@@ -58,7 +58,7 @@ export function AuthForm({
   }
 
   return (
-    <div className="mx-auto flex min-h-dvh max-w-[480px] flex-col justify-center px-6 py-10">
+    <div className="mobile-shell flex min-h-dvh flex-col justify-center px-6 py-10">
       <div className="animate-fade-up space-y-8">
         <BrandWordmark stacked mark={72} subtitle="Beauty on your fingertips" />
 
@@ -72,6 +72,9 @@ export function AuthForm({
               />
             ) : null}
             <Input
+              type="tel"
+              inputMode="tel"
+              autoComplete="tel"
               placeholder="Phone (+260…)"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
@@ -92,6 +95,8 @@ export function AuthForm({
               </div>
             ) : null}
             <Input
+              inputMode="numeric"
+              autoComplete="one-time-code"
               placeholder="6-digit code"
               value={code}
               onChange={(e) => setCode(e.target.value)}

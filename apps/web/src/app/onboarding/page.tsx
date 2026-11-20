@@ -30,7 +30,11 @@ export default function OnboardingPage() {
   const slide = slides[index];
 
   function finish() {
-    localStorage.setItem("zana_onboarded", "1");
+    try {
+      localStorage.setItem("zana_onboarded", "1");
+    } catch {
+      /* Some phone browsers block storage. The app still opens. */
+    }
   }
 
   return (
@@ -44,7 +48,7 @@ export default function OnboardingPage() {
         </div>
       </div>
 
-      <div className="flex flex-1 flex-col px-6 pb-8 pt-2">
+      <div className="flex flex-1 flex-col px-6 pb-[max(2rem,env(safe-area-inset-bottom))] pt-2">
         <div className="flex-1 animate-fade-up">
           <h1 className="font-display text-3xl text-stone-900">{slide.title}</h1>
           <p className="mt-3 text-base leading-relaxed text-stone-600">{slide.body}</p>
@@ -68,12 +72,18 @@ export default function OnboardingPage() {
             <Button className="w-full">Get started</Button>
           </Link>
         )}
-        <div className="mt-4 flex justify-center gap-4 text-sm text-stone-500">
-          <Link href="/login" onClick={finish}>
+        <div className="mt-4 flex flex-col items-center gap-3 text-sm font-semibold text-stone-500">
+          <Link href="/login" onClick={finish} className="py-1">
             I already have an account
           </Link>
-          <Link href="/pro/login">Pro login</Link>
-          <Link href="/admin/login">Admin</Link>
+          <div className="flex gap-5">
+            <Link href="/pro/login" className="py-1">
+              Pro login
+            </Link>
+            <Link href="/admin/login" className="py-1">
+              Admin
+            </Link>
+          </div>
         </div>
       </div>
     </div>

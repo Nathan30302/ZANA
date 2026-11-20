@@ -100,7 +100,7 @@ export function Input({
   return (
     <input
       className={cn(
-        "w-full rounded-2xl border border-stone-200 bg-white px-4 py-3 text-sm outline-none ring-rose-800/20 placeholder:text-stone-400 focus:ring-2",
+        "w-full rounded-2xl border border-stone-200 bg-white px-4 py-3 text-base outline-none ring-rose-800/20 placeholder:text-stone-400 focus:ring-2",
         className,
       )}
       {...props}
@@ -115,7 +115,7 @@ export function TextArea({
   return (
     <textarea
       className={cn(
-        "w-full rounded-2xl border border-stone-200 bg-white px-4 py-3 text-sm outline-none ring-rose-800/20 placeholder:text-stone-400 focus:ring-2",
+        "w-full rounded-2xl border border-stone-200 bg-white px-4 py-3 text-base outline-none ring-rose-800/20 placeholder:text-stone-400 focus:ring-2",
         className,
       )}
       {...props}

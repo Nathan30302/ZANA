@@ -31,7 +31,7 @@ export function BottomNav({ variant }: { variant: "customer" | "pro" }) {
   const tabs = variant === "customer" ? customerTabs : proTabs;
 
   return (
-    <nav className="fixed bottom-0 left-1/2 z-40 w-full max-w-[480px] -translate-x-1/2 border-t border-stone-200 bg-white/95 px-2 pb-[env(safe-area-inset-bottom)] backdrop-blur">
+    <nav className="fixed bottom-0 left-1/2 z-40 w-full max-w-[480px] -translate-x-1/2 border-t border-stone-200 bg-white/95 px-2 pb-[max(0.35rem,env(safe-area-inset-bottom))] backdrop-blur">
       <div className="grid grid-cols-4 gap-1 py-2">
         {tabs.map((tab) => {
           const active =
