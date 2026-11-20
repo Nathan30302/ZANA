@@ -4,6 +4,7 @@ import { z } from "zod";
 import { getSession } from "@/lib/auth";
 import { getSettings } from "@/lib/booking";
 import { prisma } from "@/lib/prisma";
+import { appointmentIsUpcoming } from "@/lib/utils";
 
 const patchSchema = z.object({
   status: z.enum([
@@ -51,7 +52,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
 
   const booking = await prisma.booking.findUnique({
     where: { id },
-    include: { professional: true },
+    include: { professional: true, service: true },
   });
   if (!booking) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
@@ -71,6 +72,12 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
   ];
   if (proOnlyStatuses.includes(next) && !isPro && session.role !== "ADMIN") {
     return NextResponse.json({ error: "Only professional can update this status" }, { status: 403 });
+  }
+  if (
+    next === BookingStatus.ACCEPTED &&
+    !appointmentIsUpcoming(booking.status, booking.scheduledAt, booking.service.durationMin)
+  ) {
+    return NextResponse.json({ error: "This time has passed." }, { status: 409 });
   }
 
   if (next === BookingStatus.COMPLETED && booking.status !== BookingStatus.COMPLETED) {

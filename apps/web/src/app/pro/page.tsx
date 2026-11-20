@@ -2,7 +2,17 @@
 
 import { Badge, BrandWordmark, Button, Card, SectionTitle } from "@/components/ui";
 import { api } from "@/lib/api-client";
-import { bookingLabel, bookingTone, formatZmw, lusakaDateKey, lusakaDay, lusakaTime, lusakaUntil, lusakaWhen } from "@/lib/utils";
+import {
+  appointmentIsUpcoming,
+  bookingLabel,
+  bookingTone,
+  formatZmw,
+  lusakaDateKey,
+  lusakaDay,
+  lusakaTime,
+  lusakaUntil,
+  lusakaWhen,
+} from "@/lib/utils";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -27,7 +37,7 @@ type Booking = {
   customerLng: number | null;
   servicePriceZmw: number;
   travelFeeZmw: number;
-  service: { name: string };
+  service: { name: string; durationMin: number };
   customer: { id: string; name: string | null; phone: string };
 };
 
@@ -75,9 +85,16 @@ export default function ProHomePage() {
   const needsReply = useMemo(
     () =>
       bookings
-        .filter((b) => b.status === "REQUESTED")
+        .filter((b) => b.status === "REQUESTED" && appointmentIsUpcoming(b.status, b.scheduledAt, b.service.durationMin))
         .sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime()),
     [bookings],
+  );
+  const passedToday = useMemo(
+    () =>
+      today.filter(
+        (b) => b.status === "REQUESTED" && !appointmentIsUpcoming(b.status, b.scheduledAt, b.service.durationMin),
+      ),
+    [today],
   );
   const later = useMemo(
     () =>
@@ -91,7 +108,7 @@ export default function ProHomePage() {
     [bookings, todayKey],
   );
   const toCollect = today
-    .filter((b) => ["REQUESTED", "ACCEPTED", "IN_PROGRESS"].includes(b.status))
+    .filter((b) => appointmentIsUpcoming(b.status, b.scheduledAt, b.service.durationMin))
     .reduce((sum, b) => sum + b.servicePriceZmw + b.travelFeeZmw, 0);
 
   async function messageCustomer(customerId: string) {
@@ -249,7 +266,7 @@ export default function ProHomePage() {
 
       <div>
         <SectionTitle title="Today" />
-        {today.filter((b) => b.status !== "REQUESTED").length === 0 ? (
+        {today.filter((b) => b.status !== "REQUESTED").length === 0 && passedToday.length === 0 ? (
           <Card className="text-sm text-stone-500">
             {needsReply.some((b) => lusakaDateKey(new Date(b.scheduledAt)) === todayKey)
               ? "Today’s request is waiting for your reply above."
@@ -257,6 +274,21 @@ export default function ProHomePage() {
           </Card>
         ) : (
           <div className="space-y-3">
+            {passedToday.map((b) => (
+              <Card key={b.id} href={`/bookings/${b.id}`} className="flex items-start gap-3">
+                <div className="w-16 shrink-0 text-center">
+                  <div className="font-display text-lg leading-none text-stone-400">
+                    {lusakaTime(new Date(b.scheduledAt))}
+                  </div>
+                  <div className="mt-1 text-[10px] font-medium uppercase tracking-wide text-stone-400">Passed</div>
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="truncate font-semibold">{b.service.name}</div>
+                  <div className="truncate text-sm text-stone-500">{b.customer.name || b.customer.phone}</div>
+                  <div className="text-xs text-stone-500">This time has passed. Nothing to confirm.</div>
+                </div>
+              </Card>
+            ))}
             {today
               .filter((b) => b.status !== "REQUESTED")
               .map((b) => (

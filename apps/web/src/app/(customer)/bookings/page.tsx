@@ -114,7 +114,13 @@ export default function BookingsPage() {
                           {formatZmw(b.servicePriceZmw + b.travelFeeZmw)}
                         </div>
                         <div className="mt-1">
-                          <Badge tone={bookingTone(b.status)}>{bookingLabel(b.status)}</Badge>
+                          <Badge tone={passed ? "stone" : bookingTone(b.status)}>
+                            {passed && b.status === "REQUESTED"
+                              ? "Not confirmed"
+                              : passed && b.status === "ACCEPTED"
+                                ? "Missed"
+                                : bookingLabel(b.status)}
+                          </Badge>
                         </div>
                       </div>
                     </div>

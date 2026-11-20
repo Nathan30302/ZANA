@@ -4,7 +4,7 @@ import { ProCard, ProCardData } from "@/components/pro-card";
 import { BrandWordmark, Chip, EmptyState, Input, SectionTitle } from "@/components/ui";
 import { api } from "@/lib/api-client";
 import { useHere } from "@/lib/use-here";
-import { appointmentIsUpcoming, formatZmw, lusakaDay, lusakaTime, lusakaUntil, lusakaWhen } from "@/lib/utils";
+import { appointmentIsUpcoming, formatZmw, lusakaDateKey, lusakaDay, lusakaTime, lusakaUntil, lusakaWhen } from "@/lib/utils";
 import { Search } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
@@ -16,8 +16,8 @@ type NextBooking = {
   locationType: string;
   servicePriceZmw: number;
   travelFeeZmw: number;
-  service: { name: string; durationMin: number };
-  professional: { displayName: string };
+  service: { id: string; name: string; durationMin: number };
+  professional: { id: string; displayName: string };
 };
 
 const CATEGORIES = ["All", "Haircut", "Fade", "Braids", "Nails", "Makeup", "Salon", "Home Service"];
@@ -29,6 +29,7 @@ export default function HomePage() {
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [next, setNext] = useState<NextBooking | null>(null);
+  const [missed, setMissed] = useState<NextBooking | null>(null);
   const { here, fromGps } = useHere();
 
   useEffect(() => {
@@ -39,12 +40,25 @@ export default function HomePage() {
   useEffect(() => {
     api<{ bookings: NextBooking[] }>("/api/bookings?scope=customer")
       .then((data) => {
+        const todayKey = lusakaDateKey();
         const upcoming = data.bookings
           .filter((b) => appointmentIsUpcoming(b.status, b.scheduledAt, b.service.durationMin))
           .sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime());
+        const passedToday = data.bookings
+          .filter(
+            (b) =>
+              ["REQUESTED", "ACCEPTED"].includes(b.status) &&
+              !appointmentIsUpcoming(b.status, b.scheduledAt, b.service.durationMin) &&
+              lusakaDateKey(new Date(b.scheduledAt)) === todayKey,
+          )
+          .sort((a, b) => new Date(b.scheduledAt).getTime() - new Date(a.scheduledAt).getTime());
         setNext(upcoming[0] || null);
+        setMissed(upcoming[0] ? null : passedToday[0] || null);
       })
-      .catch(() => setNext(null));
+      .catch(() => {
+        setNext(null);
+        setMissed(null);
+      });
   }, []);
 
   useEffect(() => {
@@ -150,6 +164,30 @@ export default function HomePage() {
             className="shrink-0 rounded-full bg-white px-3 py-2 text-xs font-semibold text-stone-900"
           >
             Route
+          </Link>
+        </div>
+      ) : missed ? (
+        <div className="rounded-[28px] bg-white px-4 py-4 ring-1 ring-stone-200">
+          <Link href={`/bookings/${missed.id}`} className="flex items-center gap-4">
+            <div className="w-16 shrink-0 text-center">
+              <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-stone-400">Passed</div>
+              <div className="font-display text-3xl leading-none text-stone-400">
+                {lusakaTime(new Date(missed.scheduledAt))}
+              </div>
+            </div>
+            <div className="min-w-0 border-l border-stone-200 pl-4">
+              <div className="truncate font-semibold text-stone-900">{missed.service.name}</div>
+              <div className="truncate text-sm text-stone-500">{missed.professional.displayName}</div>
+              <div className="text-sm text-stone-500">
+                {missed.status === "ACCEPTED" ? "Missed" : "Not confirmed"}
+              </div>
+            </div>
+          </Link>
+          <Link
+            href={`/pros/${missed.professional.id}/book?service=${missed.service.id}`}
+            className="mt-3 inline-flex w-full items-center justify-center rounded-2xl bg-rose-800 px-4 py-3 text-sm font-semibold text-white"
+          >
+            Book again
           </Link>
         </div>
       ) : null}

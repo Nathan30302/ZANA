@@ -171,7 +171,13 @@ export default function BookingDetailPage() {
           <div className="min-w-0 flex-1">
             <div className="flex items-start justify-between gap-2">
               <h1 className="font-display text-3xl leading-none text-stone-900">{booking.service.name}</h1>
-              <Badge tone={bookingTone(booking.status)}>{bookingLabel(booking.status)}</Badge>
+              <Badge tone={!upcoming && ["REQUESTED", "ACCEPTED"].includes(booking.status) ? "stone" : bookingTone(booking.status)}>
+                {!upcoming && booking.status === "REQUESTED"
+                  ? "Not confirmed"
+                  : !upcoming && booking.status === "ACCEPTED"
+                    ? "Missed"
+                    : bookingLabel(booking.status)}
+              </Badge>
             </div>
             <p className="mt-1 truncate text-sm text-stone-500">{otherName}</p>
           </div>
@@ -192,8 +198,14 @@ export default function BookingDetailPage() {
           </div>
         </Card>
 
-        <p className="text-sm text-stone-600">{statusLine(booking.status, otherName, asPro)}</p>
-        {!upcoming && ["REQUESTED", "ACCEPTED"].includes(booking.status) ? (
+        <p className="text-sm text-stone-600">
+          {!upcoming && booking.status === "REQUESTED"
+            ? asPro
+              ? "This time has passed, so there is nothing to confirm."
+              : "This time passed before it was confirmed."
+            : statusLine(booking.status, otherName, asPro)}
+        </p>
+        {!upcoming && booking.status === "ACCEPTED" ? (
           <p className="text-sm text-amber-800">This time has passed.</p>
         ) : null}
         {error ? <p className="text-sm text-red-700">{error}</p> : null}
@@ -220,7 +232,7 @@ export default function BookingDetailPage() {
         </p>
 
         <div className="flex flex-col gap-2">
-          {asPro && booking.status === "REQUESTED" ? (
+          {asPro && booking.status === "REQUESTED" && upcoming ? (
             <div className="grid grid-cols-2 gap-2">
               <Button disabled={busy} onClick={() => setStatus("ACCEPTED")}>
                 Accept
@@ -288,7 +300,7 @@ export default function BookingDetailPage() {
             </Link>
           ) : null}
           {!asPro && booking.review ? <p className="text-center text-sm text-stone-500">You already rated this visit.</p> : null}
-          {!asPro && ["REQUESTED", "ACCEPTED"].includes(booking.status) ? (
+          {!asPro && upcoming && ["REQUESTED", "ACCEPTED"].includes(booking.status) ? (
             askCancel ? (
               <Card className="space-y-3">
                 <div className="font-semibold">Cancel this {booking.service.name.toLowerCase()}?</div>
