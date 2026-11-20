@@ -23,7 +23,7 @@ export const metadata: Metadata = {
     statusBarStyle: "default",
   },
   icons: {
-    icon: "/brand/zana-logo.png",
+    icon: "/brand/zana-logo-180.png",
     apple: "/brand/zana-logo-180.png",
   },
 };

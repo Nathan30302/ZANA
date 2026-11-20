@@ -8,20 +8,17 @@ const slides = [
   {
     title: "Discover beauty near you",
     body: "Find trusted salons, barbers, and independents across Lusaka — including hidden gems.",
-    image:
-      "https://images.unsplash.com/photo-1560066984-138dadb4c035?w=1200&q=80",
+    image: "/photos/salon.jpg",
   },
   {
     title: "Home service, made simple",
     body: "Book a pro to come to you. Clear prices, verified profiles, and real availability.",
-    image:
-      "https://images.unsplash.com/photo-1522337660859-02fbefca4702?w=1200&q=80",
+    image: "/photos/braids.jpg",
   },
   {
     title: "Book in a few taps",
     body: "Choose a service, pick a time, confirm — pay with mobile money when you’re ready.",
-    image:
-      "https://images.unsplash.com/photo-1621605815971-fbc98d665033?w=1200&q=80",
+    image: "/photos/fade.jpg",
   },
 ];
 
@@ -41,7 +38,7 @@ export default function OnboardingPage() {
     <div className="mobile-shell flex min-h-dvh flex-col">
       <div className="relative h-[48vh] overflow-hidden">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={slide.image} alt="" className="h-full w-full object-cover" />
+        <img src={slide.image} alt="" width={720} height={480} decoding="async" className="h-full w-full object-cover" />
         <div className="absolute inset-0 bg-gradient-to-t from-[#fffaf8] via-transparent to-black/20" />
         <div className="absolute left-4 top-4 rounded-full bg-white/95 px-3 py-1.5 shadow">
           <BrandWordmark compact mark={26} />

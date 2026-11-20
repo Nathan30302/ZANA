@@ -30,8 +30,11 @@ export function ProCard({ pro }: { pro: ProCardData }) {
       <div className="relative h-[92px] w-[92px] shrink-0 overflow-hidden rounded-2xl bg-stone-200">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src={pro.coverUrl || "https://images.unsplash.com/photo-1522337660859-02fbefca4702?w=800&q=80"}
+          src={pro.coverUrl || "/photos/braids.jpg"}
           alt=""
+          width={184}
+          height={184}
+          decoding="async"
           className="h-full w-full object-cover"
         />
       </div>

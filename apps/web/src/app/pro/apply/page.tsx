@@ -20,7 +20,7 @@ export default function ProApplyPage() {
     homeService: true,
     travelFeeZmw: 50,
     idDocumentUrl: "https://placehold.co/600x400/png?text=NRC+Upload",
-    portfolioUrl: "https://images.unsplash.com/photo-1621605815971-fbc98d665033?w=800&q=80",
+    portfolioUrl: "/photos/fade.jpg",
     serviceName: "Signature Haircut",
     servicePrice: 100,
     serviceDuration: 40,

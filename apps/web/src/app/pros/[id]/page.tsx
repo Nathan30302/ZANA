@@ -101,8 +101,11 @@ export default function ProProfilePage() {
       <div className="relative h-64">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src={pro.coverUrl || "https://images.unsplash.com/photo-1560066984-138dadb4c035?w=1200&q=80"}
+          src={pro.coverUrl || "/photos/salon.jpg"}
           alt={pro.displayName}
+          width={720}
+          height={480}
+          decoding="async"
           className="h-full w-full object-cover"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/55 to-transparent" />

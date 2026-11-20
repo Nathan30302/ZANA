@@ -16,7 +16,7 @@ export function LogoMark({
   return (
     // eslint-disable-next-line @next/next/no-img-element
     <img
-      src="/brand/zana-logo.png"
+      src="/brand/zana-logo-180.png"
       alt={alt}
       width={size}
       height={size}

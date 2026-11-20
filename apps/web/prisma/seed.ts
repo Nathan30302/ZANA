@@ -17,7 +17,7 @@ const PROS = [
     lng: 28.3228,
     homeService: true,
     travelFeeZmw: 40,
-    coverUrl: "https://images.unsplash.com/photo-1621605815971-fbc98d665033?w=800&q=80",
+    coverUrl: "/photos/fade.jpg",
     services: [
       { name: "Classic Haircut", category: "Haircut", durationMin: 30, priceZmw: 80, homeEligible: true },
       { name: "Skin Fade", category: "Fade", durationMin: 45, priceZmw: 120, homeEligible: true },
@@ -36,7 +36,7 @@ const PROS = [
     lng: 28.3512,
     homeService: true,
     travelFeeZmw: 60,
-    coverUrl: "https://images.unsplash.com/photo-1487412947147-5cebf100ffc2?w=800&q=80",
+    coverUrl: "/photos/glam.jpg",
     services: [
       { name: "Soft Glam Makeup", category: "Makeup", durationMin: 60, priceZmw: 350, homeEligible: true },
       { name: "Bridal Makeup", category: "Makeup", durationMin: 90, priceZmw: 800, homeEligible: true },
@@ -55,7 +55,7 @@ const PROS = [
     lng: 28.3365,
     homeService: false,
     travelFeeZmw: 0,
-    coverUrl: "https://images.unsplash.com/photo-1604654894610-df63bc536371?w=800&q=80",
+    coverUrl: "/photos/nails.jpg",
     services: [
       { name: "Gel Manicure", category: "Nails", durationMin: 60, priceZmw: 200, homeEligible: false },
       { name: "Acrylic Full Set", category: "Nails", durationMin: 90, priceZmw: 350, homeEligible: false },
@@ -74,7 +74,7 @@ const PROS = [
     lng: 28.385,
     homeService: true,
     travelFeeZmw: 70,
-    coverUrl: "https://images.unsplash.com/photo-1522337660859-02fbefca4702?w=800&q=80",
+    coverUrl: "/photos/braids.jpg",
     services: [
       { name: "Knotless Braids", category: "Braids", durationMin: 240, priceZmw: 450, homeEligible: true },
       { name: "Cornrows", category: "Braids", durationMin: 90, priceZmw: 200, homeEligible: true },
@@ -93,7 +93,7 @@ const PROS = [
     lng: 28.2833,
     homeService: true,
     travelFeeZmw: 50,
-    coverUrl: "https://images.unsplash.com/photo-1503951914875-452162b0f3f1?w=800&q=80",
+    coverUrl: "/photos/mobile.jpg",
     services: [
       { name: "Home Haircut", category: "Home Service", durationMin: 35, priceZmw: 100, homeEligible: true },
       { name: "Fade + Beard", category: "Fade", durationMin: 50, priceZmw: 150, homeEligible: true },
@@ -112,7 +112,7 @@ const PROS = [
     lng: 28.318,
     homeService: true,
     travelFeeZmw: 80,
-    coverUrl: "https://images.unsplash.com/photo-1560066984-138dadb4c035?w=800&q=80",
+    coverUrl: "/photos/salon.jpg",
     services: [
       { name: "Wash & Blowout", category: "Haircut", durationMin: 60, priceZmw: 180, homeEligible: false },
       { name: "Silk Press", category: "Salon", durationMin: 90, priceZmw: 320, homeEligible: true },
@@ -219,11 +219,11 @@ async function main() {
           create: [
             { url: pro.coverUrl, caption: "Signature look" },
             {
-              url: "https://images.unsplash.com/photo-1599351431202-1e0f0137899a?w=800&q=80",
+              url: "/photos/cut.jpg",
               caption: "Client work",
             },
             {
-              url: "https://images.unsplash.com/photo-1516975080664-ed2fc6a32937?w=800&q=80",
+              url: "/photos/studio.jpg",
               caption: "Studio / setup",
             },
           ],
@@ -281,7 +281,7 @@ async function main() {
       lng: 28.27,
       homeService: true,
       travelFeeZmw: 45,
-      coverUrl: "https://images.unsplash.com/photo-1585747860715-2ba37e789bcc?w=800&q=80",
+      coverUrl: "/photos/shop.jpg",
       services: {
         create: [
           { name: "Mobile Fade", category: "Fade", durationMin: 40, priceZmw: 110, homeEligible: true },

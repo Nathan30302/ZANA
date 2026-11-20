@@ -1,7 +1,6 @@
 "use client";
 
 import { LogoMark } from "@/components/ui";
-import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 
 const OPENING_MS = 3600;
@@ -15,17 +14,24 @@ function openingPath() {
 }
 
 export default function SplashPage() {
-  const router = useRouter();
-
   useEffect(() => {
-    const t = window.setTimeout(() => router.replace(openingPath()), OPENING_MS);
+    const next = openingPath();
+    const enter = document.getElementById("zana-enter");
+    if (enter instanceof HTMLAnchorElement) enter.href = next;
+    ["/onboarding", "/home", "/login", "/photos/salon.jpg"].forEach((href) => {
+      const link = document.createElement("link");
+      link.rel = "prefetch";
+      link.href = href;
+      document.head.appendChild(link);
+    });
+    const t = window.setTimeout(() => window.location.assign(openingPath()), OPENING_MS);
     return () => window.clearTimeout(t);
-  }, [router]);
+  }, []);
 
   return (
-    <button
-      type="button"
-      onClick={() => router.replace(openingPath())}
+    <a
+      id="zana-enter"
+      href="/onboarding"
       className="zana-splash mobile-shell relative flex min-h-dvh w-full flex-col overflow-hidden text-left text-white"
     >
       <div className="zana-flow zana-flow-a" />
@@ -50,6 +56,6 @@ export default function SplashPage() {
       <p className="relative z-10 pb-[max(1.25rem,env(safe-area-inset-bottom))] text-center text-sm font-semibold text-white/80">
         Tap to enter
       </p>
-    </button>
+    </a>
   );
 }
