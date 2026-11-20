@@ -1,42 +1,61 @@
-import Link from 'next/link';
+"use client";
 
-export default function HomePage() {
+import { LogoMark } from "@/components/ui";
+import { useEffect } from "react";
+
+const OPENING_MS = 3600;
+
+function openingPath() {
+  try {
+    return localStorage.getItem("zana_onboarded") ? "/home" : "/onboarding";
+  } catch {
+    return "/onboarding";
+  }
+}
+
+export default function SplashPage() {
+  useEffect(() => {
+    const next = openingPath();
+    const enter = document.getElementById("zana-enter");
+    if (enter instanceof HTMLAnchorElement) enter.href = next;
+    ["/onboarding", "/home", "/login", "/photos/salon.jpg"].forEach((href) => {
+      const link = document.createElement("link");
+      link.rel = "prefetch";
+      link.href = href;
+      document.head.appendChild(link);
+    });
+    const t = window.setTimeout(() => window.location.assign(openingPath()), OPENING_MS);
+    return () => window.clearTimeout(t);
+  }, []);
+
   return (
-    <main style={{ maxWidth: 720, margin: '0 auto', padding: '48px 20px' }}>
-      <p style={{ letterSpacing: '0.2em', fontSize: 12, color: 'var(--gold)' }}>
-        ZANA
-      </p>
-      <h1 style={{ fontSize: 42, lineHeight: 1.1, margin: '8px 0 16px' }}>
-        Beauty marketplace for Zambia
-      </h1>
-      <p style={{ color: 'var(--muted)', fontSize: 18, maxWidth: 520 }}>
-        Book salons, barbers, and mobile stylists. Pros earn through floats —
-        simple, verified, Lusaka-first.
-      </p>
-      <div style={{ display: 'flex', gap: 12, marginTop: 28, flexWrap: 'wrap' }}>
-        <Link
-          href="/apply"
-          style={{
-            background: 'var(--charcoal)',
-            color: '#fff',
-            padding: '12px 18px',
-            borderRadius: 10,
-          }}
-        >
-          Become a Professional
-        </Link>
-        <Link
-          href="/admin"
-          style={{
-            border: '1px solid var(--line)',
-            background: 'var(--paper)',
-            padding: '12px 18px',
-            borderRadius: 10,
-          }}
-        >
-          Admin
-        </Link>
+    <a
+      id="zana-enter"
+      href="/onboarding"
+      className="zana-splash mobile-shell relative flex min-h-dvh w-full flex-col overflow-hidden text-left text-white"
+    >
+      <div className="zana-flow zana-flow-a" />
+      <div className="zana-flow zana-flow-b" />
+      <div className="zana-flow zana-flow-c" />
+      <div className="zana-grid pointer-events-none absolute inset-0" />
+      <div className="relative z-10 flex flex-1 flex-col items-center justify-center px-6">
+        <div className="relative">
+          <div className="zana-orbit" />
+          <div className="zana-orbit zana-orbit-2" />
+          <div className="zana-mark relative flex h-28 w-28 items-center justify-center rounded-full bg-[#fffaf8] shadow-[0_0_60px_rgba(234,88,12,0.55)]">
+            <LogoMark size={78} alt="" />
+            <div className="zana-sweep" />
+          </div>
+        </div>
+        <div className="mt-10 text-center">
+          <h1 className="zana-word font-display text-6xl font-semibold leading-none">Zana</h1>
+          <div className="zana-rule" />
+          <p className="mt-3 text-[11px] uppercase tracking-[0.32em] text-orange-50/90">Beauty on your fingertips</p>
+        </div>
       </div>
-    </main>
+      <p className="relative z-10 pb-[max(1.25rem,env(safe-area-inset-bottom))] text-center text-sm font-semibold text-white/80">
+        Tap to enter
+      </p>
+    </a>
   );
 }

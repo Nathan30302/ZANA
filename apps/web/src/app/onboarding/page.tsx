@@ -1,0 +1,88 @@
+"use client";
+
+import { BrandWordmark, Button } from "@/components/ui";
+import Link from "next/link";
+import { useState } from "react";
+
+const slides = [
+  {
+    title: "Discover beauty near you",
+    body: "Find trusted salons, barbers, and independents across Lusaka — including hidden gems.",
+    image: "/photos/salon.jpg",
+  },
+  {
+    title: "Home service, made simple",
+    body: "Book a pro to come to you. Clear prices, verified profiles, and real availability.",
+    image: "/photos/braids.jpg",
+  },
+  {
+    title: "Book in a few taps",
+    body: "Choose a service, pick a time, confirm — pay with mobile money when you’re ready.",
+    image: "/photos/fade.jpg",
+  },
+];
+
+export default function OnboardingPage() {
+  const [index, setIndex] = useState(0);
+  const slide = slides[index];
+
+  function finish() {
+    try {
+      localStorage.setItem("zana_onboarded", "1");
+    } catch {
+      /* Some phone browsers block storage. The app still opens. */
+    }
+  }
+
+  return (
+    <div className="mobile-shell flex min-h-dvh flex-col">
+      <div className="relative h-[48vh] overflow-hidden">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={slide.image} alt="" width={720} height={480} decoding="async" className="h-full w-full object-cover" />
+        <div className="absolute inset-0 bg-gradient-to-t from-[#fffaf8] via-transparent to-black/20" />
+        <div className="absolute left-4 top-4 rounded-full bg-white/95 px-3 py-1.5 shadow">
+          <BrandWordmark compact mark={26} />
+        </div>
+      </div>
+
+      <div className="flex flex-1 flex-col px-6 pb-[max(2rem,env(safe-area-inset-bottom))] pt-2">
+        <div className="flex-1 animate-fade-up">
+          <h1 className="font-display text-3xl text-stone-900">{slide.title}</h1>
+          <p className="mt-3 text-base leading-relaxed text-stone-600">{slide.body}</p>
+        </div>
+
+        <div className="mb-5 flex gap-2">
+          {slides.map((_, i) => (
+            <div
+              key={i}
+              className={`h-1.5 flex-1 rounded-full ${i === index ? "bg-rose-800" : "bg-stone-200"}`}
+            />
+          ))}
+        </div>
+
+        {index < slides.length - 1 ? (
+          <Button className="w-full" onClick={() => setIndex((i) => i + 1)}>
+            Continue
+          </Button>
+        ) : (
+          <Link href="/login" onClick={finish}>
+            <Button className="w-full">Get started</Button>
+          </Link>
+        )}
+        <div className="mt-4 flex flex-col items-center gap-3 text-sm font-semibold text-stone-500">
+          <Link href="/login" onClick={finish} className="py-1">
+            I already have an account
+          </Link>
+          <div className="flex gap-5">
+            <Link href="/pro/login" className="py-1">
+              Pro login
+            </Link>
+            <Link href="/admin/login" className="py-1">
+              Admin
+            </Link>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
