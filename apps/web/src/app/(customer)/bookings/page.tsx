@@ -2,7 +2,7 @@
 
 import { Badge, Button, Card, EmptyState, SectionTitle } from "@/components/ui";
 import { api } from "@/lib/api-client";
-import { appointmentIsUpcoming, bookingLabel, bookingTone, formatZmw, lusakaTime, lusakaWhen } from "@/lib/utils";
+import { appointmentIsUpcoming, bookingLabel, bookingTone, formatZmw, lusakaTime, lusakaUntil, lusakaWhen } from "@/lib/utils";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
@@ -92,47 +92,48 @@ export default function BookingsPage() {
             const passed =
               !appointmentIsUpcoming(b.status, b.scheduledAt, b.service.durationMin) &&
               ["REQUESTED", "ACCEPTED", "IN_PROGRESS"].includes(b.status);
+            const when = new Date(b.scheduledAt);
+            const until = lusakaUntil(when);
             return (
-              <Card key={b.id} className="space-y-3">
-                <Link href={`/bookings/${b.id}`} className="flex items-center gap-3">
-                  <div className="h-16 w-16 shrink-0 overflow-hidden rounded-2xl bg-stone-200">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={b.professional.coverUrl || "https://images.unsplash.com/photo-1522337660859-02fbefca4702?w=400&q=80"}
-                      alt=""
-                      className="h-full w-full object-cover"
-                    />
+              <Card key={b.id} className="space-y-3 p-3">
+                <Link href={`/bookings/${b.id}`} className="flex items-start gap-3">
+                  <div className="w-14 shrink-0 pt-0.5 text-center">
+                    <div className="text-[10px] font-semibold uppercase tracking-wide text-stone-400">
+                      {lusakaWhen(when)}
+                    </div>
+                    <div className="font-display text-xl leading-none text-stone-900">{lusakaTime(when)}</div>
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
-                        <div className="text-[11px] font-semibold uppercase tracking-wide text-stone-400">
-                          {lusakaWhen(new Date(b.scheduledAt))} · {lusakaTime(new Date(b.scheduledAt))}
-                        </div>
                         <div className="truncate font-semibold text-stone-900">{b.service.name}</div>
                         <div className="truncate text-sm text-stone-500">{b.professional.displayName}</div>
                       </div>
-                      <Badge tone={bookingTone(b.status)}>{bookingLabel(b.status)}</Badge>
+                      <div className="shrink-0 text-right">
+                        <div className="text-sm font-semibold text-stone-900">
+                          {formatZmw(b.servicePriceZmw + b.travelFeeZmw)}
+                        </div>
+                        <div className="mt-1">
+                          <Badge tone={bookingTone(b.status)}>{bookingLabel(b.status)}</Badge>
+                        </div>
+                      </div>
                     </div>
                     <div className="mt-1 text-xs text-stone-500">
                       {b.locationType === "AT_HOME" ? "At your home" : "At the shop"}
+                      {until ? ` · ${until}` : ""}
                       {passed ? " · This time has passed" : ""}
                     </div>
                   </div>
                 </Link>
-                <div className="flex items-center justify-between">
-                  <span className="font-semibold">{formatZmw(b.servicePriceZmw + b.travelFeeZmw)}</span>
-                  <div className="flex gap-3 text-sm font-semibold text-rose-800">
-                    <Link href={`/bookings/${b.id}`}>Details</Link>
-                    {appointmentIsUpcoming(b.status, b.scheduledAt, b.service.durationMin) ? (
-                      <Link href={`/bookings/${b.id}/track`}>Route</Link>
-                    ) : (
-                      <Link href={`/pros/${b.professional.id}/book?service=${b.service.id}`}>Book again</Link>
-                    )}
-                    {b.status === "COMPLETED" && !b.review ? (
-                      <Link href={`/bookings/${b.id}/review`}>Rate</Link>
-                    ) : null}
-                  </div>
+                <div className="flex justify-end gap-3 text-sm font-semibold text-rose-800">
+                  {appointmentIsUpcoming(b.status, b.scheduledAt, b.service.durationMin) ? (
+                    <Link href={`/bookings/${b.id}/track`}>Route</Link>
+                  ) : (
+                    <Link href={`/pros/${b.professional.id}/book?service=${b.service.id}`}>Book again</Link>
+                  )}
+                  {b.status === "COMPLETED" && !b.review ? (
+                    <Link href={`/bookings/${b.id}/review`}>Rate</Link>
+                  ) : null}
                 </div>
               </Card>
             );

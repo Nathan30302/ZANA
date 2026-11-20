@@ -11,6 +11,7 @@ import {
   formatZmw,
   lusakaLongDay,
   lusakaTime,
+  lusakaUntil,
   whatsappHref,
 } from "@/lib/utils";
 import Link from "next/link";
@@ -150,30 +151,32 @@ export default function BookingDetailPage() {
     ? booking.customer.name || booking.customer.phone
     : booking.professional.displayName;
   const phone = asPro ? booking.customer.phone : booking.professional.user.phone;
+  const until = lusakaUntil(when);
 
   return (
     <div className="mobile-shell pb-10">
-      <div className="relative h-48 overflow-hidden bg-stone-900">
-        {booking.professional.coverUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={booking.professional.coverUrl} alt="" className="h-full w-full object-cover opacity-80" />
-        ) : null}
-        <div className="absolute inset-0 bg-gradient-to-t from-stone-950 via-stone-950/20 to-stone-950/30" />
-        <button
-          type="button"
-          onClick={() => router.back()}
-          className="absolute left-4 top-4 rounded-full bg-white/95 px-3 py-1.5 text-sm font-semibold text-stone-800"
-        >
+      <div className="space-y-4 px-4 pt-4">
+        <button type="button" onClick={() => router.back()} className="text-sm font-semibold text-stone-600">
           Back
         </button>
-        <div className="absolute bottom-4 left-4 right-4 text-white">
-          <Badge tone={bookingTone(booking.status)}>{bookingLabel(booking.status)}</Badge>
-          <h1 className="font-display mt-2 text-3xl leading-none">{booking.service.name}</h1>
-          <p className="mt-1 text-sm text-white/80">{otherName}</p>
+        <div className="flex items-center gap-3">
+          {booking.professional.coverUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={booking.professional.coverUrl}
+              alt=""
+              className="h-14 w-14 shrink-0 rounded-2xl object-cover"
+            />
+          ) : null}
+          <div className="min-w-0 flex-1">
+            <div className="flex items-start justify-between gap-2">
+              <h1 className="font-display text-3xl leading-none text-stone-900">{booking.service.name}</h1>
+              <Badge tone={bookingTone(booking.status)}>{bookingLabel(booking.status)}</Badge>
+            </div>
+            <p className="mt-1 truncate text-sm text-stone-500">{otherName}</p>
+          </div>
         </div>
-      </div>
 
-      <div className="space-y-4 px-4 pt-4">
         <Card className="flex items-center gap-4">
           <div className="w-20 shrink-0 text-center">
             <div className="font-display text-3xl leading-none text-stone-900">{lusakaTime(when)}</div>
@@ -181,6 +184,7 @@ export default function BookingDetailPage() {
           </div>
           <div className="min-w-0 border-l border-stone-100 pl-4">
             <div className="font-semibold text-stone-900">{lusakaLongDay(when)}</div>
+            {until ? <div className="mt-1 text-sm font-semibold text-rose-800">{until}</div> : null}
             <div className="mt-1 text-sm text-stone-500">
               {booking.service.durationMin} min · {atHome ? "They come to you" : "You go to the shop"}
             </div>
@@ -214,8 +218,6 @@ export default function BookingDetailPage() {
             ? `${booking.customer.name || "They"} pay you ${formatZmw(total)} in cash or mobile money.`
             : `You pay ${booking.professional.displayName} ${formatZmw(total)} in cash or mobile money.`}
         </p>
-
-        {place ? <PlaceMap place={place} /> : null}
 
         <div className="flex flex-col gap-2">
           {asPro && booking.status === "REQUESTED" ? (
@@ -310,6 +312,8 @@ export default function BookingDetailPage() {
             )
           ) : null}
         </div>
+
+        {place ? <PlaceMap place={place} /> : null}
       </div>
     </div>
   );

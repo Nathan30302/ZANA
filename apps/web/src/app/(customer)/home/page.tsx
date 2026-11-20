@@ -4,7 +4,7 @@ import { ProCard, ProCardData } from "@/components/pro-card";
 import { BrandWordmark, Chip, EmptyState, Input, SectionTitle } from "@/components/ui";
 import { api } from "@/lib/api-client";
 import { useHere } from "@/lib/use-here";
-import { appointmentIsUpcoming, formatZmw, lusakaDay, lusakaTime, lusakaWhen } from "@/lib/utils";
+import { appointmentIsUpcoming, formatZmw, lusakaDay, lusakaTime, lusakaUntil, lusakaWhen } from "@/lib/utils";
 import { Search } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
@@ -140,6 +140,9 @@ export default function HomePage() {
                       ? " · Happening now"
                       : ""}
               </div>
+              {lusakaUntil(new Date(next.scheduledAt)) ? (
+                <div className="text-sm font-medium text-white">{lusakaUntil(new Date(next.scheduledAt))}</div>
+              ) : null}
             </div>
           </Link>
           <Link

@@ -29,6 +29,24 @@ export function lusakaStamp(date: Date) {
   return `${get("weekday")} ${get("day")}`;
 }
 
+/** How soon a visit is, when it is still today in Lusaka. */
+export function lusakaUntil(date: Date, now = new Date()) {
+  if (lusakaDateKey(date) !== lusakaDateKey(now)) return "";
+  const mins = Math.round((date.getTime() - now.getTime()) / 60_000);
+  if (mins <= -5) return "";
+  if (mins <= 5) return "Starting soon";
+  if (mins < 60) return `In ${mins} min`;
+  let hours = Math.floor(mins / 60);
+  let rest = Math.round((mins % 60) / 5) * 5;
+  if (rest === 60) {
+    hours += 1;
+    rest = 0;
+  }
+  const hourWord = hours === 1 ? "hour" : "hours";
+  if (rest === 0) return `In ${hours} ${hourWord}`;
+  return `In ${hours} ${hourWord} ${rest} min`;
+}
+
 /** Today, Tomorrow, or a short Lusaka date. */
 export function lusakaWhen(date: Date) {
   const key = lusakaDateKey(date);

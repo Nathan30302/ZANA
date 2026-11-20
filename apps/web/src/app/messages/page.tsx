@@ -2,7 +2,7 @@
 
 import { Card, EmptyState } from "@/components/ui";
 import { api } from "@/lib/api-client";
-import { formatDistanceToNow } from "date-fns";
+import { lusakaDateKey, lusakaDay, lusakaTime } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
@@ -49,6 +49,9 @@ export default function MessagesPage() {
                 ? c.proUser.professional?.displayName || c.proUser.name || "Professional"
                 : c.customer.name || "Customer";
             const last = c.messages[0];
+            const updated = new Date(c.updatedAt);
+            const stamp =
+              lusakaDateKey(updated) === lusakaDateKey() ? lusakaTime(updated) : lusakaDay(updated);
             return (
               <Card key={c.id} href={`/messages/${c.id}`} className="flex items-center gap-3">
                 <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-rose-800 text-sm font-semibold text-white">
@@ -58,7 +61,7 @@ export default function MessagesPage() {
                   <div className="flex items-baseline justify-between gap-2">
                     <div className="truncate font-semibold">{title}</div>
                     <div className="shrink-0 text-[11px] text-stone-400">
-                      {formatDistanceToNow(new Date(c.updatedAt), { addSuffix: true })}
+                      {stamp}
                     </div>
                   </div>
                   <div className="mt-0.5 line-clamp-1 text-sm text-stone-500">

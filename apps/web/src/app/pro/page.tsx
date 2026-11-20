@@ -2,7 +2,7 @@
 
 import { Badge, BrandWordmark, Button, Card, SectionTitle } from "@/components/ui";
 import { api } from "@/lib/api-client";
-import { bookingLabel, bookingTone, formatZmw, lusakaDateKey, lusakaDay, lusakaTime, lusakaWhen } from "@/lib/utils";
+import { bookingLabel, bookingTone, formatZmw, lusakaDateKey, lusakaDay, lusakaTime, lusakaUntil, lusakaWhen } from "@/lib/utils";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -90,8 +90,8 @@ export default function ProHomePage() {
         .sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime()),
     [bookings, todayKey],
   );
-  const earningsToday = today
-    .filter((b) => b.status === "COMPLETED")
+  const toCollect = today
+    .filter((b) => ["REQUESTED", "ACCEPTED", "IN_PROGRESS"].includes(b.status))
     .reduce((sum, b) => sum + b.servicePriceZmw + b.travelFeeZmw, 0);
 
   async function messageCustomer(customerId: string) {
@@ -191,8 +191,8 @@ export default function ProHomePage() {
           <div className="mt-1 font-display text-2xl">{today.length}</div>
         </div>
         <div className="bg-stone-950 px-3 py-4">
-          <div className="text-[11px] text-white/55">Earned</div>
-          <div className="mt-1 font-display text-2xl">{formatZmw(earningsToday)}</div>
+          <div className="text-[11px] text-white/55">To collect</div>
+          <div className="mt-1 font-display text-2xl">{formatZmw(toCollect)}</div>
         </div>
         <div className="bg-stone-950 px-3 py-4">
           <div className="text-[11px] text-white/55">Float</div>
@@ -222,7 +222,14 @@ export default function ProHomePage() {
                         <div className="truncate text-sm text-stone-500">{b.customer.name || b.customer.phone}</div>
                         <div className="text-xs text-stone-500">
                           {b.locationType === "AT_HOME" ? "You go to them" : "They come to the shop"}
+                          {" · "}
+                          {formatZmw(b.servicePriceZmw + b.travelFeeZmw)}
                         </div>
+                        {lusakaUntil(new Date(b.scheduledAt)) ? (
+                          <div className="text-xs font-semibold text-rose-800">
+                            {lusakaUntil(new Date(b.scheduledAt))}
+                          </div>
+                        ) : null}
                       </div>
                       <Badge tone="orange">Waiting</Badge>
                     </div>
