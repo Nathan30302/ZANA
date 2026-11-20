@@ -35,6 +35,7 @@ export default function BookFlowPage() {
   const [serviceId, setServiceId] = useState("");
   const [date, setDate] = useState(() => addLusakaDays(lusakaDateKey(), 1));
   const [slots, setSlots] = useState<string[]>([]);
+  const [taken, setTaken] = useState<string[]>([]);
   const [time, setTime] = useState("");
   const [travel, setTravel] = useState<"AT_HOME" | "AT_SHOP" | null>(null);
   const [address, setAddress] = useState("");
@@ -88,12 +89,13 @@ export default function BookFlowPage() {
 
   useEffect(() => {
     if (!serviceId || !date) return;
-    api<{ slots: string[] }>(`/api/professionals/${id}/slots?date=${date}&serviceId=${serviceId}`).then(
-      (d) => {
-        setSlots(d.slots);
-        setTime(d.slots[0] || "");
-      },
-    );
+    api<{ slots: string[]; taken?: string[] }>(
+      `/api/professionals/${id}/slots?date=${date}&serviceId=${serviceId}`,
+    ).then((d) => {
+      setSlots(d.slots);
+      setTaken(d.taken || []);
+      setTime((current) => (d.slots.includes(current) ? current : d.slots[0] || ""));
+    });
   }, [id, date, serviceId]);
 
   const travelFee = travel === "AT_HOME" && pro ? pro.travelFeeZmw : 0;
@@ -242,7 +244,7 @@ export default function BookFlowPage() {
       {step === 2 ? (
         <div className="mt-6 space-y-4">
           <h2 className="font-semibold">Choose date & time</h2>
-          <div className="no-scrollbar flex gap-2 overflow-x-auto pb-1">
+          <div className="grid grid-cols-7 gap-1">
             {Array.from({ length: 7 }).map((_, i) => {
               const value = addLusakaDays(lusakaDateKey(), i);
               const [weekday, dayNum] = lusakaStamp(lusakaInstant(value, "12:00")).split(" ");
@@ -253,29 +255,43 @@ export default function BookFlowPage() {
                   key={value}
                   type="button"
                   onClick={() => setDate(value)}
-                  className={`shrink-0 rounded-2xl px-3 py-2 text-left ${
+                  className={`rounded-2xl px-0.5 py-2 text-center ${
                     on ? "bg-rose-800 text-white" : "bg-white text-stone-800 ring-1 ring-stone-200"
                   }`}
                 >
-                  <div className={`text-[10px] font-semibold uppercase tracking-wide ${on ? "text-rose-100" : "text-stone-400"}`}>
+                  <div className={`text-[10px] font-semibold leading-none tracking-tight ${on ? "text-rose-100" : "text-stone-400"}`}>
                     {top}
                   </div>
-                  <div className="text-sm font-semibold">{dayNum}</div>
+                  <div className="mt-1 text-sm font-semibold leading-none">{dayNum}</div>
                 </button>
               );
             })}
           </div>
           <div className="flex flex-wrap gap-2">
-            {slots.length === 0 ? (
+            {slots.length === 0 && taken.length === 0 ? (
               <p className="text-sm text-stone-500">No open time this day. Try another date.</p>
             ) : (
-              slots.map((s) => (
-                <Chip key={s} active={time === s} onClick={() => setTime(s)}>
-                  {s}
-                </Chip>
-              ))
+              [...slots.map((s) => ({ s, open: true })), ...taken.map((s) => ({ s, open: false }))]
+                .sort((a, b) => a.s.localeCompare(b.s))
+                .map(({ s, open }) =>
+                  open ? (
+                    <Chip key={s} active={time === s} onClick={() => setTime(s)}>
+                      {s}
+                    </Chip>
+                  ) : (
+                    <button
+                      key={s}
+                      type="button"
+                      disabled
+                      className="rounded-full px-3.5 py-2 text-sm font-medium text-stone-300 line-through ring-1 ring-stone-200"
+                    >
+                      {s}
+                    </button>
+                  ),
+                )
             )}
           </div>
+          {taken.length ? <p className="text-xs text-stone-500">Struck times are already booked.</p> : null}
           <Button className="w-full" disabled={!time} onClick={() => setStep(3)}>
             {time ? `Continue · ${time}` : "Choose a time"}
           </Button>

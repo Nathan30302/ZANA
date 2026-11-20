@@ -105,7 +105,7 @@ export default function ProProfilePage() {
 
       <Card className="space-y-2 text-sm text-stone-600">
         <div className="font-semibold text-stone-900">Settings</div>
-        <p>Availability defaults: Mon–Sat 09:00–18:00 (seeded / on apply).</p>
+        <p>Shop hours are Monday to Saturday, 09:00–18:00.</p>
         <p>Payments & payouts: manage float on the Earnings tab.</p>
         <p>Account security: phone OTP login.</p>
       </Card>

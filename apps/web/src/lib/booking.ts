@@ -11,13 +11,14 @@ export async function getSettings() {
 }
 
 export async function getAvailableSlots(professionalId: string, dateIso: string, durationMin: number) {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateIso)) return [];
+  const empty = { slots: [] as string[], taken: [] as string[] };
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateIso)) return empty;
   const day = lusakaDayStart(dateIso);
   const dow = lusakaWeekdayIndex(dateIso);
   const hours = await prisma.workingHour.findUnique({
     where: { professionalId_dayOfWeek: { professionalId, dayOfWeek: dow } },
   });
-  if (!hours || !hours.enabled) return [];
+  if (!hours || !hours.enabled) return empty;
 
   const bookings = await prisma.booking.findMany({
     where: {
@@ -31,6 +32,7 @@ export async function getAvailableSlots(professionalId: string, dateIso: string,
   });
 
   const slots: string[] = [];
+  const taken: string[] = [];
   const now = Date.now();
   for (let m = hours.startMin; m + durationMin <= hours.endMin; m += 30) {
     const slotStart = new Date(day.getTime() + m * 60_000);
@@ -41,9 +43,10 @@ export async function getAvailableSlots(professionalId: string, dateIso: string,
       const bEnd = bStart + 60 * 60_000;
       return slotStart.getTime() < bEnd && slotEnd.getTime() > bStart;
     });
-    if (!overlaps) slots.push(minutesLabel(m));
+    if (overlaps) taken.push(minutesLabel(m));
+    else slots.push(minutesLabel(m));
   }
-  return slots;
+  return { slots, taken };
 }
 
 export function calcTotals(opts: {

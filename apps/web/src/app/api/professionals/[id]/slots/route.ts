@@ -14,6 +14,6 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
     if (service) durationMin = service.durationMin;
   }
 
-  const slots = await getAvailableSlots(id, date, durationMin);
-  return NextResponse.json({ slots });
+  const availability = await getAvailableSlots(id, date, durationMin);
+  return NextResponse.json(availability);
 }

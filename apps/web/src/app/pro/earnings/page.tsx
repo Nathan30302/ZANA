@@ -2,8 +2,7 @@
 
 import { Button, Card, Input, SectionTitle } from "@/components/ui";
 import { api } from "@/lib/api-client";
-import { formatZmw } from "@/lib/utils";
-import { format } from "date-fns";
+import { formatZmw, lusakaDay, lusakaTime } from "@/lib/utils";
 import { useEffect, useState } from "react";
 
 type Txn = {
@@ -97,7 +96,8 @@ export default function ProEarningsPage() {
               <div>
                 <div className="font-medium">{t.type.replace("_", " ")}</div>
                 <div className="text-stone-500">
-                  {format(new Date(t.createdAt), "d MMM HH:mm")} · {t.note}
+                  {lusakaDay(new Date(t.createdAt))} · {lusakaTime(new Date(t.createdAt))}
+                  {t.note ? ` · ${t.note}` : ""}
                 </div>
               </div>
               <div className={t.amountZmw >= 0 ? "text-emerald-700" : "text-rose-800"}>
@@ -116,7 +116,7 @@ export default function ProEarningsPage() {
             <Card key={b.id} className="flex justify-between text-sm">
               <div>
                 <div className="font-medium">{b.service.name}</div>
-                <div className="text-stone-500">{format(new Date(b.scheduledAt), "d MMM yyyy")}</div>
+                <div className="text-stone-500">{lusakaDay(new Date(b.scheduledAt))}</div>
               </div>
               <div className="font-semibold">{formatZmw(b.servicePriceZmw + b.travelFeeZmw)}</div>
             </Card>

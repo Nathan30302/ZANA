@@ -132,6 +132,13 @@ export default function HomePage() {
               <div className="truncate text-sm text-white/70">{next.professional.displayName}</div>
               <div className="text-sm text-white/70">
                 {next.locationType === "AT_HOME" ? "At your home" : "At the shop"}
+                {next.status === "REQUESTED"
+                  ? " · Waiting"
+                  : next.status === "ACCEPTED"
+                    ? " · Confirmed"
+                    : next.status === "IN_PROGRESS"
+                      ? " · Happening now"
+                      : ""}
               </div>
             </div>
           </Link>

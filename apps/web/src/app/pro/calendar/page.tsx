@@ -21,6 +21,7 @@ type Booking = {
   id: string;
   status: string;
   scheduledAt: string;
+  locationType: string;
   service: { name: string };
   customer: { name: string | null };
 };
@@ -43,7 +44,9 @@ export default function ProCalendarPage() {
 
   const count = daysInLusakaMonth(month);
   const firstDow = lusakaWeekdayIndex(`${month}-01`);
-  const dayBookings = bookings.filter((b) => lusakaDateKey(new Date(b.scheduledAt)) === selected);
+  const dayBookings = bookings
+    .filter((b) => lusakaDateKey(new Date(b.scheduledAt)) === selected)
+    .sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime());
 
   return (
     <div className="space-y-5 px-4 pb-6 pt-5">
@@ -59,7 +62,7 @@ export default function ProCalendarPage() {
           </button>
         </div>
         <div className="grid grid-cols-7 gap-1 text-center text-[11px] text-stone-500">
-          {["S", "M", "T", "W", "T", "F", "S"].map((d, i) => (
+          {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map((d, i) => (
             <div key={`${d}-${i}`} className="py-1">
               {d}
             </div>
@@ -100,14 +103,15 @@ export default function ProCalendarPage() {
         <h2 className="mb-3 font-semibold">{lusakaLongDay(lusakaInstant(selected, "12:00"))}</h2>
         <div className="space-y-2">
           {dayBookings.length === 0 ? (
-            <Card className="text-sm text-stone-500">No appointments. Manage hours in Profile → Availability.</Card>
+            <Card className="text-sm text-stone-500">Nothing booked. The shop is open Monday to Saturday, 09:00–18:00.</Card>
           ) : (
             dayBookings.map((b) => (
               <Card key={b.id} href={`/bookings/${b.id}`} className="flex items-center justify-between text-sm">
                 <div>
                   <div className="font-medium">{b.service.name}</div>
                   <div className="text-stone-500">
-                    {lusakaTime(new Date(b.scheduledAt))} · {b.customer.name || "Customer"}
+                    {lusakaTime(new Date(b.scheduledAt))} · {b.customer.name || "Customer"} ·{" "}
+                    {b.locationType === "AT_HOME" ? "You go to them" : "At the shop"}
                   </div>
                 </div>
                 <Badge tone={bookingTone(b.status)}>{bookingLabel(b.status)}</Badge>
